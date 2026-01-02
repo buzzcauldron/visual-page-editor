@@ -1,0 +1,27 @@
+# NW.js runtime (downloaded during build)
+nwjs/
+
+# Build artifacts
+*.rpm
+*.deb
+*.tar.gz
+rpmbuild/
+dist/
+build/
+
+# Node modules
+node_modules/
+
+# Editor and OS files
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.log
+
+# Environment files
+.env
+.env.local
+

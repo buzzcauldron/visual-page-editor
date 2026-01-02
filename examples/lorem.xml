@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PcGts xmlns="http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15">
+  <Metadata>
+    <Creator>nw-page-editor</Creator>
+    <Created>2018-07-05T07:21:49Z</Created>
+    <LastChange>2020-03-23T20:10:18Z</LastChange>
+  </Metadata>
+  <Property key="purpose" setBy="author" value="example"/>
+  <Page id="pg1" imageFilename="lorem.png" imageHeight="595" imageWidth="794">
+    <TextRegion id="r1">
+      <Coords points="425,45 750,45 750,112 425,112"/>
+      <TextLine id="r1_l1">
+        <Property key="mollit" value="deserunt"/>
+        <Coords points="430,51 743,51 743,105 430,105"/>
+        <Baseline points="430,92 743,92"/>
+        <TextEquiv>
+          <Unicode>Lorem ipsum</Unicode>
+        </TextEquiv>
+      </TextLine>
+    </TextRegion>
+    <TextRegion id="r2">
+      <Coords points="36,150 420,150 420,240 36,240"/>
+      <TextLine id="r2_l1">
+        <Coords points="41,160 415,160 415,198 41,198"/>
+        <Baseline points="41,188 415,188"/>
+        <TextEquiv>
+          <Unicode>dolor sit amet, in per iusto</Unicode>
+        </TextEquiv>
+      </TextLine>
+      <TextLine id="r2_l2">
+        <Coords points="164,197 287,197 287,232 164,232"/>
+        <Baseline points="164,224 287,224"/>
+        <TextEquiv>
+          <Unicode>nostrud,</Unicode>
+        </TextEquiv>
+      </TextLine>
+    </TextRegion>
+    <TextRegion id="r3">
+      <Coords points="37,264 416,264 416,411 37,411"/>
+      <TextLine id="r3_l1">
+        <Coords points="52,269 397,269 397,303 52,303"/>
+        <Baseline points="52,295 397,295"/>
+        <TextEquiv>
+          <Unicode>ne atqui liber movet vel.</Unicode>
+        </TextEquiv>
+      </TextLine>
+      <TextLine id="r3_l2">
+        <Coords points="115,305 335,305 335,340 115,340"/>
+        <Baseline points="115,331 335,331"/>
+        <TextEquiv>
+          <Unicode>Quod maiorum</Unicode>
+        </TextEquiv>
+      </TextLine>
+      <TextLine id="r3_l3">
+        <Coords points="45,341 407,341 407,375 45,375"/>
+        <Baseline points="45,367 407,367"/>
+        <TextEquiv>
+          <Unicode>conclusionemque duo te,</Unicode>
+        </TextEquiv>
+      </TextLine>
+      <TextLine id="r3_l4">
+        <Coords points="188,377 265,377 265,412 188,412"/>
+        <Baseline points="188,403 265,403"/>
+        <TextEquiv>
+          <Unicode>iusto</Unicode>
+        </TextEquiv>
+      </TextLine>
+    </TextRegion>
+    <TextRegion id="r4">
+      <Property conf="0.32" key="tristique"/>
+      <Coords points="342,418 663,418 663,481 342,481"/>
+      <TextLine id="r4_l1">
+        <Coords points="349,421 659,421 659,450 349,450"/>
+        <Baseline points="349,443 659,443"/>
+        <TextEquiv>
+          <Unicode>discere deserunt ut mea. Ea</Unicode>
+        </TextEquiv>
+      </TextLine>
+      <TextLine id="r4_l2">
+        <Coords points="386,448 609,448 609,476 386,476"/>
+        <Baseline points="386,469 609,469"/>
+        <TextEquiv>
+          <Unicode>augue recteque mei.</Unicode>
+        </TextEquiv>
+      </TextLine>
+    </TextRegion>
+  </Page>
+  <Group id="g1">
+    <Property key="class" value="first_lines"/>
+    <Member ref="r1_l1"/>
+    <Member ref="r2_l1"/>
+    <Member ref="r3_l1"/>
+    <Member ref="r4_l1"/>
+  </Group>
+  <Group id="g2">
+    <Property key="class" value="with_comma"/>
+    <Member ref="r2_l1"/>
+    <Member ref="r2_l2"/>
+    <Member ref="r3_l3"/>
+  </Group>
+</PcGts>
