@@ -2,9 +2,8 @@
  * App functionality for the web edition of visual-page-editor.
  *
  * @version $Version: 2022.09.13$
- * @author buzzcauldron
- * @copyright Copyright(c) 2025, buzzcauldron
- * Based on nw-page-editor by Mauricio Villegas
+ * @author Mauricio Villegas <mauricio_ville@yahoo.com>
+ * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
  * @license MIT License
  */
 
