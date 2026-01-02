@@ -85,7 +85,7 @@ gitCommitDaemon () {
     return "$RC";
   local GIT_COMMIT=( git commit );
   local NAME="$UNAME";
-  local EMAIL="$UNAME@nw-page-editor.org";
+  local EMAIL="$UNAME@visual-page-editor.org";
   [[ "$UNAME" == *"@"* ]] && NAME="${UNAME%%@*}" && EMAIL="$UNAME";
   [ $(git log -n 1 --pretty=format:%H) = $(git log -n 1 --pretty=format:%H "$BXML") ] &&
     [ "$(git log --format=%B -n 1)" = "autocommit by $UNAME ($BRHASH $VERCLI) file ${XML/..\/data\//}" ] &&

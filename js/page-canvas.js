@@ -2,8 +2,9 @@
  * Javascript library for viewing and interactive editing of Page XMLs.
  *
  * @version $Version: 2023.08.24$
- * @author Mauricio Villegas <mauricio_ville@yahoo.com>
- * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
+ * @author buzzcauldron
+ * @copyright Copyright(c) 2025, buzzcauldron
+ * Based on nw-page-editor by Mauricio Villegas
  * @license MIT License
  */
 
@@ -551,7 +552,7 @@
 
       if ( orig_xmlns )
         xmlns = orig_xmlns;
-      pageStr = pageStr.replace(' xmlns="https://github.com/mauvilsa/nw-page-editor"', ' xmlns="'+xmlns+'"');
+      pageStr = pageStr.replace(' xmlns="https://github.com/buzzcauldron/visual-page-editor"', ' xmlns="'+xmlns+'"');
 
       return pageStr;
     };

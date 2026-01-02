@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build script for creating DEB package of nw-page-editor with bundled NW.js
+# Build script for creating DEB package of visual-page-editor with bundled NW.js
 
 set -e
 
@@ -7,8 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
 # Configuration
-NAME="nw-page-editor"
-VERSION="2022.09.13"
+NAME="visual-page-editor"
+VERSION="1.0.0"
 NWJS_VERSION="${NWJS_VERSION:-0.44.4}"
 
 # Colors for output

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--
-  - Main PHP file of nw-page-editor web edition.
+  - Main PHP file of visual-page-editor web edition.
   -
-  - @version $Version: 2022.01.31$
-  - @author Mauricio Villegas <mauricio_ville@yahoo.com>
-  - @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
+  - @version $Version: 1.0.0$
+  - @author buzzcauldron
+  - @copyright Copyright(c) 2025, buzzcauldron
   - @license MIT License
   -->
 
@@ -69,7 +69,7 @@ if ( $pagenum > count($thelist) ) {
 
 // Export variables to javascript //
 $script = "<script>\n";
-$script .= "var page_editor_version='nw-page-editor_v$version';\n";
+$script .= "var page_editor_version='visual-page-editor_v$version';\n";
 $script .= "var uname = '".$uname."';\n";
 $script .= "var brhash = '".$_COOKIE['PHP_AUTH_BR']."';\n";
 $script .= "var list_xmls = [ ".implode(', ',$thelist)." ];\n";
@@ -95,7 +95,7 @@ if ( getenv('CSS') !== false ) {
 <html>
 <head>
   <meta charset="UTF-8"/>
-  <title>nw-page-editor v<?=$version?> - <?=$uname?></title>
+  <title>visual-page-editor v<?=$version?> - <?=$uname?></title>
   <link rel="icon" href="data:;base64,iVBORw0KGgo="/>
   <link type="text/css" rel="stylesheet" id="page_styles" href="../css/page-editor.css<?=$v?>"/>
   <link type="text/css" rel="stylesheet" href="../node_modules/github-markdown-css/github-markdown.css"/>

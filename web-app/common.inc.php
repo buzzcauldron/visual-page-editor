@@ -2,9 +2,9 @@
 /**
  * Common code to be executed by other php scripts.
  *
- * @version $Version: 2025.09.23$
- * @author Mauricio Villegas <mauricio_ville@yahoo.com>
- * @copyright Copyright(c) 2017-present, Mauricio Villegas <mauricio_ville@yahoo.com>
+ * @version $Version: 1.0.0$
+ * @author buzzcauldron
+ * @copyright Copyright(c) 2025, buzzcauldron
  * @license MIT License
  */
 
@@ -12,9 +12,9 @@ $version = str_replace('Version: ','',"Version: 2025.09.23");
 $v = '?v='.$version;
 
 /// User authentication ///
-if ( is_file('/var/www/nw-page-editor/data/.htpasswd') ) {
+if ( is_file('/var/www/visual-page-editor/data/.htpasswd') ) {
   require_once('htpasswd.inc.php');
-  test_htpasswd("/var/www/nw-page-editor/data/.htpasswd","nw-page-editor",3600*24*30);
+  test_htpasswd("/var/www/visual-page-editor/data/.htpasswd","visual-page-editor",3600*24*30);
   $uname = $_COOKIE['PHP_AUTH_USER'];
 }
 else {

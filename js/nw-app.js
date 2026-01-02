@@ -1,9 +1,9 @@
 /**
- * NW.js app functionality for nw-page-editor.
+ * NW.js app functionality for visual-page-editor.
  *
- * @version $Version: 2020.11.16$
- * @author Mauricio Villegas <mauricio_ville@yahoo.com>
- * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
+ * @version $Version: 1.0.0$
+ * @author buzzcauldron
+ * @copyright Copyright(c) 2025, buzzcauldron
  * @license MIT License
  */
 
@@ -65,7 +65,7 @@ $(window).on('load', function () {
     ver.chromium = process.versions.chromium;
     ver.nw = process.versions.nw;
     ver.xsd = pageCanvas.cfg.pagexmlns;
-    ver['nw-page-editor'] = nw.App.manifest.version;
+    ver['visual-page-editor'] = nw.App.manifest.version;
     return ver;
   };
 
@@ -319,7 +319,7 @@ $(window).on('load', function () {
           return false;
         }
 
-        var creator = 'nw-page-editor v'+nw.App.manifest.version;
+        var creator = 'visual-page-editor v'+nw.App.manifest.version;
         fs.writeFileSync( fxml, pageCanvas.newXmlPage( creator, path.basename(filepath), size.width, size.height ) );
       }
 
@@ -395,7 +395,7 @@ $(window).on('load', function () {
           break;
       if ( n != parseInt(window.location.hash.substr(1))-1 )
         return;
-      global.argv = argv.replace(/.*nw-page-editor /,'').split(' ');
+      global.argv = argv.replace(/.*visual-page-editor /,'').split(' ');
       newWindow();
     } );
 
@@ -532,15 +532,15 @@ $(window).on('load', function () {
         return;
     }
 
-    $.ajax({ url: 'https://raw.githubusercontent.com/mauvilsa/nw-page-editor/master/package.json', dataType: 'json' })
+    $.ajax({ url: 'https://raw.githubusercontent.com/buzzcauldron/visual-page-editor/master/package.json', dataType: 'json' })
       .fail( function () {
-          console.log('Failed to check the latest version of nw-page-editor in github.');
+          console.log('Failed to check the latest version of visual-page-editor in github.');
         } )
       .done( function ( data ) {
           versionCheck.lastDate = new Date();
           if ( versionCheck.lastVersion < data.version && data.version > nw.App.manifest.version ) {
             versionCheck.lastVersion = data.version;
-            alert( 'There is a new version of nw-page-editor available. The github master branch version is '+data.version+' and your running version is '+nw.App.manifest.version+'.' );
+            alert( 'There is a new version of visual-page-editor available. The github master branch version is '+data.version+' and your running version is '+nw.App.manifest.version+'.' );
           }
           versionCheck.lastVersion = data.version;
           localStorage.versionCheck = JSON.stringify(versionCheck);

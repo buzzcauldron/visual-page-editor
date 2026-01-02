@@ -28,7 +28,7 @@ if( ! isset($_SERVER['HTTP_HOST']) )
 
 /// Check expected parameters ///
 $expected = array('fname','xml');
-if( file_exists('/var/www/nw-page-editor/data/.git/config') ) {
+if( file_exists('/var/www/visual-page-editor/data/.git/config') ) {
   $expected = array_merge($expected, array('uname','brhash','page_editor_version'));
 }
 foreach ( $expected as $v ) {
@@ -87,7 +87,7 @@ if( ! $bytes ) {
 }
 
 /// Commit to git repository ///
-if( file_exists('/var/www/nw-page-editor/data/.git/config') ) {
+if( file_exists('/var/www/visual-page-editor/data/.git/config') ) {
   $pid = trim(file_get_contents($ddir.'/pid'));
   if ( ! $pid || ! posix_getpgid(intval($pid)) ) {
     //$resp->code = 400;

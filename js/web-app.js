@@ -1,9 +1,10 @@
 /**
- * App functionality for the web edition of nw-page-editor.
+ * App functionality for the web edition of visual-page-editor.
  *
  * @version $Version: 2022.09.13$
- * @author Mauricio Villegas <mauricio_ville@yahoo.com>
- * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
+ * @author buzzcauldron
+ * @copyright Copyright(c) 2025, buzzcauldron
+ * Based on nw-page-editor by Mauricio Villegas
  * @license MIT License
  */
 
@@ -109,7 +110,7 @@ $(window).on('load', function () {
     prevNum = fileNum;
     var timestamp = new Date().getTime();
     pageCanvas.loadXmlPage( undefined, window.location.origin+window.location.pathname.replace(/[^/]*$/,'')+loadedFile + '?t=' + timestamp );
-    //$('title').text('nw-page-editor - '+filepath.replace(/.*\//,''));
+    //$('title').text('visual-page-editor - '+filepath.replace(/.*\//,''));
 
     return true;
   }

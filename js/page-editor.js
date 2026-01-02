@@ -2,8 +2,9 @@
  * Interactive editing of Page XMLs functionality.
  *
  * @version $Version: 2022.01.31$
- * @author Mauricio Villegas <mauricio_ville@yahoo.com>
- * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
+ * @author buzzcauldron
+ * @copyright Copyright(c) 2025, buzzcauldron
+ * Based on nw-page-editor by Mauricio Villegas
  * @license MIT License
  */
 
