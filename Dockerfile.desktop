@@ -53,25 +53,26 @@ COPY xslt /app/xslt
 COPY bin /app/bin
 
 # Create entrypoint script
-RUN echo '#!/bin/bash\n\
-if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then\n\
-  echo "Visual Page Editor - Desktop Application"\n\
-  echo "Usage: docker run --rm -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix \\"\n\
-  echo "  -v \$(pwd):/workspace visual-page-editor [files...]"\n\
-  exit 0\n\
-fi\n\
-\n\
-# Use Xvfb if DISPLAY not set\n\
-if [ -z "$DISPLAY" ]; then\n\
-  export DISPLAY=:99\n\
-  Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &\n\
-  XVFB_PID=$!\n\
-  trap "kill $XVFB_PID" EXIT\n\
-fi\n\
-\n\
-# Run the application\n\
-/app/nwjs/nw /app "$@"\n\
-' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+RUN cat > /app/entrypoint.sh << 'EOF' && chmod +x /app/entrypoint.sh
+#!/bin/bash
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+  echo "Visual Page Editor - Desktop Application"
+  echo "Usage: docker run --rm -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix \\"
+  echo "  -v \$(pwd):/workspace visual-page-editor [files...]"
+  exit 0
+fi
+
+# Use Xvfb if DISPLAY not set
+if [ -z "$DISPLAY" ]; then
+  export DISPLAY=:99
+  Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+  XVFB_PID=$!
+  trap "kill $XVFB_PID" EXIT
+fi
+
+# Run the application
+/app/nwjs/nw /app "$@"
+EOF
 
 # Set environment variables
 ENV NWJS_PATH=/app/nwjs/nw

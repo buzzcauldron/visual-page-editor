@@ -54,7 +54,7 @@ docker run --rm -it \
   -v $(pwd):/workspace \
   -w /workspace \
   fedora:latest bash -c "
-  dnf install -y rpm-build curl tar gzip git perl perl-Cwd &&
+  dnf install -y rpm-build curl tar gzip git perl &&
   cd rpm && ./build-rpm.sh
 "
 ```

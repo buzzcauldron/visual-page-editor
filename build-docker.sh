@@ -33,6 +33,19 @@ check_docker() {
 }
 
 build_rpm() {
+    if [ ! -d "$PROJECT_ROOT/rpm" ]; then
+        echo -e "${RED}Error: RPM build directory not found: $PROJECT_ROOT/rpm${NC}"
+        echo "RPM build infrastructure has not been created yet."
+        echo "Please create the rpm directory and build-rpm.sh script, or use 'deb' package type instead."
+        exit 1
+    fi
+    
+    if [ ! -f "$PROJECT_ROOT/rpm/build-rpm.sh" ]; then
+        echo -e "${RED}Error: RPM build script not found: $PROJECT_ROOT/rpm/build-rpm.sh${NC}"
+        echo "Please create the build-rpm.sh script in the rpm directory."
+        exit 1
+    fi
+    
     echo -e "${YELLOW}Building RPM package using Docker...${NC}"
     
     docker run --rm -it \
@@ -40,7 +53,7 @@ build_rpm() {
         -w /workspace \
         -e NWJS_VERSION="$NWJS_VERSION" \
         fedora:latest bash -c "
-        dnf install -y rpm-build curl tar gzip git perl perl-Cwd &&
+        dnf install -y rpm-build curl tar gzip git perl &&
         cd rpm &&
         ./build-rpm.sh
     "
