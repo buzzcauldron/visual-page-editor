@@ -26,6 +26,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     libcairo2 \
     libatspi2.0-0 \
     libxss1 \
+    libxtst6 \
     libgtk-3-0 \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
