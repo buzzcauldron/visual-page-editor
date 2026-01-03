@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  visual-page-editor:
+    build:
+      context: .
+      dockerfile: Dockerfile.desktop
+      args:
+        NWJS_VERSION: ${NWJS_VERSION:-0.44.4}
+    image: visual-page-editor:latest
+    container_name: visual-page-editor
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${HOME}/.Xauthority:/root/.Xauthority:rw
+      - ./data:/workspace:rw
+      - ./examples:/app/examples:ro
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: ["examples/*.xml"]
+
