@@ -31,6 +31,47 @@ This project is a fork/evolution of the original nw-page-editor with improvement
    ```
 5. Add the `bin` directory to your PATH or symlink `bin/visual-page-editor` to a directory in your PATH
 
+### Docker Desktop Variant
+
+The application can also be run in a Docker container, which is useful for consistent environments across different platforms.
+
+#### Prerequisites
+
+- Docker Desktop installed and running
+- For GUI support on macOS: XQuartz installed and configured
+
+#### Building the Docker Image
+
+```bash
+docker build --platform linux/amd64 -f Dockerfile.desktop -t visual-page-editor .
+```
+
+#### Running with Docker
+
+**Headless mode (no GUI):**
+```bash
+docker run --rm --platform linux/amd64 -v $(pwd):/workspace visual-page-editor examples/lorem.xml
+```
+
+**With GUI support (macOS):**
+
+1. Install XQuartz if not already installed:
+   ```bash
+   brew install --cask xquartz
+   ```
+
+2. Enable network connections in XQuartz:
+   - Open XQuartz → Preferences → Security
+   - Check "Allow connections from network clients"
+   - Restart XQuartz
+
+3. Run the container:
+   ```bash
+   docker run --rm --platform linux/amd64 -e DISPLAY=host.docker.internal:0 -v $(pwd):/workspace visual-page-editor examples/lorem.xml
+   ```
+
+**Note:** The Docker image includes all necessary dependencies including `libxtst6` for X11 support. The entrypoint script has been fixed to properly generate without syntax errors.
+
 ### Quick Start
 
 ```bash
