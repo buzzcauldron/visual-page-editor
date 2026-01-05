@@ -14,6 +14,7 @@ URL: https://github.com/buzzcauldron/visual-page-editor
 BuildArch: x86_64
 BuildRequires: curl, tar, gzip
 Requires: perl
+Requires: perl(Cwd)
 
 %description
 Visual Page Editor is a modern visual editor for Page XML files, based on
@@ -29,11 +30,35 @@ are required.
 # Download NW.js if not present
 if [ ! -d "nwjs" ] || [ ! -f "nwjs/nw" ]; then
     echo "Downloading NW.js v%{nwjs_version}..."
-    curl -fLSs -o nwjs-sdk-linux-x64.tar.gz \
-        "https://dl.nwjs.io/v%{nwjs_version}/nwjs-sdk-v%{nwjs_version}-linux-x64.tar.gz"
-    tar -xzf nwjs-sdk-linux-x64.tar.gz
-    mv nwjs-sdk-v%{nwjs_version}-linux-x64 nwjs
+    if ! curl -fLSs -o nwjs-sdk-linux-x64.tar.gz \
+        "https://dl.nwjs.io/v%{nwjs_version}/nwjs-sdk-v%{nwjs_version}-linux-x64.tar.gz"; then
+        echo "Error: Failed to download NW.js v%{nwjs_version}" >&2
+        exit 1
+    fi
+    if ! tar -xzf nwjs-sdk-linux-x64.tar.gz; then
+        echo "Error: Failed to extract NW.js archive" >&2
+        rm -f nwjs-sdk-linux-x64.tar.gz
+        exit 1
+    fi
+    if [ ! -d "nwjs-sdk-v%{nwjs_version}-linux-x64" ]; then
+        echo "Error: Extracted NW.js directory not found" >&2
+        echo "Expected: nwjs-sdk-v%{nwjs_version}-linux-x64" >&2
+        rm -f nwjs-sdk-linux-x64.tar.gz
+        exit 1
+    fi
+    if ! mv nwjs-sdk-v%{nwjs_version}-linux-x64 nwjs; then
+        echo "Error: Failed to rename NW.js directory" >&2
+        rm -f nwjs-sdk-linux-x64.tar.gz
+        exit 1
+    fi
+    if [ ! -d "nwjs" ] || [ ! -f "nwjs/nw" ]; then
+        echo "Error: NW.js directory is missing or incomplete after installation" >&2
+        echo "Expected nwjs directory with nw binary" >&2
+        rm -f nwjs-sdk-linux-x64.tar.gz
+        exit 1
+    fi
     rm -f nwjs-sdk-linux-x64.tar.gz
+    echo "NW.js v%{nwjs_version} downloaded and extracted successfully"
 fi
 
 %build
@@ -54,8 +79,24 @@ cp -r nwjs %{buildroot}/usr/lib64/%{name}/
 mkdir -p %{buildroot}/usr/bin
 install -m 755 bin/visual-page-editor %{buildroot}/usr/bin/%{name}
 
-# Update launcher to check for bundled NW.js first
-sed -i 's|^  nw=\$(which nw);$|  # Check for bundled NW.js first\n  nw="/usr/lib64/%{name}/nwjs/nw"\n  [ ! -f "$nw" ] \&\& nw=$(which nw);|' %{buildroot}/usr/bin/%{name}
+# Update launcher to check for bundled NW.js first and fix application path
+# Use awk to fix both NW.js path and application location path
+awk '
+/^  nw=\$\(which nw\);$/ { \
+  print "  # Check for bundled NW.js first"; \
+  print "  nw=\"/usr/lib64/%{name}/nwjs/nw\""; \
+  print "  [ ! -f \"" "$" "nw\" ] && nw=$(which nw);"; \
+  next \
+}
+/^[[:space:]]*nw_page_editor=.*nw-page-editor.*$/ { \
+  print; \
+  print "  [ ! -f \"" "$" "nw_page_editor/js/nw-app.js\" ] && [ -f \"/usr/share/%{name}/js/nw-app.js\" ] &&"; \
+  print "    nw_page_editor=\"/usr/share/%{name}\""; \
+  next \
+}
+{ print }
+' %{buildroot}/usr/bin/%{name} > %{buildroot}/usr/bin/%{name}.tmp && \
+mv %{buildroot}/usr/bin/%{name}.tmp %{buildroot}/usr/bin/%{name}
 
 # Install documentation
 mkdir -p %{buildroot}/usr/share/doc/%{name}

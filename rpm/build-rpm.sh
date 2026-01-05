@@ -60,17 +60,33 @@ download_nwjs() {
     echo "Downloading NW.js v${NWJS_VERSION} from $nwjs_url..."
     if curl -fLSs -o "$nwjs_archive" "$nwjs_url"; then
         echo "Extracting NW.js..."
-        tar -xzf "$nwjs_archive" -C "$PROJECT_ROOT"
-        local extracted_dir=$(find "$PROJECT_ROOT" -maxdepth 1 -type d -name "nwjs-sdk-v${NWJS_VERSION}-linux-x64" | head -1)
-        if [ -n "$extracted_dir" ]; then
+        if tar -xzf "$nwjs_archive" -C "$PROJECT_ROOT"; then
+            local extracted_dir=$(find "$PROJECT_ROOT" -maxdepth 1 -type d -name "nwjs-sdk-v${NWJS_VERSION}-linux-x64" | head -1)
+            if [ -z "$extracted_dir" ]; then
+                echo -e "${RED}Error: Extracted NW.js directory not found after extraction${NC}"
+                echo "Expected directory: nwjs-sdk-v${NWJS_VERSION}-linux-x64"
+                rm -f "$nwjs_archive"
+                return 1
+            fi
             mv "$extracted_dir" "$nwjs_dir"
+            # Verify the move was successful
+            if [ ! -d "$nwjs_dir" ] || [ ! -f "$nwjs_dir/nw" ]; then
+                echo -e "${RED}Error: Failed to properly extract NW.js${NC}"
+                echo "Directory $nwjs_dir does not exist or nw binary is missing"
+                rm -f "$nwjs_archive"
+                return 1
+            fi
+            rm -f "$nwjs_archive"
+            echo -e "${GREEN}NW.js downloaded and extracted successfully!${NC}"
+        else
+            echo -e "${RED}Error: Failed to extract NW.js archive${NC}"
+            rm -f "$nwjs_archive"
+            return 1
         fi
-        rm -f "$nwjs_archive"
-        echo -e "${GREEN}NW.js downloaded and extracted successfully!${NC}"
     else
-        echo -e "${RED}Warning: Could not download NW.js automatically.${NC}"
-        echo "You can download it manually from: $nwjs_url"
-        echo "Extract it to: $nwjs_dir"
+        echo -e "${RED}Error: Could not download NW.js automatically.${NC}"
+        echo "Download URL: $nwjs_url"
+        echo "Expected location: $nwjs_dir"
         return 1
     fi
 }
@@ -114,6 +130,25 @@ build_rpm() {
         echo -e "${GREEN}RPM: $rpm_file${NC}"
         ls -lh "$rpm_file"
         echo ""
+        
+        # If running in Docker (detected by /workspace mount), copy RPM artifacts to workspace
+        if [ -d "/workspace" ] && [ -w "/workspace" ]; then
+            echo "Copying RPM artifacts to /workspace for Docker volume access..."
+            # Copy all RPM files (both binary and source RPMs if they exist)
+            mkdir -p /workspace/rpmbuild/RPMS
+            mkdir -p /workspace/rpmbuild/SRPMS
+            if [ -d ~/rpmbuild/RPMS ]; then
+                cp -r ~/rpmbuild/RPMS/* /workspace/rpmbuild/RPMS/ 2>/dev/null || true
+            fi
+            if [ -d ~/rpmbuild/SRPMS ]; then
+                cp -r ~/rpmbuild/SRPMS/* /workspace/rpmbuild/SRPMS/ 2>/dev/null || true
+            fi
+            # Also copy the main RPM file to workspace root for easy access
+            cp "$rpm_file" /workspace/ 2>/dev/null || true
+            echo -e "${GREEN}RPM artifacts copied to /workspace/rpmbuild/ and /workspace/$(basename "$rpm_file")${NC}"
+            echo ""
+        fi
+        
         echo "To install: sudo dnf install $rpm_file"
         echo "Or: sudo yum install $rpm_file"
     fi
@@ -129,7 +164,23 @@ main() {
     echo ""
     
     check_requirements
-    download_nwjs
+    
+    # Download NW.js - check result and verify it exists
+    if ! download_nwjs; then
+        echo -e "${RED}Error: Failed to download or extract NW.js${NC}"
+        echo "Please ensure NW.js v${NWJS_VERSION} is available."
+        echo "You can download it manually from: https://dl.nwjs.io/v${NWJS_VERSION}/"
+        echo "Extract it to: $PROJECT_ROOT/nwjs"
+        exit 1
+    fi
+    
+    # Verify NW.js exists before continuing
+    if [ ! -d "$PROJECT_ROOT/nwjs" ] || [ ! -f "$PROJECT_ROOT/nwjs/nw" ]; then
+        echo -e "${RED}Error: NW.js not found at $PROJECT_ROOT/nwjs${NC}"
+        echo "Please download and extract NW.js v${NWJS_VERSION} to this location."
+        exit 1
+    fi
+    
     build_rpm
     
     echo ""

@@ -59,7 +59,18 @@ build_rpm() {
     "
     
     echo -e "${GREEN}RPM build completed!${NC}"
-    echo "Check ~/rpmbuild/RPMS/x86_64/ in the container or copy files from /tmp/rpmbuild/"
+    
+    # Check for RPM files in the workspace
+    local rpm_file=$(find "$PROJECT_ROOT" -maxdepth 1 -name "visual-page-editor-*.rpm" 2>/dev/null | head -1)
+    if [ -z "$rpm_file" ]; then
+        rpm_file=$(find "$PROJECT_ROOT/rpmbuild/RPMS" -name "visual-page-editor-*.rpm" 2>/dev/null | head -1)
+    fi
+    if [ -n "$rpm_file" ]; then
+        echo -e "${GREEN}RPM package: $rpm_file${NC}"
+        ls -lh "$rpm_file"
+    else
+        echo -e "${YELLOW}Note: RPM files should be in $PROJECT_ROOT/ or $PROJECT_ROOT/rpmbuild/RPMS/${NC}"
+    fi
 }
 
 build_deb() {
