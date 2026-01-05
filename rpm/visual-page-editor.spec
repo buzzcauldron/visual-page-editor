@@ -30,7 +30,7 @@ are required.
 
 # Download NW.js if not present
 if [ ! -d "nwjs" ] || [ ! -f "nwjs/nw" ]; then
-    echo "Downloading NW.js v%{nwjs_version}..."
+    echo "==> Downloading NW.js v%{nwjs_version}..."
     if ! curl -fLSs -o nwjs-sdk-linux-x64.tar.gz \
         "https://dl.nwjs.io/v%{nwjs_version}/nwjs-sdk-v%{nwjs_version}-linux-x64.tar.gz"; then
         echo "Error: Failed to download NW.js v%{nwjs_version}" >&2
@@ -59,24 +59,29 @@ if [ ! -d "nwjs" ] || [ ! -f "nwjs/nw" ]; then
         exit 1
     fi
     rm -f nwjs-sdk-linux-x64.tar.gz
-    echo "NW.js v%{nwjs_version} downloaded and extracted successfully"
+    echo "==> NW.js v%{nwjs_version} downloaded and extracted successfully"
 fi
 
 %build
 # No build step needed - this is a packaged application
+echo "==> Build phase: No compilation needed (packaged application)"
 
 %install
+echo "==> Installing files to build root..."
 rm -rf %{buildroot}
 
 # Install application files
+echo "==> Installing application files..."
 mkdir -p %{buildroot}/usr/share/%{name}
 cp -r html css js examples plugins xsd xslt package.json LICENSE.md README.md %{buildroot}/usr/share/%{name}/
 
 # Install NW.js runtime
+echo "==> Installing NW.js runtime..."
 mkdir -p %{buildroot}/usr/lib64/%{name}
 cp -r nwjs %{buildroot}/usr/lib64/%{name}/
 
 # Install launcher script
+echo "==> Installing and configuring launcher script..."
 mkdir -p %{buildroot}/usr/bin
 install -m 755 bin/visual-page-editor %{buildroot}/usr/bin/%{name}
 
@@ -101,8 +106,10 @@ chmod 755 %{buildroot}/usr/bin/%{name}.tmp && \
 mv %{buildroot}/usr/bin/%{name}.tmp %{buildroot}/usr/bin/%{name}
 
 # Install documentation
+echo "==> Installing documentation..."
 mkdir -p %{buildroot}/usr/share/doc/%{name}
 cp README.md BUILD.md PACKAGING.md LICENSE.md %{buildroot}/usr/share/doc/%{name}/ 2>/dev/null || true
+echo "==> Installation complete. Packaging files..."
 
 %files
 %defattr(-,root,root,-)

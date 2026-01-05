@@ -114,7 +114,9 @@ build_rpm() {
         .
     
     # Build the RPM
-    echo "Building RPM..."
+    echo "Building RPM package..."
+    echo "  Note: This includes a large NW.js runtime (~87MB), so packaging may take a minute or two."
+    echo "  The build will first create a source RPM, then the binary RPM."
     cd ~/rpmbuild/SPECS
     rpmbuild -ba ${NAME}.spec \
         --define "_topdir %(echo $HOME)/rpmbuild" \
