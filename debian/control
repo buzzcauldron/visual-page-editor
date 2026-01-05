@@ -1,0 +1,18 @@
+Source: visual-page-editor
+Section: text
+Priority: optional
+Maintainer: buzzcauldron <buzzcauldron@users.noreply.github.com>
+Build-Depends: debhelper (>= 12), curl, tar, gzip
+Standards-Version: 4.5.0
+Homepage: https://github.com/buzzcauldron/visual-page-editor
+
+Package: visual-page-editor
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}, perl, perl-modules
+Description: Visual editor for Page XML files
+ Visual Page Editor is a modern visual editor for Page XML files, based on
+ NW.js. It provides an intuitive graphical interface for editing document
+ layout annotations and text regions.
+ .
+ This package includes a bundled NW.js runtime, so no external dependencies
+ are required.
