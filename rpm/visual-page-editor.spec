@@ -1,7 +1,8 @@
 %define name visual-page-editor
 %define version 1.0.0
 %define release 1
-%define nwjs_version %{?nwjs_version}%{!?nwjs_version:0.44.4}
+%{!?nwjs_version:%define nwjs_version 0.44.4}
+%define debug_package %{nil}
 
 Summary: Visual editor for Page XML files
 Name: %{name}
