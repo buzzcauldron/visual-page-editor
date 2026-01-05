@@ -96,6 +96,7 @@ awk '
 }
 { print }
 ' %{buildroot}/usr/bin/%{name} > %{buildroot}/usr/bin/%{name}.tmp && \
+chmod 755 %{buildroot}/usr/bin/%{name}.tmp && \
 mv %{buildroot}/usr/bin/%{name}.tmp %{buildroot}/usr/bin/%{name}
 
 # Install documentation
