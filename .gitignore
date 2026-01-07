@@ -1,5 +1,6 @@
 # NW.js runtime (downloaded during build)
 nwjs/
+nwjs-sdk-*/
 
 # Build artifacts
 *.rpm
@@ -8,6 +9,7 @@ nwjs/
 rpmbuild/
 dist/
 build/
+build-macos/
 
 # Node modules
 node_modules/
