@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+(set -o igncr) 2>/dev/null && set -o igncr; # ignore \r line endings
+
+##
+## Command line launcher for visual-page-editor.
+## Compatible with Linux, macOS, and Windows (via Git Bash/WSL).
+##
+## @version 1.0.0
+## @author buzzcauldron
+## @copyright Copyright(c) 2025, buzzcauldron
+## @license MIT License
+## Based on nw-page-editor by Mauricio Villegas
+##
+
+# Detect platform
+OS="$(uname -s)"
+case "${OS}" in
+  Linux*)     PLATFORM="linux";;
+  Darwin*)    PLATFORM="macos";;
+  CYGWIN*)    PLATFORM="windows";;
+  MINGW*)     PLATFORM="windows";;
+  MSYS*)      PLATFORM="windows";;
+  *)          PLATFORM="unknown";;
+esac
+
+# Function to resolve script directory
+readlinkf() { 
+  if command -v perl >/dev/null 2>&1; then
+    # Use argument instead of reading from stdin
+    perl -MCwd -e 'my $path = shift @ARGV; $path =~ s/\s+$//; print Cwd::abs_path($path) . "\n";' "$1"
+  elif command -v readlink >/dev/null 2>&1; then
+    readlink -f "$1" 2>/dev/null || realpath "$1" 2>/dev/null || echo "$1"
+  else
+    echo "$1"
+  fi
+}
+
+# Resolve application directory
+if [ "${nw_page_editor:-}" = "" ]; then
+  # Use readlinkf with proper error handling
+  if [ -n "$0" ]; then
+    SCRIPT_PATH=$(readlinkf "$0" 2>/dev/null || echo "$0")
+  else
+    SCRIPT_PATH="$0"
+  fi
+  # Ensure we got a valid path
+  if [ -z "$SCRIPT_PATH" ]; then
+    SCRIPT_PATH="$0"
+  fi
+  # Strip /bin/scriptname or \bin\scriptname from path
+  # For Windows paths, need to escape backslashes properly in sed: \\ becomes \ in sed regex
+  nw_page_editor=$(echo "$SCRIPT_PATH" | sed "s|/bin/${0##*/}$||" | sed "s|\\\\bin\\\\${0##*/}$||")
+fi
+
+[ ! -f "$nw_page_editor/js/nw-app.js" ] && [ -f "$nw_page_editor/share/nw-page-editor/js/nw-app.js" ] &&
+  nw_page_editor="$nw_page_editor/share/nw-page-editor";
+
+# Initialize MAC_ARCH variable (only used on macOS)
+MAC_ARCH=""
+
+# Find NW.js binary based on platform
+if [ "$PLATFORM" = "macos" ]; then
+  # Detect macOS architecture
+  MAC_ARCH=$(uname -m)
+  
+  # macOS: Check standard locations
+  # Try architecture-specific locations first
+  if [ "$MAC_ARCH" = "arm64" ]; then
+    # Apple Silicon: prefer ARM64 builds, but allow x64 via Rosetta 2
+    nw="/Applications/nwjs.app/Contents/MacOS/nwjs"
+    [ ! -f "$nw" ] && nw=$(mdfind "kMDItemKind == 'Application' && kMDItemFSName == 'nwjs.app'" 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
+    [ ! -f "$nw" ] && nw=$(find /Applications -name "nwjs.app" -type d 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
+    
+    # Check if found binary is ARM64 (preferred) or x64 (acceptable via Rosetta)
+    if [ -f "$nw" ]; then
+      FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
+      if [ -z "$FILE_ARCH" ]; then
+        # Found x64 binary on ARM64 Mac - will run via Rosetta 2
+        # This is acceptable, but we'll warn the user
+        echo "Note: Found x64 NW.js on Apple Silicon. It will run via Rosetta 2." >&2
+        echo "      For better performance, install ARM64 version: nwjs-sdk-v*-osx-arm64.zip" >&2
+      fi
+    fi
+  else
+    # Intel Mac: prefer x64 builds
+    nw="/Applications/nwjs.app/Contents/MacOS/nwjs"
+    [ ! -f "$nw" ] && nw=$(mdfind "kMDItemKind == 'Application' && kMDItemFSName == 'nwjs.app'" 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
+    [ ! -f "$nw" ] && nw=$(find /Applications -name "nwjs.app" -type d 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
+  fi
+  
+  # Fallback to PATH if not found in Applications
+  [ ! -f "$nw" ] && nw=$(which nwjs 2>/dev/null)
+  [ ! -f "$nw" ] && nw=$(which nw 2>/dev/null)
+  
+  # Final check for Apple Silicon: warn if using x64 via Rosetta
+  if [ "$MAC_ARCH" = "arm64" ] && [ -f "$nw" ]; then
+    FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
+    if [ -z "$FILE_ARCH" ]; then
+      echo "Note: Running x64 NW.js on Apple Silicon (via Rosetta 2). For better performance, install ARM64 version." >&2
+    fi
+  fi
+elif [ "$PLATFORM" = "windows" ]; then
+  # Windows: Check common locations
+  if [ -d "/c/Program Files/nwjs" ]; then
+    nw="/c/Program Files/nwjs/nw.exe"
+  elif [ -d "/c/Program Files (x86)/nwjs" ]; then
+    nw="/c/Program Files (x86)/nwjs/nw.exe"
+  elif [ -d "$HOME/nwjs" ]; then
+    nw="$HOME/nwjs/nw.exe"
+  else
+    nw=$(which nw.exe 2>/dev/null || which nw 2>/dev/null)
+  fi
+else
+  # Linux and others: Use PATH
+  nw=$(which nw 2>/dev/null || which nwjs 2>/dev/null)
+fi
+
+# Validate paths
+[ ! -f "$nw_page_editor/js/nw-app.js" ] &&
+  echo "${0##*/}: error: unable to resolve the visual-page-editor app location" >&2 &&
+  echo "  Tried: $nw_page_editor" >&2 &&
+  exit 1;
+
+[ ! -f "$nw" ] &&
+  echo "${0##*/}: error: unable to find the NW.js binary" >&2 &&
+  echo "  Platform: $PLATFORM" >&2 &&
+  echo "  Please install NW.js from https://nwjs.io/downloads/" >&2 &&
+  echo "  Or add NW.js to your PATH" >&2 &&
+  exit 1;
+
+# Help message
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+  echo "Description: Simple app for visual editing of Page XML files"
+  echo "Usage: ${0##*/} [page.xml]+ [pages_dir]+ [--list pages_list]+ [--css file.css]+ [--js file.js]+"
+  exit 0
+fi
+
+# Prepare arguments
+argv=( --wd "$(pwd)" "$@" )
+argv=("${argv[@]/#-l/--list}")
+argv=("${argv[@]/#--/++}")
+
+# Determine log file location
+if [ "$PLATFORM" = "windows" ]; then
+  LOG_FILE="${TMP:-/tmp}/visual-page-editor.log"
+else
+  LOG_FILE="/tmp/visual-page-editor.log"
+fi
+
+# Launch application with better error handling
+EXIT_CODE=0
+if [ "$PLATFORM" = "macos" ] && [ "$MAC_ARCH" = "arm64" ]; then
+  # On Apple Silicon, check if we're using x64 NW.js (which causes crashes)
+  FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
+  if [ -z "$FILE_ARCH" ]; then
+    echo "" >&2
+    echo "ERROR: x64 NW.js detected on Apple Silicon!" >&2
+    echo "This will cause immediate crashes. Please install ARM64 version." >&2
+    echo "" >&2
+    echo "To fix:" >&2
+    echo "1. Download: nwjs-sdk-v*-osx-arm64.zip from https://nwjs.io/downloads/" >&2
+    echo "2. Extract and move nwjs.app to /Applications/" >&2
+    echo "3. Verify: file /Applications/nwjs.app/Contents/MacOS/nwjs" >&2
+    echo "" >&2
+    echo "Aborting launch to prevent crash..." >&2
+    exit 1
+  fi
+fi
+
+# Launch with error trapping
+set +e  # Don't exit on error, we'll handle it
+"$nw" "$nw_page_editor" "${argv[@]}" 2>>"$LOG_FILE"
+EXIT_CODE=$?
+set -e  # Re-enable error exit
+
+# Check exit code and provide helpful messages
+if [ $EXIT_CODE -ne 0 ]; then
+  echo "" >&2
+  echo "${0##*/}: Application exited with error code $EXIT_CODE" >&2
+  if [ -f "$LOG_FILE" ]; then
+    echo "Check log file for details: $LOG_FILE" >&2
+    echo "Last 10 lines of log:" >&2
+    tail -10 "$LOG_FILE" >&2
+  fi
+  if [ "$PLATFORM" = "macos" ] && [ "$MAC_ARCH" = "arm64" ]; then
+    echo "" >&2
+    echo "Troubleshooting for Apple Silicon:" >&2
+    echo "1. Ensure you're using ARM64 NW.js (not x64)" >&2
+    echo "2. Download: nwjs-sdk-v*-osx-arm64.zip from https://nwjs.io/downloads/" >&2
+    echo "3. Extract and move nwjs.app to /Applications/" >&2
+  fi
+fi
+
+exit $EXIT_CODE

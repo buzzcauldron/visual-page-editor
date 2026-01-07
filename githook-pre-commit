@@ -1,0 +1,104 @@
+#!/bin/bash
+
+##
+## @version $Version: 2017.09.26$
+## @author Mauricio Villegas <mauricio_ville@yahoo.com>
+## @copyright Copyright(c) 2016-present, Mauricio Villegas <mauricio_ville@yahoo.com>
+## @license MIT License
+##
+
+### Create pre-commit symlink if unset ###
+GITDIR="";
+if [ -d .git ]; then
+  GITDIR=".git";
+elif [ -f .git ]; then
+  GITDIR=$(sed -n '/^gitdir:/{ s|.*: ||; p; }' .git);
+fi
+if [ ! -d "$GITDIR" ]; then
+  echo "${0##*/}: error: unable to find git directory" 1>&2;
+  exit 1;
+fi
+if [ ! -h "$GITDIR/hooks/pre-commit" ]; then
+  if [ $(realpath --help 2>&1 | grep -c relative) != 0 ]; then
+    HOOK=$(realpath --relative-to="$GITDIR/hooks" ./githook-pre-commit);
+  else
+    HOOK=$(readlink -f ./githook-pre-commit);
+  fi
+  ln -fs "$HOOK" "$GITDIR/hooks/pre-commit";
+  echo "${0##*/}: creating git pre-commit hook symlink" 1>&2;
+  exit 1;
+fi
+
+### Run automated code review (optional - doesn't block commit) ###
+if [ -f "./scripts/code-review.sh" ]; then
+  echo "${0##*/}: running automated code review..." 1>&2;
+  ./scripts/code-review.sh || echo "${0##*/}: code review found issues (continuing with commit checks)..." 1>&2;
+fi
+
+### Update versions on files and check syntax ###
+FILES=( $(git status --porcelain | sed 's| .* | |' | grep '^[MRA]') );
+V=$(date -u +%Y.%m.%d);
+NEWVER="no";
+
+check_change_after_staged () {
+  [ "${2:1:1}" = "M" ] &&
+    echo "${0##*/}: error: unable to update version due to change after staged: $1" 1>&2 &&
+    exit 1;
+}
+
+update_file_version () {
+  echo "${0##*/}: updating version of $1" 1>&2;
+  sed -r -i '
+    s|([$"])Version:[^$"]*([$"])|\1Version: '"$V"'\2|;
+    s|(name="xsltVersion" select=")[^"]+(")|\1'"'$V'"'\2|;' "$1";
+  git add "$1";
+  NEWVER="yes";
+}
+
+n=1;
+while [ "$n" -lt "${#FILES[@]}" ]; do
+  case "${FILES[$n]}" in
+    js/*-canvas.js | js/page-editor.js | js/*-app.js )
+      check_change_after_staged "${FILES[$n]}" "${FILES[$((n-1))]}";
+      update_file_version "${FILES[$n]}";
+      echo "${0##*/}: jshint ${FILES[$n]}" 1>&2;
+      jshint "${FILES[$n]}";
+      ;;
+    html/* | xslt/* )
+      check_change_after_staged "${FILES[$n]}" "${FILES[$((n-1))]}";
+      update_file_version "${FILES[$n]}";
+      echo "${0##*/}: xmlstarlet val -e ${FILES[$n]}" 1>&2;
+      xmlstarlet val -e "${FILES[$n]}";
+      ;;
+    web-app/*.php )
+      check_change_after_staged "${FILES[$n]}" "${FILES[$((n-1))]}";
+      update_file_version "${FILES[$n]}";
+      echo "${0##*/}: php -l ${FILES[$n]}" 1>&2;
+      php -l "${FILES[$n]}";
+      ;;
+    bin/* | web-app/git-commit-daemon.sh | web-app/start-server.sh | .githook-pre-commit )
+      check_change_after_staged "${FILES[$n]}" "${FILES[$((n-1))]}";
+      update_file_version "${FILES[$n]}";
+      echo "${0##*/}: bash -n ${FILES[$n]}" 1>&2;
+      bash -n "${FILES[$n]}";
+      ;;
+    css/*.css )
+      check_change_after_staged "${FILES[$n]}" "${FILES[$((n-1))]}";
+      update_file_version "${FILES[$n]}";
+      #echo "${0##*/}: stylelint --config ./stylelint-config-recommended.js ${FILES[$n]}";
+      #stylelint --config ./stylelint-config-recommended.js "${FILES[$n]}";
+      ;;
+  esac
+  [ "$?" != "0" ] && exit 1;
+  n=$((n+2));
+done
+
+if [ "$NEWVER" = "yes" ]; then
+  sed -ri 's|("version": *)"[^"]+"|\1"'"$V"'"|' package.json;
+  #sed -ri 's|(nw-page-editor VERSION) [^ ]+ |\1 '"$V"' |' CMakeLists.txt;
+  sed -ri 's|^(Version:).*|\1 '"$V"'|' README.md;
+  update_file_version web-app/common.inc.php;
+  git add package.json README.md web-app/common.inc.php;
+fi
+
+exit 0;

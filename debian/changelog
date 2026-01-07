@@ -1,0 +1,6 @@
+visual-page-editor (1.0.0-1) unstable; urgency=low
+
+  * Initial release
+  * Includes bundled NW.js runtime v0.44.4
+
+ -- buzzcauldron <buzzcauldron@users.noreply.github.com>  Sun, 14 Jan 2025 12:00:00 +0000

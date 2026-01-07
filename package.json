@@ -1,0 +1,38 @@
+{
+  "name": "visual-page-editor",
+  "version": "1.0.0",
+  "description": "Modern visual editor for Page XML files - based on nw-page-editor",
+  "main": "./html/index.html#1",
+  "author": "buzzcauldron",
+  "license": "MIT",
+  "window": {
+    "title": "Visual Page Editor",
+    "width": 1200,
+    "height": 800,
+    "show": true,
+    "min_width": 800,
+    "min_height": 600
+  },
+  "dependencies": {
+    "image-size": "^0.6.2"
+  },
+  "devDependencies": {
+    "jshint": "^2.13.6"
+  },
+  "scripts": {
+    "review": "./scripts/code-review.sh",
+    "lint": "jshint js/*.js --exclude js/*.min.js",
+    "test": "npm run review"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/buzzcauldron/visual-page-editor.git"
+  },
+  "keywords": [
+    "page-xml",
+    "document-editor",
+    "annotation-tool",
+    "visual-editor"
+  ]
+}
+

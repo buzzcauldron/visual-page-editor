@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+.gitmodules
+
+# Build artifacts
+*.rpm
+*.deb
+*.tar.gz
+rpmbuild/
+dist/
+build/
+
+# Node modules (will be installed if needed)
+node_modules/
+
+# NW.js (will be downloaded during build)
+nwjs/
+
+# Editor and OS files
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.log
+
+# Documentation (optional, can be included)
+# BUILD.md
+# PACKAGING.md
+
+# CI/CD
+.circleci/
+
+# Docker files themselves
+Dockerfile
+Dockerfile.desktop
+docker-compose.yml
+docker-run.sh

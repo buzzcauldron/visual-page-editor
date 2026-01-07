@@ -1,0 +1,67 @@
+name: Code Review
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: |
+        npm install -g jshint
+        sudo apt-get update
+        sudo apt-get install -y xmlstarlet libxml2-utils
+    
+    - name: Run code review
+      run: |
+        chmod +x scripts/code-review.sh
+        ./scripts/code-review.sh
+    
+    - name: Check JavaScript syntax
+      run: |
+        for file in js/*.js; do
+          if [[ ! "$file" =~ \.min\.js$ ]]; then
+            echo "Checking $file..."
+            node -c "$file" || exit 1
+          fi
+        done
+    
+    - name: Validate HTML
+      run: |
+        if command -v xmllint &> /dev/null; then
+          xmllint --noout --html html/index.html || true
+        fi
+    
+    - name: Validate XSLT
+      run: |
+        if command -v xmlstarlet &> /dev/null; then
+          for file in xslt/*.xslt; do
+            xmlstarlet val -e "$file" || exit 1
+          done
+        fi
+    
+    - name: Validate XSD
+      run: |
+        if command -v xmlstarlet &> /dev/null; then
+          for file in xsd/*.xsd; do
+            xmlstarlet val -e "$file" || exit 1
+          done
+        fi
+    
+    - name: Check shell scripts
+      run: |
+        find . -name "*.sh" -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./nwjs*/*" | while read file; do
+          bash -n "$file" || exit 1
+        done
