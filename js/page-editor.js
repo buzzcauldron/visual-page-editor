@@ -997,7 +997,10 @@ $(window).on('load', function () {
       // Update selected TextLine if one is selected
       var selected = $('.selected').closest('.TextLine');
       if ( selected.length > 0 ) {
+        // Update the baseline type (this updates XML and CSS class for color change)
         pageCanvas.util.setBaselineType(selected[0], baselineType);
+        // Force visual update by triggering a redraw
+        selected.find('.Baseline').trigger('change');
       }
     }
   }

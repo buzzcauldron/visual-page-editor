@@ -197,8 +197,13 @@ body {
 
 /* Margin baselines - contrasting color (orange) */
 .TextLine.baseline-margin > .Baseline {
-  stroke: #FF6600;
+  stroke: #FF6600 !important;
   stroke-width: 1.5;
+}
+
+/* Main baselines - ensure blue color (explicit) */
+.TextLine.baseline-main > .Baseline {
+  stroke: blue;
 }
 .TextEquiv {
   fill: darkmagenta;
