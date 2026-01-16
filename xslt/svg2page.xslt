@@ -66,7 +66,7 @@
   <xsl:template match="@style"/>
   <xsl:template match="svg:polygon[@class='GroupBox']"/>
 
-  <xsl:template match="svg:g[contains(concat(' ', @class, ' '), ' TextRegion ') or contains(concat(' ', @class, ' '), ' TableRegion ') or contains(concat(' ', @class, ' '), ' TextLine ') or contains(concat(' ', @class, ' '), ' Word ') or contains(concat(' ', @class, ' '), ' Glyph ') or contains(concat(' ', @class, ' '), ' Property ') or contains(concat(' ', @class, ' '), ' Group ') or contains(concat(' ', @class, ' '), ' Member ') or contains(concat(' ', @class, ' '), ' ImageRegion ') or contains(concat(' ', @class, ' '), ' SeparatorRegion ') or contains(concat(' ', @class, ' '), ' CustomRegion ') or contains(concat(' ', @class, ' '), ' TextEquiv ')]">
+  <xsl:template match="svg:g[contains(concat(' ', @class, ' '), ' TextRegion ') or contains(concat(' ', @class, ' '), ' TableRegion ') or contains(concat(' ', @class, ' '), ' TextLine ') or contains(concat(' ', @class, ' '), ' Word ') or contains(concat(' ', @class, ' '), ' Glyph ') or contains(concat(' ', @class, ' '), ' Property ') or contains(concat(' ', @class, ' '), ' Group ') or contains(concat(' ', @class, ' '), ' Member ') or contains(concat(' ', @class, ' '), ' ImageRegion ') or contains(concat(' ', @class, ' '), ' SeparatorRegion ') or contains(concat(' ', @class, ' '), ' CustomRegion ')]">
     <xsl:variable name="elementName">
       <xsl:choose>
         <xsl:when test="contains(concat(' ', @class, ' '), ' TextRegion ')">TextRegion</xsl:when>
@@ -80,7 +80,6 @@
         <xsl:when test="contains(concat(' ', @class, ' '), ' ImageRegion ')">ImageRegion</xsl:when>
         <xsl:when test="contains(concat(' ', @class, ' '), ' SeparatorRegion ')">SeparatorRegion</xsl:when>
         <xsl:when test="contains(concat(' ', @class, ' '), ' CustomRegion ')">CustomRegion</xsl:when>
-        <xsl:when test="contains(concat(' ', @class, ' '), ' TextEquiv ')">TextEquiv</xsl:when>
       </xsl:choose>
     </xsl:variable>
     <xsl:element name="{$elementName}">

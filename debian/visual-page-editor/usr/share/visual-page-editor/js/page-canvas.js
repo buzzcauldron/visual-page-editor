@@ -2329,12 +2329,19 @@
           ( g[0].hasAttribute('custom') ? g.attr('custom')+' ' : '' ) +
           'readingOrientation: '+(-self.cfg.textOrientation)+';' );
 
-      // Set baseline type
+      // Set baseline type (remove existing type entry first to avoid duplicates)
       var baselineType = self.cfg.baselineType || 'main';
-      g.attr( 'custom',
-        ( g[0].hasAttribute('custom') ? g.attr('custom')+' ' : '' ) +
-        'type {type:'+baselineType+';}' );
-      // Add class for CSS styling
+      var attr = g.attr('custom') || '';
+      // Remove existing type entry
+      attr = attr.replace(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/g, '');
+      attr = attr.trim();
+      // Add new type entry
+      if ( attr.length > 0 && ! attr.endsWith(' ') )
+        attr += ' ';
+      attr += 'type {type:' + baselineType + ';}';
+      g.attr('custom', attr);
+      // Add/remove class for CSS styling
+      g.removeClass('baseline-main baseline-margin');
       g.addClass('baseline-' + baselineType);
 
       self.util.selectElem(elem,true,true);

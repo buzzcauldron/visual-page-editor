@@ -479,14 +479,41 @@ $(window).on('load', function () {
   pagexml_xsd_file = '../xsd/pagecontent_omnius.xsd',
   pagexml_xsd = false;
   function loadPageXmlXsd( async ) {
-    if ( ! pagexml_xsd )
+    if ( ! pagexml_xsd ) {
+      // Helper function to process XSD data
+      function processXsdData( data ) {
+        pagexml_xsd = (new XMLSerializer()).serializeToString(data);
+        pagexml_xsd = unescape(encodeURIComponent(pagexml_xsd));
+        pageCanvas.cfg.pagexmlns = $(data).find('[targetNamespace]').attr('targetNamespace');
+      }
+      
+      // First try to load the file directly (in case it's the actual XSD)
       $.ajax({ url: pagexml_xsd_file, async: async, dataType: 'xml' })
-        .fail( function () { pageCanvas.throwError( 'Failed to retrieve '+pagexml_xsd_file+'. The schema is included as a git submodule. To fix you need to run "git submodule update --init".' ); } )
         .done( function ( data ) {
-            pagexml_xsd = (new XMLSerializer()).serializeToString(data);
-            pagexml_xsd = unescape(encodeURIComponent(pagexml_xsd));
-            pageCanvas.cfg.pagexmlns = $(data).find('[targetNamespace]').attr('targetNamespace');
+            // If the file is directly an XML/XSD file, use it
+            processXsdData( data );
+          } )
+        .fail( function () {
+            // If that fails, try reading it as text to get the path to the actual XSD
+            $.ajax({ url: pagexml_xsd_file, async: async, dataType: 'text' })
+              .done( function ( pathText ) {
+                  // Resolve the path: if the file contains a relative path, resolve it relative to xsd/
+                  var xsdPath = pathText.trim();
+                  var resolvedPath = '../xsd/' + xsdPath;
+                  // Now load the actual XSD file
+                  $.ajax({ url: resolvedPath, async: async, dataType: 'xml' })
+                    .done( function ( data ) {
+                        processXsdData( data );
+                      } )
+                    .fail( function () {
+                        pageCanvas.throwError( 'Failed to retrieve '+resolvedPath+' from submodule. Please run "git submodule update --init".' );
+                      } );
+                } )
+              .fail( function () {
+                  pageCanvas.throwError( 'Failed to retrieve '+pagexml_xsd_file+'. The schema is included as a git submodule. To fix you need to run "git submodule update --init".' );
+                } );
           } );
+    }
   }
   loadPageXmlXsd(true);
 
@@ -501,12 +528,21 @@ $(window).on('load', function () {
     loadPageXmlXsd(false);
     try {
       var
-      intercept = require("intercept-stdout"),
-      unhook_intercept = intercept(function(txt) { val += txt; });
+      intercept = null,
+      unhook_intercept = null;
+      // Try to load intercept-stdout, but make it optional
+      try {
+        intercept = require("intercept-stdout");
+        unhook_intercept = intercept(function(txt) { val += txt; });
+      } catch ( e ) {
+        // intercept-stdout not available, validation will proceed without capturing stdout
+        console.warn('intercept-stdout not available, validation output may not be captured:', e.message);
+      }
       validateXML({ xml: pageXml,
                     schema: pagexml_xsd,
                     arguments: ['--noout', '--schema', 'PageXmlSchema', 'PageXmlFile'] });
-      unhook_intercept();
+      if ( unhook_intercept )
+        unhook_intercept();
     } catch ( e ) {
       alert( 'Page XML validation failed to execute: '+e );
       return;
