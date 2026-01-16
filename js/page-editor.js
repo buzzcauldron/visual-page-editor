@@ -1222,13 +1222,12 @@ $(window).on('load', function () {
         else {
           pageCanvas.cfg.polyrectOffset = parseFloat($('#baselineOffset').val());
           pageCanvas.cfg.baselineMaxPoints = line_type === '1' ? 2 : 0;
-          // Use the currently selected baseline type (persists from user's last selection)
+          // Read baseline type immediately before creating (from radio button)
           var selectedType = $('input[name="baseline-type"]:checked').val();
-          pageCanvas.cfg.baselineType = selectedType || pageCanvas.cfg.baselineType || 'main';
-          // If nothing is checked, use the config value (which persists) or default to main
-          if ( ! selectedType && ! pageCanvas.cfg.baselineType ) {
-            $('input[name="baseline-type"][value="main"]').prop('checked', true);
-            pageCanvas.cfg.baselineType = 'main';
+          pageCanvas.cfg.baselineType = selectedType || 'main';
+          // Update config to persist the selection
+          if ( selectedType ) {
+            pageCanvas.cfg.baselineType = selectedType;
           }
           pageCanvas.mode.lineBaselineCreate( line_restriction );
         }
