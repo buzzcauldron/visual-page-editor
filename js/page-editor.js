@@ -99,6 +99,9 @@ $(window).on('load', function () {
           $('#modeElement').text('-/'+$('.editable').length);
           $('#textedit').val('');
           $('#textinfo').empty();
+          // Reset baseline type radio buttons to main when nothing is selected
+          $('input[name="baseline-type"][value="main"]').prop('checked', true);
+          pageCanvas.cfg.baselineType = 'main';
           setDocumentProperties();
         },
       onDragStart: function () {
