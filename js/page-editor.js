@@ -43,11 +43,8 @@ $(window).on('load', function () {
             var baselineType = pageCanvas.util.getBaselineType(g[0]);
             $('input[name="baseline-type"][value="' + baselineType + '"]').prop('checked', true);
             pageCanvas.cfg.baselineType = baselineType;
-          } else {
-            // Default to main if non-TextLine is selected
-            $('input[name="baseline-type"][value="main"]').prop('checked', true);
-            pageCanvas.cfg.baselineType = 'main';
           }
+          // Don't reset to main when selecting non-TextLine - keep user's selection for creating baselines
 
           updateSelectedInfo();
 
@@ -104,9 +101,16 @@ $(window).on('load', function () {
           $('#modeElement').text('-/'+$('.editable').length);
           $('#textedit').val('');
           $('#textinfo').empty();
-          // Reset baseline type radio buttons to main when nothing is selected
-          $('input[name="baseline-type"][value="main"]').prop('checked', true);
-          pageCanvas.cfg.baselineType = 'main';
+          // Keep the current baseline type selection for creating new baselines
+          // Only update config from radio button if one is checked
+          var selectedType = $('input[name="baseline-type"]:checked').val();
+          if ( selectedType ) {
+            pageCanvas.cfg.baselineType = selectedType;
+          } else {
+            // Only default to main if nothing is selected
+            $('input[name="baseline-type"][value="main"]').prop('checked', true);
+            pageCanvas.cfg.baselineType = 'main';
+          }
           setDocumentProperties();
         },
       onDragStart: function () {
