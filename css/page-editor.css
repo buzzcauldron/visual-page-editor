@@ -194,6 +194,12 @@ body {
   stroke-width: 1;
   marker-start: url(#xpg_polystart);
 }
+
+/* Margin baselines - contrasting color (orange) */
+.TextLine.baseline-margin > .Baseline {
+  stroke: #FF6600;
+  stroke-width: 1.5;
+}
 .TextEquiv {
   fill: darkmagenta;
 }
