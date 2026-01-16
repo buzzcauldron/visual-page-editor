@@ -505,6 +505,8 @@
       $(pageSvg).find('.selectable-member').removeClass('selectable-member');
       $(pageSvg).find('.addible-member').removeClass('addible-member');
       $(pageSvg).find('.modifiable').removeClass('modifiable');
+      /// Remove baseline type CSS classes (baseline-main, baseline-margin) before export ///
+      $(pageSvg).find('.baseline-main, .baseline-margin').removeClass('baseline-main baseline-margin');
 
       /// Remove offset from coordinates of pages ///
       var pages = $(pageSvg).find('.Page');
