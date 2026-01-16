@@ -2332,6 +2332,8 @@
       g.attr( 'custom',
         ( g[0].hasAttribute('custom') ? g.attr('custom')+' ' : '' ) +
         'type {type:'+baselineType+';}' );
+      // Add class for CSS styling
+      g.addClass('baseline-' + baselineType);
 
       self.util.selectElem(elem,true,true);
 
