@@ -42,6 +42,11 @@ $(window).on('load', function () {
           if ( g.is('.TextLine') ) {
             var baselineType = pageCanvas.util.getBaselineType(g[0]);
             $('input[name="baseline-type"][value="' + baselineType + '"]').prop('checked', true);
+            pageCanvas.cfg.baselineType = baselineType;
+          } else {
+            // Default to main if non-TextLine is selected
+            $('input[name="baseline-type"][value="main"]').prop('checked', true);
+            pageCanvas.cfg.baselineType = 'main';
           }
 
           updateSelectedInfo();
