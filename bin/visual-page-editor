@@ -292,7 +292,9 @@ if [ ! -f "$nw" ]; then
     echo "" >&2
     echo "Would you like to download NW.js v${NWJS_VERSION} automatically? (y/n)" >&2
     read -r response
-    if [ "$response" = "y" ] || [ "$response" = "Y" ] || [ "$response" = "yes" ]; then
+    # Convert response to lowercase for case-insensitive comparison
+    response_lower=$(echo "$response" | tr '[:upper:]' '[:lower:]')
+    if [ "$response_lower" = "y" ] || [ "$response_lower" = "yes" ]; then
       if [ "$PLATFORM" = "macos" ]; then
         downloaded_nw=$(download_nwjs "$PLATFORM" "$MAC_ARCH")
       elif [ "$PLATFORM" = "linux" ]; then
