@@ -923,7 +923,7 @@
       self.loadXmlSvg(pageSvg);
       self.util.offsetAndOrientPages();
 
-      /// Convert default baseline types to main ///
+      /// Convert default baseline types to main and add classes ///
       $(pageSvg).find('.TextLine').each(function() {
         var g = $(this);
         var attr = g.attr('custom');
@@ -931,6 +931,10 @@
           attr = attr.replace(/type\s*\{type\s*:\s*default\s*;\s*\}/g, 'type {type:main;}');
           g.attr('custom', attr);
         }
+        // Add class based on baseline type
+        var baselineType = self.util.getBaselineType(g[0]);
+        g.removeClass('baseline-main baseline-margin');
+        g.addClass('baseline-' + baselineType);
       });
 
       /// Set currently selected mode ///
@@ -2093,6 +2097,9 @@
         attr += ' ';
       attr += 'type {type:' + type + ';}';
       g.attr('custom', attr);
+      // Add/remove class for CSS styling
+      g.removeClass('baseline-main baseline-margin');
+      g.addClass('baseline-' + type);
       self.util.registerChange('set baseline type to ' + type);
     }
     self.util.setBaselineType = setBaselineType;
@@ -2325,6 +2332,8 @@
       g.attr( 'custom',
         ( g[0].hasAttribute('custom') ? g.attr('custom')+' ' : '' ) +
         'type {type:'+baselineType+';}' );
+      // Add class for CSS styling
+      g.addClass('baseline-' + baselineType);
 
       self.util.selectElem(elem,true,true);
 
