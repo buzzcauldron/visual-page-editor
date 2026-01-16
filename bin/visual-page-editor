@@ -153,17 +153,29 @@ if [ "$PLATFORM" = "macos" ] && [ "$MAC_ARCH" = "arm64" ]; then
   # On Apple Silicon, check if we're using x64 NW.js (which causes crashes)
   FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
   if [ -z "$FILE_ARCH" ]; then
-    echo "" >&2
-    echo "ERROR: x64 NW.js detected on Apple Silicon!" >&2
-    echo "This will cause immediate crashes. Please install ARM64 version." >&2
-    echo "" >&2
-    echo "To fix:" >&2
-    echo "1. Download: nwjs-sdk-v*-osx-arm64.zip from https://nwjs.io/downloads/" >&2
-    echo "2. Extract and move nwjs.app to /Applications/" >&2
-    echo "3. Verify: file /Applications/nwjs.app/Contents/MacOS/nwjs" >&2
-    echo "" >&2
-    echo "Aborting launch to prevent crash..." >&2
-    exit 1
+    # Try to find ARM64 version - check SDK directories first
+    ARM64_NW=$(find /Applications -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+    if [ -z "$ARM64_NW" ] || [ ! -f "$ARM64_NW" ]; then
+      # Also check if there's a direct nwjs binary in SDK directory
+      ARM64_NW=$(find /Applications -path "*nwjs-sdk*arm64*" -name "nwjs" -type f -perm +111 2>/dev/null | head -n 1)
+    fi
+    if [ -n "$ARM64_NW" ] && [ -f "$ARM64_NW" ]; then
+      FILE_ARCH=$(file "$ARM64_NW" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
+      if [ -n "$FILE_ARCH" ]; then
+        nw="$ARM64_NW"
+        echo "Using ARM64 NW.js: $nw" >&2
+      fi
+    fi
+    # If still x64, allow it but warn (Rosetta 2 should handle it)
+    FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
+    if [ -z "$FILE_ARCH" ]; then
+      echo "" >&2
+      echo "WARNING: x64 NW.js detected on Apple Silicon!" >&2
+      echo "Attempting to run via Rosetta 2. This may cause issues." >&2
+      echo "For best results, install ARM64 version from https://nwjs.io/downloads/" >&2
+      echo "" >&2
+      # Allow it to continue instead of aborting
+    fi
   fi
 fi
 
