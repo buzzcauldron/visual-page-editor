@@ -928,6 +928,28 @@
 
       pushChangeHistory('svg load');
 
+      /// Convert default baseline types to main and add CSS classes (for Page XML compatibility) ///
+      $(svgRoot).find('.TextLine').each(function() {
+        var g = $(this);
+        var attr = g.attr('custom');
+        if ( typeof attr !== 'undefined' && attr.match(/type\s*\{type\s*:\s*default\s*;\s*\}/) ) {
+          attr = attr.replace(/type\s*\{type\s*:\s*default\s*;\s*\}/g, 'type {type:main;}');
+          g.attr('custom', attr);
+        }
+        // Add class based on baseline type (if getBaselineType is available, otherwise default to main)
+        if ( typeof self.util.getBaselineType === 'function' ) {
+          var baselineType = self.util.getBaselineType(g[0]);
+          g.removeClass('baseline-main baseline-margin');
+          g.addClass('baseline-' + baselineType);
+        } else {
+          // If getBaselineType is not available (generic svg-canvas usage), check custom attribute
+          var match = attr && attr.match(/type\s*\{type\s*:\s*(main|margin)\s*;\s*\}/);
+          var baselineType = match ? match[1] : 'main';
+          g.removeClass('baseline-main baseline-margin');
+          g.addClass('baseline-' + baselineType);
+        }
+      });
+
       for ( var n=0; n<self.cfg.onLoad.length; n++ )
         self.cfg.onLoad[n]();
     };
