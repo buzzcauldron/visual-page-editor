@@ -1213,7 +1213,13 @@ $(window).on('load', function () {
         else {
           pageCanvas.cfg.polyrectOffset = parseFloat($('#baselineOffset').val());
           pageCanvas.cfg.baselineMaxPoints = line_type === '1' ? 2 : 0;
-          pageCanvas.cfg.baselineType = $('input[name="baseline-type"]:checked').val() || 'main';
+          // Ensure baseline type defaults to main if not set
+          var selectedType = $('input[name="baseline-type"]:checked').val();
+          pageCanvas.cfg.baselineType = selectedType || 'main';
+          // Ensure main is selected if nothing was checked
+          if ( ! selectedType ) {
+            $('input[name="baseline-type"][value="main"]').prop('checked', true);
+          }
           pageCanvas.mode.lineBaselineCreate( line_restriction );
         }
       }
