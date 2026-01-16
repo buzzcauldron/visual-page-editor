@@ -89,6 +89,7 @@
     self.cfg.standardizeCoords = false;
     self.cfg.readingDirection = 'ltr';
     self.cfg.textOrientation = 0;
+    self.cfg.baselineType = 'main';
     self.cfg.textClipping = false;
     self.cfg.textPositionOffset = [ 0, 0.8 ];
     self.cfg.relativeFontSize = 1;
@@ -921,6 +922,16 @@
       /// Load the Page SVG in the canvas ///
       self.loadXmlSvg(pageSvg);
       self.util.offsetAndOrientPages();
+
+      /// Convert default baseline types to main ///
+      $(pageSvg).find('.TextLine').each(function() {
+        var g = $(this);
+        var attr = g.attr('custom');
+        if ( typeof attr !== 'undefined' && attr.match(/type\s*\{type\s*:\s*default\s*;\s*\}/) ) {
+          attr = attr.replace(/type\s*\{type\s*:\s*default\s*;\s*\}/g, 'type {type:main;}');
+          g.attr('custom', attr);
+        }
+      });
 
       /// Set currently selected mode ///
       self.mode.current();
@@ -2041,6 +2052,52 @@
     self.util.getTextOrientation = getTextOrientation;
 
     /**
+     * Gets the baseline type of a given TextLine element.
+     */
+    function getBaselineType( elem ) {
+      if ( typeof elem === 'undefined' )
+        elem = $(self.util.svgRoot).find('.selected');
+      var g = $(elem).closest('.TextLine');
+      if ( g.length === 0 )
+        return 'main';
+      var attr = g.attr('custom');
+      if ( typeof attr === 'undefined' || ! attr.match(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/) )
+        return 'main';
+      var match = attr.match(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/);
+      if ( match && match[1] === 'default' ) {
+        // Convert default to main and update the attribute
+        setBaselineType(g[0], 'main');
+        return 'main';
+      }
+      return match ? match[1] : 'main';
+    }
+    self.util.getBaselineType = getBaselineType;
+
+    /**
+     * Sets the baseline type of a given TextLine element.
+     */
+    function setBaselineType( elem, type ) {
+      if ( typeof elem === 'undefined' )
+        elem = $(self.util.svgRoot).find('.selected');
+      var g = $(elem).closest('.TextLine');
+      if ( g.length === 0 )
+        return;
+      if ( type !== 'main' && type !== 'margin' )
+        type = 'main';
+      var attr = g.attr('custom') || '';
+      // Remove existing type entry
+      attr = attr.replace(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/g, '');
+      attr = attr.trim();
+      // Add new type entry
+      if ( attr.length > 0 && ! attr.endsWith(' ') )
+        attr += ' ';
+      attr += 'type {type:' + type + ';}';
+      g.attr('custom', attr);
+      self.util.registerChange('set baseline type to ' + type);
+    }
+    self.util.setBaselineType = setBaselineType;
+
+    /**
      * Gets the confidence value of an element and given child selector.
      */
     function getConf( elem, selector ) {
@@ -2262,6 +2319,12 @@
         g.attr( 'custom',
           ( g[0].hasAttribute('custom') ? g.attr('custom')+' ' : '' ) +
           'readingOrientation: '+(-self.cfg.textOrientation)+';' );
+
+      // Set baseline type
+      var baselineType = self.cfg.baselineType || 'main';
+      g.attr( 'custom',
+        ( g[0].hasAttribute('custom') ? g.attr('custom')+' ' : '' ) +
+        'type {type:'+baselineType+';}' );
 
       self.util.selectElem(elem,true,true);
 
