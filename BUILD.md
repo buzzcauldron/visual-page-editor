@@ -127,6 +127,8 @@ hdiutil create -volname "Visual Page Editor" -srcfolder "Visual Page Editor.app"
 
 ### Build Windows Portable Package
 
+The build script automatically detects your Windows architecture and downloads the appropriate NW.js build:
+
 **Using PowerShell (recommended):**
 ```powershell
 cd C:\path\to\visual-page-editor
@@ -139,7 +141,16 @@ cd C:\path\to\visual-page-editor
 build-windows.bat
 ```
 
+**Architecture Detection:**
+- On **Windows ARM64** (Surface Pro X, Windows 11 on ARM): Downloads `nwjs-sdk-v*-win-arm64.zip` for native performance
+- On **Windows x64** (Intel/AMD): Downloads `nwjs-sdk-v*-win-x64.zip`
+
 The package will be in: `build-windows\visual-page-editor\`
+
+**Windows ARM64 Notes:**
+- The build script automatically detects ARM64 architecture
+- Creates a native ARM64 package (no emulation needed)
+- For best performance, ensure you're building on a Windows ARM64 device
 
 ### Custom NW.js Version
 

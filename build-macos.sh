@@ -17,14 +17,49 @@ CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 
-# Detect architecture
-ARCH=$(uname -m)
+# Detect architecture automatically
+# Check actual hardware architecture, not just process architecture
+# This handles cases where Rosetta 2 is being used (uname -m returns x86_64 on Apple Silicon under Rosetta)
+HARDWARE_ARCH=""
+if [ "$(uname -s)" = "Darwin" ]; then
+    # Check if hardware supports ARM64 (Apple Silicon)
+    if sysctl -n hw.optional.arm64 2>/dev/null | grep -q "1"; then
+        HARDWARE_ARCH="arm64"
+    elif [ "$(uname -m)" = "arm64" ]; then
+        HARDWARE_ARCH="arm64"
+    elif [ "$(uname -m)" = "x86_64" ]; then
+        # Check if this is Intel Mac or Apple Silicon running under Rosetta
+        # On Apple Silicon, even under Rosetta, sysctl hw.optional.arm64 returns 1
+        if sysctl -n hw.optional.arm64 2>/dev/null | grep -q "1"; then
+            HARDWARE_ARCH="arm64"
+        else
+            HARDWARE_ARCH="x86_64"
+        fi
+    else
+        HARDWARE_ARCH="$(uname -m)"
+    fi
+else
+    HARDWARE_ARCH="$(uname -m)"
+fi
+
+# Use hardware architecture for NW.js selection (always prefer native ARM64 on Apple Silicon)
+ARCH="$HARDWARE_ARCH"
 if [ "$ARCH" = "arm64" ]; then
     NWJS_ARCH="osx-arm64"
     NWJS_SUFFIX="osx-arm64"
-else
+    ARCH_DESCRIPTION="Apple Silicon (M1/M2/M3)"
+    if [ "$(uname -m)" = "x86_64" ]; then
+        ARCH_DESCRIPTION="Apple Silicon (M1/M2/M3) - Running under Rosetta 2, but using ARM64 NW.js"
+    fi
+elif [ "$ARCH" = "x86_64" ]; then
     NWJS_ARCH="osx-x64"
     NWJS_SUFFIX="osx-x64"
+    ARCH_DESCRIPTION="Intel (x86_64)"
+else
+    echo -e "${RED}Warning: Unknown architecture '$ARCH', defaulting to x64${NC}"
+    NWJS_ARCH="osx-x64"
+    NWJS_SUFFIX="osx-x64"
+    ARCH_DESCRIPTION="Unknown (defaulting to x64)"
 fi
 
 # Colors for output
@@ -62,18 +97,57 @@ download_nwjs() {
     local nwjs_archive="$PROJECT_ROOT/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}.zip"
     local nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}.zip"
     local nwjs_extracted="$PROJECT_ROOT/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}"
+    local nwjs_binary="$nwjs_extracted/nwjs.app/Contents/MacOS/nwjs"
     
-    if [ -d "$nwjs_extracted" ] && [ -d "$nwjs_extracted/nwjs.app" ]; then
-        echo -e "${GREEN}NW.js already present at $nwjs_extracted${NC}"
-        return 0
+    # Check if already downloaded and verify architecture
+    if [ -d "$nwjs_extracted" ] && [ -d "$nwjs_extracted/nwjs.app" ] && [ -f "$nwjs_binary" ]; then
+        local file_arch=$(file "$nwjs_binary" 2>/dev/null | grep -i "arm64\|arm64e\|x86_64" || echo "")
+        local expected_arch=""
+        if [ "$ARCH" = "arm64" ]; then
+            expected_arch="arm64"
+        else
+            expected_arch="x86_64"
+        fi
+        
+        if echo "$file_arch" | grep -qi "$expected_arch"; then
+            echo -e "${GREEN}NW.js already present at $nwjs_extracted${NC}"
+            echo -e "${GREEN}✓ Architecture verified: $expected_arch${NC}"
+            return 0
+        else
+            echo -e "${YELLOW}Warning: Existing NW.js has wrong architecture, re-downloading...${NC}"
+            rm -rf "$nwjs_extracted" "$nwjs_archive"
+        fi
     fi
     
-    echo "Downloading NW.js v${NWJS_VERSION} from $nwjs_url..."
+    echo "Downloading NW.js v${NWJS_VERSION} (${NWJS_ARCH}) from $nwjs_url..."
     if curl -fLSs -o "$nwjs_archive" "$nwjs_url"; then
         echo "Extracting NW.js..."
         unzip -q "$nwjs_archive" -d "$PROJECT_ROOT"
         rm -f "$nwjs_archive"
-        echo -e "${GREEN}NW.js downloaded and extracted successfully!${NC}"
+        
+        # Verify downloaded binary architecture
+        if [ -f "$nwjs_binary" ]; then
+            local file_arch=$(file "$nwjs_binary" 2>/dev/null | grep -i "arm64\|arm64e\|x86_64" || echo "")
+            local expected_arch=""
+            if [ "$ARCH" = "arm64" ]; then
+                expected_arch="arm64"
+            else
+                expected_arch="x86_64"
+            fi
+            
+            if echo "$file_arch" | grep -qi "$expected_arch"; then
+                echo -e "${GREEN}NW.js downloaded and extracted successfully!${NC}"
+                echo -e "${GREEN}✓ Architecture verified: $expected_arch${NC}"
+            else
+                echo -e "${RED}ERROR: Downloaded NW.js has wrong architecture!${NC}"
+                echo "Expected: $expected_arch, Got: $file_arch"
+                echo "Please check the download URL or download manually."
+                return 1
+            fi
+        else
+            echo -e "${RED}ERROR: NW.js binary not found after extraction!${NC}"
+            return 1
+        fi
     else
         echo -e "${RED}Warning: Could not download NW.js automatically.${NC}"
         echo "You can download it manually from: $nwjs_url"
@@ -185,6 +259,9 @@ MAC_ARCH=$(uname -m)
 if [ "$MAC_ARCH" = "arm64" ]; then
   FILE_ARCH=$(file "$NWJS_BIN" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
   if [ -z "$FILE_ARCH" ]; then
+    # Show macOS alert dialog
+    osascript -e 'display dialog "ERROR: x64 NW.js detected in .app bundle on Apple Silicon!\n\nThis will cause immediate crashes. The .app bundle needs to be rebuilt with ARM64 NW.js.\n\nTo fix:\n1. Delete the current .app bundle\n2. Download ARM64 NW.js: nwjs-sdk-v*-osx-arm64.zip from https://nwjs.io/downloads/\n3. Extract and move nwjs.app to /Applications/\n4. Rebuild the .app bundle: ./build-macos.sh" buttons {"OK"} default button "OK" with icon stop' 2>/dev/null || true
+    
     echo "" >&2
     echo "ERROR: x64 NW.js detected in .app bundle on Apple Silicon!" >&2
     echo "This will cause immediate crashes. The .app bundle needs to be rebuilt with ARM64 NW.js." >&2
@@ -214,9 +291,15 @@ main() {
     echo -e "${GREEN}Building macOS .app bundle for Visual Page Editor${NC}"
     echo "Version: $VERSION"
     echo "NW.js Version: $NWJS_VERSION"
-    echo "Architecture: $ARCH ($NWJS_ARCH)"
+    echo "Process Architecture: $(uname -m)"
+    echo "Hardware Architecture: $ARCH ($ARCH_DESCRIPTION)"
+    echo "NW.js Build: $NWJS_SUFFIX"
     if [ "$ARCH" = "arm64" ]; then
-        echo -e "${GREEN}✓ Apple Silicon (M1/M2/M3) build${NC}"
+        if [ "$(uname -m)" = "x86_64" ]; then
+            echo -e "${YELLOW}⚠ Running under Rosetta 2, but building with ARM64 NW.js for native performance${NC}"
+        else
+            echo -e "${GREEN}✓ Apple Silicon (M1/M2/M3) build - Native ARM64 performance${NC}"
+        fi
     else
         echo "Intel (x86_64) build"
     fi

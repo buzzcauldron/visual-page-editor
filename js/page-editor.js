@@ -299,7 +299,11 @@ $(window).on('load', function () {
   text_props_div = $('div.modal-textequiv-props'),
   coords_props_div = $('div.modal-coords-props'),
   baseline_props_div = $('div.modal-baseline-props');
-  $('#prop-modal .close').click(closePropModal);
+  // Close button handler for prop modal (in addition to clicking outside)
+  $('#prop-modal .close').click( function (e) {
+      e.stopPropagation();
+      closePropModal();
+    } );
   $(window).click( function (event) { if (event.target == prop_modal[0]) closePropModal(); } );
   Mousetrap.bind( 'mod+e', function () { return openPropertyModal($('.selected')); } );
 
