@@ -2,6 +2,10 @@
 
 A modern visual editor for Page XML files, based on [nw-page-editor](https://github.com/mauvilsa/nw-page-editor).
 
+**GitHub Repository:** [https://github.com/buzzcauldron/visual-page-editor](https://github.com/buzzcauldron/visual-page-editor)
+
+**Version:** 1.0.0
+
 ## Description
 
 Visual Page Editor is an application for viewing and editing ground truth or predicted information for document processing and text recognition. The editing is done interactively and visually on top of images of scanned documents.
@@ -68,11 +72,23 @@ Visual Page Editor is cross-platform and works on **Linux**, **macOS**, and **Wi
 
    **Windows:**
    ```powershell
-   # Extract the ZIP file to a location like:
+   # Detect your Windows architecture
+   echo $env:PROCESSOR_ARCHITECTURE  # Returns "ARM64" for ARM or "AMD64" for x64
+   
+   # For Windows ARM64 (Surface Pro X, Windows 11 on ARM):
+   # Extract nwjs-sdk-v*-win-arm64.zip to:
+   # C:\Program Files\nwjs-arm64\
+   # or
+   # %LOCALAPPDATA%\nwjs-arm64\
+   
+   # For Windows x64 (Intel/AMD):
+   # Extract nwjs-sdk-v*-win-x64.zip to:
    # C:\Program Files\nwjs\
    # or
    # %LOCALAPPDATA%\nwjs\
+   
    # The launcher scripts will automatically find it in common locations
+   # Note: On ARM64, x64 NW.js will run via emulation (slower performance)
    ```
 
 3. **Add launcher to PATH:**
@@ -253,7 +269,15 @@ See [CODE_REVIEW.md](CODE_REVIEW.md) for details.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request on GitHub.
+
+**How to contribute:**
+1. Fork the repository on GitHub
+2. Create a feature branch
+3. Make your changes
+4. Submit a Pull Request
+
+For more details, visit the [GitHub repository](https://github.com/buzzcauldron/visual-page-editor).
 
 ## License
 
@@ -265,7 +289,20 @@ This project is based on [nw-page-editor](https://github.com/mauvilsa/nw-page-ed
 
 ## Links
 
-- Original Project: https://github.com/mauvilsa/nw-page-editor
-- Page XML Format: https://github.com/omni-us/pageformat
-- PRImA Research: http://www.primaresearch.org/
+- **This Project:** [https://github.com/buzzcauldron/visual-page-editor](https://github.com/buzzcauldron/visual-page-editor)
+- **Original Project:** [https://github.com/mauvilsa/nw-page-editor](https://github.com/mauvilsa/nw-page-editor)
+- **Page XML Format:** [https://github.com/omni-us/pageformat](https://github.com/omni-us/pageformat)
+- **PRImA Research:** [http://www.primaresearch.org/](http://www.primaresearch.org/)
+
+## GitHub
+
+For the latest updates, bug reports, feature requests, and contributions, please visit the GitHub repository:
+
+**🔗 [https://github.com/buzzcauldron/visual-page-editor](https://github.com/buzzcauldron/visual-page-editor)**
+
+### Reporting Issues
+
+If you encounter any bugs or have feature requests, please open an issue on GitHub.
+
+See the [Contributing](#contributing) section above for information on how to contribute.
 

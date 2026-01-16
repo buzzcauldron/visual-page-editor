@@ -38,6 +38,12 @@ $(window).on('load', function () {
           $('#selectedId').text( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') );
           $('#modeElement').text((editable.index(g)+1)+'/'+editable.length);
 
+          // Update baseline type radio buttons if TextLine is selected
+          if ( g.is('.TextLine') ) {
+            var baselineType = pageCanvas.util.getBaselineType(g[0]);
+            $('input[name="baseline-type"][value="' + baselineType + '"]').prop('checked', true);
+          }
+
           updateSelectedInfo();
 
           if ( text.length !== 0 ) {
@@ -202,8 +208,12 @@ $(window).on('load', function () {
       if ( coordsconf )
         info += '<div>&nbsp;&nbsp;conf: '+coordsconf+'</div>';
     }
-    if ( baselinesetby || baselineconf || typeof orie !== 'undefined' ) {
+    if ( baselinesetby || baselineconf || typeof orie !== 'undefined' || elem.is('.TextLine') ) {
       info += '<div>Baseline:</div>';
+      if ( elem.is('.TextLine') ) {
+        var baselineType = pageCanvas.util.getBaselineType(elem[0]);
+        info += '<div>&nbsp;&nbsp;type: '+baselineType+'</div>';
+      }
       if ( typeof orie !== 'undefined' )
         info += '<div>&nbsp;&nbsp;orientation: '+((orie*180/Math.PI).toFixed(1))+'°</div>';
       if ( baselinesetby )
@@ -299,7 +309,11 @@ $(window).on('load', function () {
   text_props_div = $('div.modal-textequiv-props'),
   coords_props_div = $('div.modal-coords-props'),
   baseline_props_div = $('div.modal-baseline-props');
-  $('#prop-modal .close').click(closePropModal);
+  // Close button handler for prop modal (in addition to clicking outside)
+  $('#prop-modal .close').click( function (e) {
+      e.stopPropagation();
+      closePropModal();
+    } );
   $(window).click( function (event) { if (event.target == prop_modal[0]) closePropModal(); } );
   Mousetrap.bind( 'mod+e', function () { return openPropertyModal($('.selected')); } );
 
@@ -975,6 +989,22 @@ $(window).on('load', function () {
     .each(handleTextOrientation)
     .click(handleTextOrientation);
 
+  /// Setup baseline type ///
+  function handleBaselineType() {
+    if ( $(this).children('input').prop('checked') ) {
+      var baselineType = $(this).children('input').attr('value');
+      pageCanvas.cfg.baselineType = baselineType;
+      // Update selected TextLine if one is selected
+      var selected = $('.selected').closest('.TextLine');
+      if ( selected.length > 0 ) {
+        pageCanvas.util.setBaselineType(selected[0], baselineType);
+      }
+    }
+  }
+  $('label[id^=baseline-type-]')
+    .each(handleBaselineType)
+    .click(handleBaselineType);
+
   /// Setup table size ///
   $('label[id^="table-"] input')
     .on( 'input', handleTableSize );
@@ -1177,6 +1207,7 @@ $(window).on('load', function () {
         else {
           pageCanvas.cfg.polyrectOffset = parseFloat($('#baselineOffset').val());
           pageCanvas.cfg.baselineMaxPoints = line_type === '1' ? 2 : 0;
+          pageCanvas.cfg.baselineType = $('input[name="baseline-type"]:checked').val() || 'main';
           pageCanvas.mode.lineBaselineCreate( line_restriction );
         }
       }

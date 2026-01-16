@@ -67,7 +67,10 @@ if [ "$PLATFORM" = "macos" ]; then
   # Try architecture-specific locations first
   if [ "$MAC_ARCH" = "arm64" ]; then
     # Apple Silicon: prefer ARM64 builds, but allow x64 via Rosetta 2
-    nw="/Applications/nwjs.app/Contents/MacOS/nwjs"
+    # First check for ARM64 versions in SDK directories
+    nw="/Applications/nwjs-sdk-v0.94.0-osx-arm64/nwjs.app/Contents/MacOS/nwjs"
+    [ ! -f "$nw" ] && nw=$(find /Applications -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+    [ ! -f "$nw" ] && nw="/Applications/nwjs.app/Contents/MacOS/nwjs"
     [ ! -f "$nw" ] && nw=$(mdfind "kMDItemKind == 'Application' && kMDItemFSName == 'nwjs.app'" 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
     [ ! -f "$nw" ] && nw=$(find /Applications -name "nwjs.app" -type d 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
     

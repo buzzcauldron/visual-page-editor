@@ -15,8 +15,20 @@ $BUILD_DIR = Join-Path $PROJECT_ROOT "build-windows"
 $PACKAGE_DIR = Join-Path $BUILD_DIR $NAME
 
 # Detect architecture
-$ARCH = "x64"
-$NWJS_SUFFIX = "win-x64"
+$WindowsArch = $env:PROCESSOR_ARCHITECTURE
+if ($WindowsArch -eq "ARM64") {
+    $ARCH = "arm64"
+    $NWJS_SUFFIX = "win-arm64"
+} elseif ($WindowsArch -eq "AMD64") {
+    $ARCH = "x64"
+    $NWJS_SUFFIX = "win-x64"
+} else {
+    # Default to x64 for unknown architectures
+    $ARCH = "x64"
+    $NWJS_SUFFIX = "win-x64"
+    Write-Warning "Unknown architecture '$WindowsArch', defaulting to x64"
+}
+
 $NWJS_ARCHIVE = "nwjs-sdk-v$NWJS_VERSION-$NWJS_SUFFIX.zip"
 $NWJS_URL = "https://dl.nwjs.io/v$NWJS_VERSION/$NWJS_ARCHIVE"
 $NWJS_EXTRACTED = Join-Path $PROJECT_ROOT "nwjs-sdk-v$NWJS_VERSION-$NWJS_SUFFIX"
@@ -59,20 +71,48 @@ function Download-NWJS {
     Write-ColorOutput Yellow "Checking for NW.js v$NWJS_VERSION ($NWJS_SUFFIX)..."
     
     $nwjsArchive = Join-Path $PROJECT_ROOT $NWJS_ARCHIVE
+    $nwjsExe = Join-Path $NWJS_EXTRACTED "nw.exe"
     
-    if ((Test-Path $NWJS_EXTRACTED) -and (Test-Path (Join-Path $NWJS_EXTRACTED "nw.exe"))) {
-        Write-ColorOutput Green "NW.js already present at $NWJS_EXTRACTED"
-        return
+    # Check if already downloaded and verify architecture
+    if ((Test-Path $NWJS_EXTRACTED) -and (Test-Path $nwjsExe)) {
+        $fileInfo = Get-Item $nwjsExe -ErrorAction SilentlyContinue
+        if ($null -ne $fileInfo) {
+            # Check file architecture using file command equivalent
+            $fileOutput = & file $nwjsExe 2>$null
+            if ($null -eq $fileOutput) {
+                # Fallback: try to check via PowerShell
+                $fileOutput = (Get-Content $nwjsExe -TotalCount 1 -ErrorAction SilentlyContinue | Format-Hex | Select-String -Pattern "PE" -Quiet)
+            }
+            
+            $expectedArch = if ($ARCH -eq "arm64") { "ARM64" } else { "x64" }
+            if ($fileOutput -match $expectedArch -or $fileOutput -match "PE32") {
+                Write-ColorOutput Green "NW.js already present at $NWJS_EXTRACTED"
+                Write-ColorOutput Green "✓ Architecture verified: $expectedArch"
+                return
+            } else {
+                Write-ColorOutput Yellow "Warning: Existing NW.js may have wrong architecture, re-downloading..."
+                Remove-Item $NWJS_EXTRACTED -Recurse -Force -ErrorAction SilentlyContinue
+                Remove-Item $nwjsArchive -Force -ErrorAction SilentlyContinue
+            }
+        }
     }
     
-    Write-Output "Downloading NW.js v$NWJS_VERSION from $NWJS_URL..."
+    Write-Output "Downloading NW.js v$NWJS_VERSION ($NWJS_SUFFIX) from $NWJS_URL..."
     
     try {
         Invoke-WebRequest -Uri $NWJS_URL -OutFile $nwjsArchive -UseBasicParsing
         Write-Output "Extracting NW.js..."
         Expand-Archive -Path $nwjsArchive -DestinationPath $PROJECT_ROOT -Force
         Remove-Item $nwjsArchive -Force
-        Write-ColorOutput Green "NW.js downloaded and extracted successfully!"
+        
+        # Verify downloaded binary exists
+        if (Test-Path $nwjsExe) {
+            Write-ColorOutput Green "NW.js downloaded and extracted successfully!"
+            Write-ColorOutput Green "✓ Architecture: $ARCH ($NWJS_SUFFIX)"
+        } else {
+            Write-ColorOutput Red "ERROR: NW.js binary not found after extraction!"
+            throw "NW.js extraction failed"
+        }
     }
     catch {
         Write-ColorOutput Red "Warning: Could not download NW.js automatically."

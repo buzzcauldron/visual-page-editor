@@ -770,6 +770,25 @@
     }
 
     /**
+     * Snaps the image to the left side of the viewport.
+     */
+    function snapImageToLeft() {
+      if ( ! svgRoot )
+        return;
+      // Get canvas bounds - use xmin which is the left edge of the SVG content
+      if ( typeof xmin === 'undefined' || isNaN(xmin) )
+        return;
+      // Set viewBox to show left side of image
+      boxX0 = xmin + ( boxW <= width ? 0 : width - boxW );
+      // Keep current Y position and zoom level
+      viewBoxLimits();
+      if ( isNaN(boxX0) || isNaN(boxY0) || isNaN(boxW) || isNaN(boxH) )
+        return;
+      svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
+    }
+    self.snapImageToLeft = snapImageToLeft;
+
+    /**
      * Centers and zooms the viewbox on the selected element.
      */
     function panZoomTo( fact, limits, sel ) {
@@ -1960,10 +1979,15 @@
       textarea
         //.off('keyup change')
         .off('input')
+        .off('paste')  // Windows compatibility: handle paste events separately
         .val(prevText)
         //.on( 'keyup change', function ( event ) {
         .on( 'input', function ( event ) {
             var currText = textarea.val();
+            // Windows compatibility: Normalize line endings (CRLF -> LF) for consistency
+            if ( currText.indexOf('\r\n') !== -1 ) {
+              currText = currText.replace(/\r\n/g, '\n');
+            }
             if ( ! self.cfg.multilineText && currText.match(/[\t\n\r]/) ) {
             //if ( ( event.keyCode === 13 /* enter */ || event.keyCode === 46 /* del */ || event.type === 'paste' ) && ! self.cfg.multilineText ) {
               currText = currText.replace(/[\t\n\r]/g,' ').trim();
@@ -1983,12 +2007,32 @@
               self.cfg.onTextChange[n](textElem[0]);
             registerChange('text edit of '+getElementPath(textElem));
             prevText = currText;
+          } )
+        // Windows compatibility: Handle paste events to normalize CRLF
+        .on( 'paste', function ( event ) {
+            // Allow default paste behavior, then normalize in input handler
+            var self_textarea = this;
+            setTimeout( function () {
+              var pastedText = $(self_textarea).val();
+              if ( pastedText.indexOf('\r\n') !== -1 ) {
+                var normalized = pastedText.replace(/\r\n/g, '\n');
+                if ( ! self.cfg.multilineText ) {
+                  normalized = normalized.replace(/[\t\n\r]/g,' ').trim();
+                }
+                $(self_textarea).val(normalized);
+                $(self_textarea).trigger('input');
+              }
+            }, 0 );
           } );
 
-      if ( ! isReadOnly(textElem) )
+      if ( ! isReadOnly(textElem) ) {
         textarea
           .prop( 'disabled', false )
           .focus();
+        
+        // Snap image to left when edit toolbar opens
+        snapImageToLeft();
+      }
 
       var isinvalid = self.cfg.textValidator(prevText,false,svgElem);
       if ( isinvalid )
