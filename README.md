@@ -21,6 +21,8 @@ This project is a fork/evolution of the original nw-page-editor with improvement
 
 ### Desktop Variant
 
+#### Linux/macOS
+
 1. Download the SDK version of NW.js from [http://nwjs.io/downloads](http://nwjs.io/downloads)
 2. Extract NW.js to a location of your choice
 3. Add the NW.js binary directory to your PATH
@@ -30,6 +32,20 @@ This project is a fork/evolution of the original nw-page-editor with improvement
    cd visual-page-editor
    ```
 5. Add the `bin` directory to your PATH or symlink `bin/visual-page-editor` to a directory in your PATH
+
+#### Windows
+
+1. Download the SDK version of NW.js for Windows from [http://nwjs.io/downloads](http://nwjs.io/downloads)
+2. Extract NW.js to a location of your choice (e.g., `C:\Program Files\nwjs\`)
+3. Add the NW.js directory (containing `nw.exe`) to your PATH, or the launcher will check common locations automatically
+4. Clone this repository:
+   ```cmd
+   git clone https://github.com/buzzcauldron/visual-page-editor.git
+   cd visual-page-editor
+   ```
+5. Use `bin\visual-page-editor.bat` (or `bin\visual-page-editor.ps1` for PowerShell) to launch the application, or add the `bin` directory to your PATH
+   
+   **Note:** The `.bat` file will automatically use the PowerShell script (`.ps1`) if available for better argument handling. Both launchers are provided for compatibility.
 
 ### Docker Desktop Variant
 
