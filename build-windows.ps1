@@ -3,7 +3,7 @@
 
 param(
     [string]$NWJS_VERSION = "0.44.4",
-    [string]$VERSION = "1.0.0"
+    [string]$VERSION = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,6 +11,21 @@ $ErrorActionPreference = "Stop"
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PROJECT_ROOT = $SCRIPT_DIR
 $NAME = "visual-page-editor"
+
+# VERSION from VERSION file or package.json (single source of truth)
+if ([string]::IsNullOrEmpty($VERSION)) {
+    $versionFile = Join-Path $PROJECT_ROOT "VERSION"
+    if (Test-Path $versionFile) {
+        $VERSION = (Get-Content $versionFile -Raw).Trim()
+    }
+    if ([string]::IsNullOrEmpty($VERSION) -and (Test-Path (Join-Path $PROJECT_ROOT "package.json"))) {
+        try {
+            $pkg = Get-Content (Join-Path $PROJECT_ROOT "package.json") -Raw | ConvertFrom-Json
+            $VERSION = $pkg.version
+        } catch { }
+    }
+    if ([string]::IsNullOrEmpty($VERSION)) { $VERSION = "1.0.0" }
+}
 $BUILD_DIR = Join-Path $PROJECT_ROOT "build-windows"
 $PACKAGE_DIR = Join-Path $BUILD_DIR $NAME
 

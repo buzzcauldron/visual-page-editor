@@ -200,9 +200,9 @@ if [ "$TODO_COUNT" -gt 0 ]; then
     echo -e "${YELLOW}Found $TODO_COUNT TODO/FIXME comments${NC}"
 fi
 
-# Check for potential security issues
-if grep -r "eval(" js/*.js 2>/dev/null | grep -v "\.min\.js" | grep -v "node_modules" | grep -q "."; then
-    count_warning "Found eval() usage (potential security risk)"
+# Check for potential security issues (exclude vendor: xmllint.js, *.min.js)
+if grep -r "eval(" js/*.js 2>/dev/null | grep -v "\.min\.js" | grep -v "xmllint\.js" | grep -v "node_modules" | grep -q "."; then
+    count_warning "Found eval() usage in app code (potential security risk)"
 fi
 
 # Check file permissions

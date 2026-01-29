@@ -6,9 +6,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
-# Configuration
+# Configuration (VERSION from VERSION file or package.json)
 NAME="visual-page-editor"
-VERSION="1.0.0"
+VERSION="$([ -f "$PROJECT_ROOT/VERSION" ] && cat "$PROJECT_ROOT/VERSION" | tr -d '\n')"
+[ -z "$VERSION" ] && VERSION="$(node -p "require('$PROJECT_ROOT/package.json').version" 2>/dev/null)" || true
+VERSION="${VERSION:-1.0.0}"
 NWJS_VERSION="${NWJS_VERSION:-0.44.4}"
 
 # Colors for output

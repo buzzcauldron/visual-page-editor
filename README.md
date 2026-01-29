@@ -224,21 +224,22 @@ visual-page-editor.bat examples\lorem.xml examples\lorem2.xml
 
 ## Keyboard Shortcuts
 
+**Mod** = `Ctrl` (Windows/Linux) or `Cmd` (macOS).
+
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl/Cmd + O` | Open file |
-| `Ctrl/Cmd + S` | Save file |
-| `Ctrl/Cmd + Z` | Undo |
-| `Ctrl/Cmd + Y` | Redo |
-| `Ctrl/Cmd + E` | Open property editor |
-| `Ctrl/Cmd + 0` | View full document |
-| `Ctrl/Cmd + 1` | Zoom to page |
-| `Ctrl/Cmd + 2` | Zoom to element |
-| `Page Up/Down` | Navigate documents |
-| `Tab` | Select next element |
-| `Esc` | Deselect element |
+| `Mod + O` | Open file |
+| `Mod + S` | Save file |
+| `Mod + Shift + S` | Save As |
+| `Mod + Z` / `Mod + Y` | Undo / Redo |
+| `Mod + E` | Open property editor |
+| `Mod + 0` / `Mod + 1` / `Mod + 2` | Fit page / Zoom to page / Zoom to element |
+| `Page Up/Down` or **Arrow keys** | Navigate documents |
+| `Mod + ,` / `Mod + .` | Cycle edit mode (element type / tool) |
+| `Tab` / `Shift + Tab` | Next / previous element |
+| `Esc` | Deselect, close modal or drawer |
 
-See the original [nw-page-editor documentation](https://github.com/mauvilsa/nw-page-editor) for the complete list of shortcuts.
+Full list: [KEYBOARD-SHORTCUTS.md](KEYBOARD-SHORTCUTS.md).
 
 ## Web Server Variant
 
@@ -251,6 +252,8 @@ The editor can also run as a web server for remote collaboration. See the `web-a
 - NW.js SDK (for desktop development)
   - **Apple Silicon (M1/M2/M3)**: Use `nwjs-sdk-v*-osx-arm64.zip` for native performance
   - **Intel Mac**: Use `nwjs-sdk-v*-osx-x64.zip`
+  - **Windows ARM64**: Use `nwjs-sdk-v*-win-arm64.zip` for native performance (launchers prefer ARM64 over x64 emulation)
+  - **Windows x64**: Use `nwjs-sdk-v*-win-x64.zip`
 - Node.js (for dependencies)
 - Git (for version control)
 

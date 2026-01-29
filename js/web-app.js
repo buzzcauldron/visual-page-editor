@@ -1,7 +1,7 @@
 /**
  * App functionality for the web edition of visual-page-editor.
  *
- * @version $Version: 2022.09.13$
+ * @version 1.1.0
  * @author Mauricio Villegas <mauricio_ville@yahoo.com>
  * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
  * @license MIT License
@@ -24,6 +24,8 @@ $(window).on('load', function () {
   /// Keyboard bindings ///
   Mousetrap.bind( 'pagedown', function () { $('#nextPage').click(); return false; } );
   Mousetrap.bind( 'pageup', function () { $('#prevPage').click(); return false; } );
+  Mousetrap.bind( ['left', 'up'], function () { $('#prevPage').click(); return false; } );
+  Mousetrap.bind( ['right', 'down'], function () { $('#nextPage').click(); return false; } );
 
   /// Confirm that changes will be saved ///
   function confirmSave( afterconfirm ) {

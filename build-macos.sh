@@ -6,9 +6,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
-# Configuration
+# Configuration (VERSION from VERSION file or package.json)
 NAME="visual-page-editor"
-VERSION="1.0.0"
+VERSION="$([ -f "$SCRIPT_DIR/VERSION" ] && cat "$SCRIPT_DIR/VERSION" | tr -d '\n')"
+[ -z "$VERSION" ] && VERSION="$(node -p "require('$SCRIPT_DIR/package.json').version" 2>/dev/null)" || true
+VERSION="${VERSION:-1.0.0}"
 # Default to 0.50.0 for ARM64 support (0.44.4 doesn't have ARM64 builds)
 # Can be overridden via NWJS_VERSION environment variable
 if [ -z "${NWJS_VERSION:-}" ]; then

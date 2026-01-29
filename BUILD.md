@@ -1,5 +1,14 @@
 # Building Packages
 
+## Version (single source)
+
+App version is read from **`VERSION`** (or `package.json` if VERSION is missing). Bump in one place:
+
+- **`VERSION`** – preferred (e.g. `1.0.0`)
+- **`package.json`** – `"version": "1.0.0"` (fallback for build scripts)
+
+Build scripts (build-macos.sh, build-deb.sh, rpm/build-rpm.sh, build-windows.ps1) use this automatically.
+
 ## Current Status
 
 ✅ **All build files are ready and validated!**

@@ -2,7 +2,7 @@
 <!--
   - Main PHP file of visual-page-editor web edition.
   -
-  - @version $Version: 1.0.0$
+  - @version $Version: 1.1.0$
   - @author buzzcauldron
   - @copyright Copyright(c) 2025, buzzcauldron
   - @license MIT License
@@ -222,7 +222,8 @@ if ( getenv('CSS') !== false ) {
       </div>
       <div>
         Baseline type:
-        <label id="baseline-type-main"><input class="mousetrap" type="radio" name="baseline-type" value="main" checked=""/> Main</label>
+        <label id="baseline-type-default"><input class="mousetrap" type="radio" name="baseline-type" value="default" checked=""/> Default</label>
+        <label id="baseline-type-main"><input class="mousetrap" type="radio" name="baseline-type" value="main"/> Main</label>
         <label id="baseline-type-margin"><input class="mousetrap" type="radio" name="baseline-type" value="margin"/> Margin</label>
       </div>
       <div>

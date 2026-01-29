@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   visual-page-editor:
     build:
@@ -19,5 +17,6 @@ services:
     network_mode: host
     stdin_open: true
     tty: true
-    command: ["examples/*.xml"]
+    # Optional: open an example file (use a real path; no shell glob expansion in exec form)
+    # command: ["/app/examples/lorem.xml"]
 

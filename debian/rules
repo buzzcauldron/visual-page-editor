@@ -21,19 +21,9 @@ override_dh_auto_install:
 	install -d $(CURDIR)/debian/visual-page-editor/usr/bin
 	install -m 755 bin/visual-page-editor $(CURDIR)/debian/visual-page-editor/usr/bin/visual-page-editor
 	
-	# Update launcher to check for bundled NW.js first and fix application path
-	awk '/^  nw=\$$\(which nw\);$$/ { \
-	  print "  # Check for bundled NW.js first"; \
-	  print "  nw=\"/usr/lib/visual-page-editor/nwjs/nw\""; \
-	  print "  [ ! -f \"" "$$" "nw\" ] && nw=$$(which nw);"; \
-	  next \
-	} \
-	/^[[:space:]]*nw_page_editor=.*nw-page-editor.*$$/ { \
-	  print; \
-	  print "  [ ! -f \"" "$$" "nw_page_editor/js/nw-app.js\" ] && [ -f \"/usr/share/visual-page-editor/js/nw-app.js\" ] &&"; \
-	  print "    nw_page_editor=\"/usr/share/visual-page-editor\""; \
-	  next \
-	} \
+	# Prefer bundled NW.js and app path for Debian install
+	awk '/^  # Linux and others/ { print; print "  nw=\"/usr/lib/visual-page-editor/nwjs/nw\""; print "  [ ! -f \"" "$$" "nw\" ] &&"; next } \
+	/^  nw_page_editor=\"\$$nw_page_editor\/share\/nw-page-editor\";?$$/ { print; print "  [ ! -f \"" "$$" "nw_page_editor/js/nw-app.js\" ] && [ -f \"/usr/share/visual-page-editor/js/nw-app.js\" ] && nw_page_editor=\"/usr/share/visual-page-editor\""; next } \
 	{ print }' $(CURDIR)/debian/visual-page-editor/usr/bin/visual-page-editor > $(CURDIR)/debian/visual-page-editor/usr/bin/visual-page-editor.tmp && \
 	chmod 755 $(CURDIR)/debian/visual-page-editor/usr/bin/visual-page-editor.tmp && \
 	mv $(CURDIR)/debian/visual-page-editor/usr/bin/visual-page-editor.tmp $(CURDIR)/debian/visual-page-editor/usr/bin/visual-page-editor

@@ -1,7 +1,7 @@
 /**
  * CSS styles for nw-page-editor.
  *
- * @version $Version: 2020.11.16$
+ * @version 1.1.0
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -201,7 +201,8 @@ body {
   stroke-width: 1.5;
 }
 
-/* Main baselines - ensure blue color (explicit) */
+/* Default and main baselines - ensure blue color (explicit) */
+.TextLine.baseline-default > .Baseline,
 .TextLine.baseline-main > .Baseline {
   stroke: blue;
 }

@@ -2,13 +2,15 @@
 /**
  * Common code to be executed by other php scripts.
  *
- * @version $Version: 1.0.0$
+ * @version $Version: 1.1.0$
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * @license MIT License
  */
 
-$version = str_replace('Version: ','',"Version: 2025.09.23");
+// Single source: read from project root VERSION file
+$versionFile = __DIR__ . '/../VERSION';
+$version = (is_file($versionFile) ? trim(file_get_contents($versionFile)) : '') ?: '1.0.0';
 $v = '?v='.$version;
 
 /// User authentication ///
