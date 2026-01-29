@@ -32,14 +32,19 @@ document.addEventListener('DOMContentLoaded', function() {
    * - Don't resize the window when using LiveReload.
    */
 
-  var gui = require('nw.gui');
+  // NW.js 0.13+ uses global nw; 0.12 and earlier used require('nw.gui')
+  var gui = (typeof nw !== 'undefined' && nw.Window) ? nw : (function () { try { return require('nw.gui'); } catch (e) { return null; } })();
+  if (!gui || !gui.Window) {
+    console.error('nw-winstate: NW.js Window API not available');
+    return;
+  }
   var win = gui.Window.get();
   var winState;
   var currWinMode;
   var resizeTimeout;
   var isMaximizationEvent = false;
   // extra height added in linux x64 gnome-shell env, use it as workaround
-  var deltaHeight = gui.App.manifest.window.frame ? 0 : 'disabled';
+  var deltaHeight = (gui.App && gui.App.manifest && gui.App.manifest.window && gui.App.manifest.window.frame) ? 0 : 'disabled';
 
   function initWindowState() {
     // Don't resize the window when using LiveReload.
@@ -103,8 +108,8 @@ document.addEventListener('DOMContentLoaded', function() {
     //Make sure that the window is displayed somewhere on a screen that is connected to the PC. 
     //Imagine you run the program on a secondary screen connected to a laptop - and then the next time you start the 
     //program the screen is not connected...
-    gui.Screen.Init();
-    var screens = gui.Screen.screens;
+    if (gui.Screen && typeof gui.Screen.Init === 'function') { gui.Screen.Init(); }
+    var screens = (gui.Screen && gui.Screen.screens) ? gui.Screen.screens : [{ bounds: { x: 0, y: 0, width: 9999, height: 9999 } }];
     var locationIsOnAScreen = false;
     for (var i = 0; i < screens.length; i++) {
       var screen = screens[i];

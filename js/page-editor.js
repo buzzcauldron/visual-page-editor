@@ -1,7 +1,7 @@
 /**
  * Interactive editing of Page XMLs functionality.
  *
- * @version $Version: 2022.01.31$
+ * @version 1.1.0
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -44,7 +44,7 @@ $(window).on('load', function () {
             $('input[name="baseline-type"][value="' + baselineType + '"]').prop('checked', true);
             pageCanvas.cfg.baselineType = baselineType;
           }
-          // Don't reset to main when selecting non-TextLine - keep user's selection for creating baselines
+          // Don't reset to default when selecting non-TextLine - keep user's selection for creating baselines
 
           updateSelectedInfo();
 
@@ -107,9 +107,9 @@ $(window).on('load', function () {
           if ( selectedType ) {
             pageCanvas.cfg.baselineType = selectedType;
           } else {
-            // Only default to main if nothing is selected
-            $('input[name="baseline-type"][value="main"]').prop('checked', true);
-            pageCanvas.cfg.baselineType = 'main';
+            // Only default to default if nothing is selected
+            $('input[name="baseline-type"][value="default"]').prop('checked', true);
+            pageCanvas.cfg.baselineType = 'default';
           }
           setDocumentProperties();
         },
@@ -762,7 +762,7 @@ $(window).on('load', function () {
       $(this).toggleClass('is-active');
     } );
 
-  /// Keyboad shortcuts to cycle through edit modes ///
+  /// Keyboard shortcuts to cycle through edit modes ///
   function cycleEditMode( name, offset ) {
     var
     opts = $('#editModesFieldset input[name='+name+']:not([disabled])'),
@@ -1224,7 +1224,7 @@ $(window).on('load', function () {
           pageCanvas.cfg.baselineMaxPoints = line_type === '1' ? 2 : 0;
           // Read baseline type immediately before creating (from radio button)
           var selectedType = $('input[name="baseline-type"]:checked').val();
-          pageCanvas.cfg.baselineType = selectedType || 'main';
+          pageCanvas.cfg.baselineType = selectedType || 'default';
           // Update config to persist the selection
           if ( selectedType ) {
             pageCanvas.cfg.baselineType = selectedType;

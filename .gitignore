@@ -22,6 +22,8 @@ node_modules/
 .vscode/
 .idea/
 *.log
+repo-*-log.txt
+repo-sync-*.txt
 
 # Environment files
 .env

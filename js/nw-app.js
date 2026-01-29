@@ -1,7 +1,7 @@
 /**
  * NW.js app functionality for visual-page-editor.
  *
- * @version $Version: 1.0.0$
+ * @version 1.1.0
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * @license MIT License
@@ -50,6 +50,8 @@ $(window).on('load', function () {
   Mousetrap.bind( 'mod+n', newWindow );
   Mousetrap.bind( ['pagedown','shift+pagedown'], function ( event ) { return changePage( event.shiftKey ? 10 : 1 ); } );
   Mousetrap.bind( ['pageup','shift+pageup'], function ( event ) { return changePage( event.shiftKey ? -10 : -1 ); } );
+  Mousetrap.bind( ['left', 'up'], function () { return changePage( -1 ); } );
+  Mousetrap.bind( ['right', 'down'], function () { return changePage( 1 ); } );
   Mousetrap.bind( 'mod+shift+r', function () {
       if ( typeof pageCanvas !== 'undefined' && pageCanvas.hasChanged() )
         if ( confirm('WARNING: Modifications will be lost on reload! Select Cancel to abort.') )
@@ -70,8 +72,10 @@ $(window).on('load', function () {
   };
 
   /// Multiple windows support ///
-  if ( typeof global.pageNum === 'undefined' )
-    global.pageNum = parseInt(window.location.hash.substr(1));
+  if ( typeof global.pageNum === 'undefined' ) {
+    global.pageNum = parseInt(window.location.hash.substr(1), 10);
+    if (Number.isNaN(global.pageNum)) { global.pageNum = 1; }
+  }
   function newWindow() {
     global.pageNum++;
     nw.Window.open('../html/index.html#'+global.pageNum,{"width":win.width,"height":win.height});
@@ -93,7 +97,7 @@ $(window).on('load', function () {
            confirm('WARNING: Modifications will be saved on exit! Select Cancel to discard them.') )
         saveFile();
 
-    global.pageWindows[parseInt(window.location.hash.substr(1))-1] = false;
+    global.pageWindows[(parseInt(window.location.hash.substr(1), 10) || 1) - 1] = false;
     win.close(true);
 
     return false;
@@ -366,8 +370,8 @@ $(window).on('load', function () {
         } );
     } );
 
-  /// Open file if provided as argument ///
-  if ( nw.App.argv.length > 0 && window.location.hash === '#1' ) {
+  /// Open file if provided as argument (primary window: hash #1 or empty) ///
+  if ( nw.App.argv.length > 0 && (window.location.hash === '#1' || window.location.hash === '') ) {
     global.pageWindows = [ true ];
     if ( parseArgs(nw.App.argv) )
       window.setTimeout( function () {
@@ -393,7 +397,8 @@ $(window).on('load', function () {
       for ( n = global.pageWindows.length-1; n>=0; n-- )
         if ( global.pageWindows[n] )
           break;
-      if ( n != parseInt(window.location.hash.substr(1))-1 )
+      var myPageNum = parseInt(window.location.hash.substr(1), 10) || 1;
+      if ( n != myPageNum - 1 )
         return;
       global.argv = argv.replace(/.*visual-page-editor /,'').split(' ');
       newWindow();
@@ -477,6 +482,7 @@ $(window).on('load', function () {
   /// Setup Page XML schema validation ///
   var
   pagexml_xsd_file = '../xsd/pagecontent_omnius.xsd',
+  pagexml_xsd_fallback_url = 'https://raw.githubusercontent.com/omni-us/pageformat/master/pagecontent_omnius.xsd',
   pagexml_xsd = false;
   function loadPageXmlXsd( async ) {
     if ( ! pagexml_xsd ) {
@@ -486,31 +492,31 @@ $(window).on('load', function () {
         pagexml_xsd = unescape(encodeURIComponent(pagexml_xsd));
         pageCanvas.cfg.pagexmlns = $(data).find('[targetNamespace]').attr('targetNamespace');
       }
-      
+      function onXsdFail( resolvedPath ) {
+        // Fallback: fetch from GitHub when submodule is not initialized
+        $.ajax({ url: pagexml_xsd_fallback_url, async: async, dataType: 'xml' })
+          .done( function ( data ) { processXsdData( data ); } )
+          .fail( function () {
+            pageCanvas.throwError( 'Failed to retrieve '+resolvedPath+' from submodule. Please run "git submodule update --init" or "scripts/fetch-xsd.sh".' );
+          } );
+      }
       // First try to load the file directly (in case it's the actual XSD)
       $.ajax({ url: pagexml_xsd_file, async: async, dataType: 'xml' })
         .done( function ( data ) {
-            // If the file is directly an XML/XSD file, use it
             processXsdData( data );
           } )
         .fail( function () {
-            // If that fails, try reading it as text to get the path to the actual XSD
+            // If that fails, try reading it as text to get the path to the actual XSD (submodule layout)
             $.ajax({ url: pagexml_xsd_file, async: async, dataType: 'text' })
               .done( function ( pathText ) {
-                  // Resolve the path: if the file contains a relative path, resolve it relative to xsd/
                   var xsdPath = pathText.trim();
                   var resolvedPath = '../xsd/' + xsdPath;
-                  // Now load the actual XSD file
                   $.ajax({ url: resolvedPath, async: async, dataType: 'xml' })
-                    .done( function ( data ) {
-                        processXsdData( data );
-                      } )
-                    .fail( function () {
-                        pageCanvas.throwError( 'Failed to retrieve '+resolvedPath+' from submodule. Please run "git submodule update --init".' );
-                      } );
+                    .done( function ( data ) { processXsdData( data ); } )
+                    .fail( function () { onXsdFail( resolvedPath ); } );
                 } )
               .fail( function () {
-                  pageCanvas.throwError( 'Failed to retrieve '+pagexml_xsd_file+'. The schema is included as a git submodule. To fix you need to run "git submodule update --init".' );
+                  onXsdFail( pagexml_xsd_file );
                 } );
           } );
     }

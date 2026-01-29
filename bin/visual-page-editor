@@ -5,7 +5,7 @@
 ## Command line launcher for visual-page-editor.
 ## Compatible with Linux, macOS, and Windows (via Git Bash/WSL).
 ##
-## @version 1.0.0
+## @version 1.1.0
 ## @author buzzcauldron
 ## @copyright Copyright(c) 2025, buzzcauldron
 ## @license MIT License
@@ -95,10 +95,17 @@ download_nwjs() {
     nwjs_binary="$nwjs_extracted/nw"
   elif [ "$platform" = "windows" ]; then
     download_dir="$HOME/nwjs"
-    nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-win-x64.zip"
-    nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-x64.zip"
-    nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-x64"
-    nwjs_binary="$nwjs_extracted/nw.exe"
+    if [ "$arch" = "arm64" ]; then
+      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-win-arm64.zip"
+      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-arm64.zip"
+      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-arm64"
+      nwjs_binary="$nwjs_extracted/nw.exe"
+    else
+      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-win-x64.zip"
+      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-x64.zip"
+      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-x64"
+      nwjs_binary="$nwjs_extracted/nw.exe"
+    fi
   else
     echo "${0##*/}: error: automatic download not supported for platform: $platform" >&2
     return 1
@@ -253,18 +260,42 @@ if [ "$PLATFORM" = "macos" ]; then
     fi
   fi
 elif [ "$PLATFORM" = "windows" ]; then
-  # Windows: Check common locations
-  if [ -d "/c/Program Files/nwjs" ]; then
-    nw="/c/Program Files/nwjs/nw.exe"
-  elif [ -d "/c/Program Files (x86)/nwjs" ]; then
-    nw="/c/Program Files (x86)/nwjs/nw.exe"
-  elif [ -d "$HOME/nwjs" ]; then
-    nw="$HOME/nwjs/nw.exe"
-  else
-    # Check download directory
-    [ ! -f "$nw" ] && nw="$HOME/nwjs/nwjs-sdk-v${NWJS_VERSION}-win-x64/nw.exe"
-    [ ! -f "$nw" ] && nw=$(find "$HOME/nwjs" -name "nw.exe" -type f 2>/dev/null | head -n 1)
-    [ ! -f "$nw" ] && nw=$(which nw.exe 2>/dev/null || which nw 2>/dev/null)
+  # Detect Windows architecture (Git Bash/WSL: PROCESSOR_ARCHITECTURE or uname -m)
+  WIN_ARCH="x64"
+  if [ -n "${PROCESSOR_ARCHITECTURE:-}" ] && [ "$PROCESSOR_ARCHITECTURE" = "ARM64" ]; then
+    WIN_ARCH="arm64"
+  elif [ -n "${PROCESSOR_ARCHITEW6432:-}" ] && [ "$PROCESSOR_ARCHITEW6432" = "ARM64" ]; then
+    WIN_ARCH="arm64"
+  elif [ "$(uname -m 2>/dev/null)" = "aarch64" ]; then
+    WIN_ARCH="arm64"
+  fi
+  # Windows: prefer native architecture (ARM64 first on Windows ARM, then x64)
+  if [ "$WIN_ARCH" = "arm64" ]; then
+    [ ! -f "$nw" ] && [ -f "/c/Program Files/nwjs-arm64/nw.exe" ] && nw="/c/Program Files/nwjs-arm64/nw.exe"
+    [ ! -f "$nw" ] && [ -d "$HOME/nwjs/nwjs-sdk-v${NWJS_VERSION}-win-arm64" ] && nw="$HOME/nwjs/nwjs-sdk-v${NWJS_VERSION}-win-arm64/nw.exe"
+    [ ! -f "$nw" ] && nw=$(find "$HOME/nwjs" -path "*win-arm64*" -name "nw.exe" -type f 2>/dev/null | head -n 1)
+  fi
+  if [ ! -f "$nw" ]; then
+    if [ -d "/c/Program Files/nwjs" ]; then
+      nw="/c/Program Files/nwjs/nw.exe"
+    elif [ -d "/c/Program Files (x86)/nwjs" ]; then
+      nw="/c/Program Files (x86)/nwjs/nw.exe"
+    elif [ -d "$HOME/nwjs" ]; then
+      nw="$HOME/nwjs/nw.exe"
+    else
+      [ ! -f "$nw" ] && nw="$HOME/nwjs/nwjs-sdk-v${NWJS_VERSION}-win-x64/nw.exe"
+      [ ! -f "$nw" ] && [ "$WIN_ARCH" = "arm64" ] && nw="$HOME/nwjs/nwjs-sdk-v${NWJS_VERSION}-win-arm64/nw.exe"
+      [ ! -f "$nw" ] && nw=$(find "$HOME/nwjs" -name "nw.exe" -type f 2>/dev/null | head -n 1)
+      [ ! -f "$nw" ] && nw=$(which nw.exe 2>/dev/null || which nw 2>/dev/null)
+    fi
+  fi
+  # Warn if using x64 NW.js on Windows ARM64
+  if [ "$WIN_ARCH" = "arm64" ] && [ -f "$nw" ]; then
+    case "$nw" in *arm64*) ;; *)
+      echo "Note: Using x64 NW.js on Windows ARM64. It will run via emulation." >&2
+      echo "      For better performance, install ARM64 version: nwjs-sdk-v*-win-arm64.zip" >&2
+      ;;
+    esac
   fi
 else
   # Linux and others: Check download directory first, then PATH
@@ -300,7 +331,7 @@ if [ ! -f "$nw" ]; then
       elif [ "$PLATFORM" = "linux" ]; then
         downloaded_nw=$(download_nwjs "$PLATFORM" "x64")
       elif [ "$PLATFORM" = "windows" ]; then
-        downloaded_nw=$(download_nwjs "$PLATFORM" "x64")
+        downloaded_nw=$(download_nwjs "$PLATFORM" "${WIN_ARCH:-x64}")
       else
         downloaded_nw=""
       fi
@@ -327,7 +358,7 @@ if [ ! -f "$nw" ]; then
       elif [ "$PLATFORM" = "linux" ]; then
         downloaded_nw=$(download_nwjs "$PLATFORM" "x64")
       elif [ "$PLATFORM" = "windows" ]; then
-        downloaded_nw=$(download_nwjs "$PLATFORM" "x64")
+        downloaded_nw=$(download_nwjs "$PLATFORM" "${WIN_ARCH:-x64}")
       else
         downloaded_nw=""
       fi
@@ -358,7 +389,7 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   echo "Usage: ${0##*/} [page.xml]+ [pages_dir]+ [--list pages_list]+ [--css file.css]+ [--js file.js]+"
   echo ""
   echo "Environment variables:"
-  echo "  NWJS_VERSION       - NW.js version to download (default: 0.94.0)"
+  echo "  NWJS_VERSION       - NW.js version to download (default: ${NWJS_VERSION})"
   echo "  AUTO_DOWNLOAD_NWJS - Set to '1', 'yes', or 'true' to enable automatic download"
   echo ""
   echo "If NW.js is not found, the script will prompt to download it automatically."

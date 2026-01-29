@@ -1,6 +1,6 @@
 # Command line launcher for visual-page-editor (Windows PowerShell).
 #
-# @version 1.0.0
+# @version 1.1.0
 # @author buzzcauldron
 # @copyright Copyright(c) 2025, buzzcauldron
 # @license MIT License
@@ -21,8 +21,11 @@ if (-not (Test-Path "$AppDir\js\nw-app.js")) {
     $AppDir = $ScriptDir
 }
 
-# Detect Windows architecture
-$WindowsArch = $env:PROCESSOR_ARCHITECTURE
+# Detect Windows architecture (PROCESSOR_ARCHITEW6432 = native arch when running 32-bit process on 64-bit OS)
+$WindowsArch = $env:PROCESSOR_ARCHITEW6432
+if ([string]::IsNullOrEmpty($WindowsArch)) {
+    $WindowsArch = $env:PROCESSOR_ARCHITECTURE
+}
 if ($WindowsArch -eq "ARM64") {
     $WindowsArch = "ARM64"
 } elseif ($WindowsArch -eq "AMD64") {

@@ -1,7 +1,7 @@
 /**
  * Javascript library for viewing and interactive editing of SVGs.
  *
- * @version $Version: 2021.02.22$
+ * @version 1.1.0
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -24,7 +24,7 @@
   var
   sns = 'http://www.w3.org/2000/svg',
   xns = 'http://www.w3.org/1999/xlink',
-  version = '$Version: 2021.02.22$'.replace(/^\$Version. (.*)\$/,'$1');
+  version = '1.1.0';
 
   /// Set SvgCanvas global object ///
   if ( ! global.SvgCanvas )
@@ -928,24 +928,28 @@
 
       pushChangeHistory('svg load');
 
-      /// Convert default baseline types to main and add CSS classes (for Page XML compatibility) ///
+      /// Revise any 'main' labels to 'default' upon opening ///
       $(svgRoot).find('.TextLine').each(function() {
         var g = $(this);
         var attr = g.attr('custom');
-        if ( typeof attr !== 'undefined' && attr.match(/type\s*\{type\s*:\s*default\s*;\s*\}/) ) {
-          attr = attr.replace(/type\s*\{type\s*:\s*default\s*;\s*\}/g, 'type {type:main;}');
+        if ( typeof attr !== 'undefined' && attr.match(/type\s*\{type\s*:\s*main\s*;\s*\}/) ) {
+          attr = attr.replace(/type\s*\{type\s*:\s*main\s*;\s*\}/g, 'type {type:default;}');
           g.attr('custom', attr);
         }
-        // Add class based on baseline type (if getBaselineType is available, otherwise default to main)
+      });
+      /// Add baseline type CSS classes (keep default as default) ///
+      $(svgRoot).find('.TextLine').each(function() {
+        var g = $(this);
+        var attr = g.attr('custom');
+        // Add class based on baseline type (if getBaselineType is available, otherwise default to default)
         if ( typeof self.util.getBaselineType === 'function' ) {
           var baselineType = self.util.getBaselineType(g[0]);
-          g.removeClass('baseline-main baseline-margin');
+          g.removeClass('baseline-default baseline-main baseline-margin');
           g.addClass('baseline-' + baselineType);
         } else {
-          // If getBaselineType is not available (generic svg-canvas usage), check custom attribute
-          var match = attr && attr.match(/type\s*\{type\s*:\s*(main|margin)\s*;\s*\}/);
-          var baselineType = match ? match[1] : 'main';
-          g.removeClass('baseline-main baseline-margin');
+          var match = attr && attr.match(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/);
+          var baselineType = match ? match[1] : 'default';
+          g.removeClass('baseline-default baseline-main baseline-margin');
           g.addClass('baseline-' + baselineType);
         }
       });
