@@ -49,7 +49,7 @@
       </button>
     </div>
     <div id="xpg" class="page_container"></div>
-    <textarea id="textedit" class="mousetrap" placeholder="Text edit box" dir="auto" disabled=""></textarea>
+    <textarea id="textedit" class="mousetrap" placeholder="Text edit box" dir="auto" spellcheck="false" disabled=""></textarea>
     <div id="textinfo"></div>
   </div>
 
@@ -137,6 +137,11 @@
           <option value="0.25">0.25</option>
           <option value="0.00">0.00</option>
         </select>
+      </div>
+      <div>
+        Baseline type:
+        <label id="baseline-type-main"><input class="mousetrap" type="radio" name="baseline-type" value="main" checked=""/> Main</label>
+        <label id="baseline-type-margin"><input class="mousetrap" type="radio" name="baseline-type" value="margin"/> Margin</label>
       </div>
       <div>
         Table size:
@@ -243,6 +248,8 @@
   </div>
   <div id="readme-modal" class="modal">
     <div class="modal-content markdown-body">
+      <span class="close">&#215;</span>
+      <div id="readme-content"></div>
     </div>
   </div>
   <div id="spinner" class="modal">

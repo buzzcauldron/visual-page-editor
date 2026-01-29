@@ -9,12 +9,20 @@
     "title": "Visual Page Editor",
     "width": 1200,
     "height": 800,
-    "show": false,
+    "show": true,
     "min_width": 800,
     "min_height": 600
   },
   "dependencies": {
     "image-size": "^0.6.2"
+  },
+  "devDependencies": {
+    "jshint": "^2.13.6"
+  },
+  "scripts": {
+    "review": "./scripts/code-review.sh",
+    "lint": "jshint js/*.js --exclude js/*.min.js",
+    "test": "npm run review"
   },
   "repository": {
     "type": "git",

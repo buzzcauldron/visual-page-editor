@@ -2,6 +2,10 @@
 
 A modern visual editor for Page XML files, based on [nw-page-editor](https://github.com/mauvilsa/nw-page-editor).
 
+**GitHub Repository:** [https://github.com/buzzcauldron/visual-page-editor](https://github.com/buzzcauldron/visual-page-editor)
+
+**Version:** 1.0.0
+
 ## Description
 
 Visual Page Editor is an application for viewing and editing ground truth or predicted information for document processing and text recognition. The editing is done interactively and visually on top of images of scanned documents.
@@ -21,15 +25,87 @@ This project is a fork/evolution of the original nw-page-editor with improvement
 
 ### Desktop Variant
 
-1. Download the SDK version of NW.js from [http://nwjs.io/downloads](http://nwjs.io/downloads)
-2. Extract NW.js to a location of your choice
-3. Add the NW.js binary directory to your PATH
-4. Clone this repository:
+Visual Page Editor is cross-platform and works on **Linux**, **macOS**, and **Windows**.
+
+#### Prerequisites
+
+- Download the SDK version of NW.js from [http://nwjs.io/downloads](http://nwjs.io/downloads)
+- Choose the appropriate version for your platform:
+  - **Linux**: `nwjs-sdk-v*-linux-x64.tar.gz`
+  - **macOS**: `nwjs-sdk-v*-osx-x64.zip` or `nwjs-sdk-v*-osx-arm64.zip` (for Apple Silicon)
+  - **Windows**: `nwjs-sdk-v*-win-x64.zip`
+
+#### Installation Steps
+
+1. **Clone this repository:**
    ```bash
    git clone https://github.com/buzzcauldron/visual-page-editor.git
    cd visual-page-editor
    ```
-5. Add the `bin` directory to your PATH or symlink `bin/visual-page-editor` to a directory in your PATH
+
+2. **Install NW.js:**
+
+   **Linux:**
+   ```bash
+   # Extract NW.js to a location of your choice
+   tar -xzf nwjs-sdk-v*-linux-x64.tar.gz
+   # Add to PATH (add to ~/.bashrc or ~/.zshrc)
+   export PATH="$PATH:/path/to/nwjs-sdk-v*-linux-x64"
+   ```
+
+   **macOS:**
+   ```bash
+   # Detect your Mac's architecture
+   uname -m  # Returns "arm64" for Apple Silicon (M1/M2/M3) or "x86_64" for Intel
+   
+   # For Apple Silicon (M1/M2/M3) Macs:
+   unzip nwjs-sdk-v*-osx-arm64.zip
+   mv nwjs.app /Applications/
+   
+   # For Intel Macs:
+   unzip nwjs-sdk-v*-osx-x64.zip
+   mv nwjs.app /Applications/
+   
+   # The launcher script will automatically find it in /Applications
+   # Note: On Apple Silicon, the launcher prefers ARM64 builds for better performance
+   ```
+
+   **Windows:**
+   ```powershell
+   # Detect your Windows architecture
+   echo $env:PROCESSOR_ARCHITECTURE  # Returns "ARM64" for ARM or "AMD64" for x64
+   
+   # For Windows ARM64 (Surface Pro X, Windows 11 on ARM):
+   # Extract nwjs-sdk-v*-win-arm64.zip to:
+   # C:\Program Files\nwjs-arm64\
+   # or
+   # %LOCALAPPDATA%\nwjs-arm64\
+   
+   # For Windows x64 (Intel/AMD):
+   # Extract nwjs-sdk-v*-win-x64.zip to:
+   # C:\Program Files\nwjs\
+   # or
+   # %LOCALAPPDATA%\nwjs\
+   
+   # The launcher scripts will automatically find it in common locations
+   # Note: On ARM64, x64 NW.js will run via emulation (slower performance)
+   ```
+
+3. **Add launcher to PATH:**
+
+   **Linux/macOS:**
+   ```bash
+   # Add the bin directory to your PATH (add to ~/.bashrc, ~/.zshrc, etc.)
+   export PATH="$PATH:/path/to/visual-page-editor/bin"
+   
+   # Or create a symlink
+   sudo ln -s /path/to/visual-page-editor/bin/visual-page-editor /usr/local/bin/
+   ```
+
+   **Windows:**
+   - Add the `bin` directory to your system PATH, or
+   - Use the full path to the launcher: `C:\path\to\visual-page-editor\bin\visual-page-editor.bat`
+   - For PowerShell, you can use: `C:\path\to\visual-page-editor\bin\visual-page-editor.ps1`
 
 ### Docker Desktop Variant
 
@@ -74,23 +150,51 @@ docker run --rm --platform linux/amd64 -v $(pwd):/workspace visual-page-editor e
 
 ### Quick Start
 
+**Linux/macOS:**
 ```bash
 # Run with example files
 ./bin/visual-page-editor examples/*.xml
+```
+
+**Windows (Command Prompt):**
+```cmd
+bin\visual-page-editor.bat examples\*.xml
+```
+
+**Windows (PowerShell):**
+```powershell
+.\bin\visual-page-editor.ps1 examples\*.xml
 ```
 
 ## Usage
 
 ### Command Line
 
+**Linux/macOS:**
 ```bash
 visual-page-editor [page.xml]+ [pages_dir]+ [--list pages_list]+ [--css file.css]+ [--js file.js]+
 ```
 
+**Windows:**
+```cmd
+visual-page-editor.bat [page.xml]+ [pages_dir]+ [--list pages_list]+ [--css file.css]+ [--js file.js]+
+```
+
+Or with PowerShell:
+```powershell
+visual-page-editor.ps1 [page.xml]+ [pages_dir]+ [--list pages_list]+ [--css file.css]+ [--js file.js]+
+```
+
 ### Example
 
+**Linux/macOS:**
 ```bash
 visual-page-editor examples/lorem.xml examples/lorem2.xml
+```
+
+**Windows:**
+```cmd
+visual-page-editor.bat examples\lorem.xml examples\lorem2.xml
 ```
 
 ## Supported Formats
@@ -129,6 +233,8 @@ The editor can also run as a web server for remote collaboration. See the `web-a
 ### Requirements
 
 - NW.js SDK (for desktop development)
+  - **Apple Silicon (M1/M2/M3)**: Use `nwjs-sdk-v*-osx-arm64.zip` for native performance
+  - **Intel Mac**: Use `nwjs-sdk-v*-osx-x64.zip`
 - Node.js (for dependencies)
 - Git (for version control)
 
@@ -140,9 +246,38 @@ cd visual-page-editor
 npm install
 ```
 
+### Code Review
+
+The project includes automated code review tools:
+
+```bash
+# Run code review
+npm run review
+
+# Or directly
+./scripts/code-review.sh
+```
+
+The review checks:
+- JavaScript syntax and style (JSHint)
+- HTML/XSLT/XSD validation
+- PHP syntax
+- Shell script syntax
+- Common code issues
+
+See [CODE_REVIEW.md](CODE_REVIEW.md) for details.
+
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request on GitHub.
+
+**How to contribute:**
+1. Fork the repository on GitHub
+2. Create a feature branch
+3. Make your changes
+4. Submit a Pull Request
+
+For more details, visit the [GitHub repository](https://github.com/buzzcauldron/visual-page-editor).
 
 ## License
 
@@ -154,7 +289,20 @@ This project is based on [nw-page-editor](https://github.com/mauvilsa/nw-page-ed
 
 ## Links
 
-- Original Project: https://github.com/mauvilsa/nw-page-editor
-- Page XML Format: https://github.com/omni-us/pageformat
-- PRImA Research: http://www.primaresearch.org/
+- **This Project:** [https://github.com/buzzcauldron/visual-page-editor](https://github.com/buzzcauldron/visual-page-editor)
+- **Original Project:** [https://github.com/mauvilsa/nw-page-editor](https://github.com/mauvilsa/nw-page-editor)
+- **Page XML Format:** [https://github.com/omni-us/pageformat](https://github.com/omni-us/pageformat)
+- **PRImA Research:** [http://www.primaresearch.org/](http://www.primaresearch.org/)
+
+## GitHub
+
+For the latest updates, bug reports, feature requests, and contributions, please visit the GitHub repository:
+
+**🔗 [https://github.com/buzzcauldron/visual-page-editor](https://github.com/buzzcauldron/visual-page-editor)**
+
+### Reporting Issues
+
+If you encounter any bugs or have feature requests, please open an issue on GitHub.
+
+See the [Contributing](#contributing) section above for information on how to contribute.
 

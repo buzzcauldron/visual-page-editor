@@ -770,6 +770,25 @@
     }
 
     /**
+     * Snaps the image to the left side of the viewport.
+     */
+    function snapImageToLeft() {
+      if ( ! svgRoot )
+        return;
+      // Get canvas bounds - use xmin which is the left edge of the SVG content
+      if ( typeof xmin === 'undefined' || isNaN(xmin) )
+        return;
+      // Set viewBox to show left side of image
+      boxX0 = xmin + ( boxW <= width ? 0 : width - boxW );
+      // Keep current Y position and zoom level
+      viewBoxLimits();
+      if ( isNaN(boxX0) || isNaN(boxY0) || isNaN(boxW) || isNaN(boxH) )
+        return;
+      svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
+    }
+    self.snapImageToLeft = snapImageToLeft;
+
+    /**
      * Centers and zooms the viewbox on the selected element.
      */
     function panZoomTo( fact, limits, sel ) {
@@ -909,6 +928,28 @@
 
       pushChangeHistory('svg load');
 
+      /// Convert default baseline types to main and add CSS classes (for Page XML compatibility) ///
+      $(svgRoot).find('.TextLine').each(function() {
+        var g = $(this);
+        var attr = g.attr('custom');
+        if ( typeof attr !== 'undefined' && attr.match(/type\s*\{type\s*:\s*default\s*;\s*\}/) ) {
+          attr = attr.replace(/type\s*\{type\s*:\s*default\s*;\s*\}/g, 'type {type:main;}');
+          g.attr('custom', attr);
+        }
+        // Add class based on baseline type (if getBaselineType is available, otherwise default to main)
+        if ( typeof self.util.getBaselineType === 'function' ) {
+          var baselineType = self.util.getBaselineType(g[0]);
+          g.removeClass('baseline-main baseline-margin');
+          g.addClass('baseline-' + baselineType);
+        } else {
+          // If getBaselineType is not available (generic svg-canvas usage), check custom attribute
+          var match = attr && attr.match(/type\s*\{type\s*:\s*(main|margin)\s*;\s*\}/);
+          var baselineType = match ? match[1] : 'main';
+          g.removeClass('baseline-main baseline-margin');
+          g.addClass('baseline-' + baselineType);
+        }
+      });
+
       for ( var n=0; n<self.cfg.onLoad.length; n++ )
         self.cfg.onLoad[n]();
     };
@@ -1029,42 +1070,142 @@
      * Handles the deletion of SVG elements.
      */
     function handleDeletion () {
-      if ( ! self.cfg.delSelector )
-        return true;
-      //if ( $('#'+self.cfg.textareaId).is(':focus') )
-      //  return true;
-      var
-      selElem = $(svgRoot).find('.selected').first();
-      if ( selElem.length === 0 || isReadOnly(selElem) )
-        return true;
-      var delElem = self.cfg.delSelector( selElem[0] );
-      if ( typeof delElem === 'boolean' )
-        return delElem;
-      if ( delElem && self.cfg.delConfirm(delElem) ) {
-        for ( var n=0; n<self.cfg.onDelete.length; n++ )
-          self.cfg.onDelete[n](delElem);
-        var editables = $('.editable');
-        editables = editables.eq(editables.index(delElem)+1).addClass('prev-editing');
-        if ( selElem.closest('.editing').length !== 0 )
-          removeEditings();
-        unselectElem(selElem);
-        var elemPath = getElementPath(delElem);
+      try {
+        if ( ! self.cfg.delSelector )
+          return true;
+        //if ( $('#'+self.cfg.textareaId).is(':focus') )
+        //  return true;
+        var
+        selElem = $(svgRoot).find('.selected').first();
+        if ( selElem.length === 0 || isReadOnly(selElem) )
+          return true;
+        var delElem = self.cfg.delSelector( selElem[0] );
+        if ( typeof delElem === 'boolean' )
+          return delElem;
+        if ( !delElem )
+          return false;
+        
+        // Check if delConfirm exists and call it
+        var shouldDelete = true;
+        if ( typeof self.cfg.delConfirm === 'function' ) {
+          try {
+            shouldDelete = self.cfg.delConfirm(delElem);
+          } catch (e) {
+            console.error('Error in delConfirm:', e);
+            return false;
+          }
+        }
+        
+        if ( shouldDelete ) {
+          // Call onDelete callbacks
+          if ( Array.isArray(self.cfg.onDelete) ) {
+            for ( var n=0; n<self.cfg.onDelete.length; n++ ) {
+              try {
+                if ( typeof self.cfg.onDelete[n] === 'function' )
+                  self.cfg.onDelete[n](delElem);
+              } catch (e) {
+                console.error('Error in onDelete callback:', e);
+              }
+            }
+          }
+          
+          var editables = $('.editable');
+          var delIndex = editables.index(delElem);
+          if ( delIndex >= 0 && delIndex < editables.length - 1 ) {
+            editables.eq(delIndex + 1).addClass('prev-editing');
+          }
+          
+          if ( selElem.closest('.editing').length !== 0 )
+            removeEditings();
+          unselectElem(selElem);
+          
+          var elemPath = '';
+          try {
+            elemPath = getElementPath(delElem);
+          } catch (e) {
+            console.error('Error getting element path:', e);
+            elemPath = 'element';
+          }
 
-        if ( self.cfg.delTask )
-          self.cfg.delTask(delElem);
-        else
-          $(delElem).remove();
+          if ( typeof self.cfg.delTask === 'function' ) {
+            try {
+              self.cfg.delTask(delElem);
+            } catch (e) {
+              console.error('Error in delTask:', e);
+              // Fallback to default removal
+              $(delElem).remove();
+            }
+          } else {
+            $(delElem).remove();
+          }
 
-        registerChange('deleted '+elemPath);
+          try {
+            registerChange('deleted '+elemPath);
+          } catch (e) {
+            console.error('Error registering change:', e);
+          }
+        }
+        return false;
+      } catch (e) {
+        console.error('Error in handleDeletion:', e);
+        return false;
       }
-      return false;
     }
-    Mousetrap.bind( 'mod+del', function () { return handleDeletion(); } );
+    // Delete key bindings
+    // Note: Mousetrap's stopCallback automatically prevents these from firing
+    // when user is in INPUT, TEXTAREA, SELECT, or contenteditable elements
+    Mousetrap.bind( 'mod+del', function () { 
+      try {
+        return handleDeletion(); 
+      } catch (e) {
+        console.error('Error in handleDeletion:', e);
+        return false;
+      }
+    } );
+    
+    // Forward Delete key (works on all platforms, including Mac fn+Delete)
     Mousetrap.bind( 'del', function () {
-      if ( ( self.cfg.textareaId && ! $('#'+self.cfg.textareaId).prop('disabled') ) ||
-           $(document.activeElement).filter('input[type=text]').length > 0 )
-        return true;
-      return handleDeletion(); } );
+      try {
+        // Mousetrap's stopCallback will prevent this from firing in text fields
+        return handleDeletion(); 
+      } catch (e) {
+        console.error('Error in handleDeletion:', e);
+        return false;
+      }
+    } );
+    
+    // Mac support: Backspace key (Mac Delete key sends backspace)
+    // On Mac, the Delete key is actually Backspace, so we need to handle it
+    // Only bind if we're in NW.js (has process.platform) or detect Mac via navigator
+    var isMac = false;
+    if ( typeof process !== 'undefined' && process.platform === 'darwin' ) {
+      isMac = true;
+    } else if ( typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform) ) {
+      isMac = true;
+    }
+    
+    if ( isMac ) {
+      // Cmd+Backspace deletes element (Mousetrap stopCallback handles text fields)
+      Mousetrap.bind( 'mod+backspace', function () { 
+        try {
+          return handleDeletion(); 
+        } catch (e) {
+          console.error('Error in handleDeletion:', e);
+          return false;
+        }
+      } );
+      
+      // Backspace alone deletes element when not in text field
+      // Mousetrap's stopCallback will prevent this from firing in text fields automatically
+      Mousetrap.bind( 'backspace', function () {
+        try {
+          return handleDeletion(); 
+        } catch (e) {
+          console.error('Error in handleDeletion:', e);
+          return false;
+        }
+      } );
+    }
 
     /**
      * Toggles protection of the selected element's group.
@@ -1860,10 +2001,15 @@
       textarea
         //.off('keyup change')
         .off('input')
+        .off('paste')  // Windows compatibility: handle paste events separately
         .val(prevText)
         //.on( 'keyup change', function ( event ) {
         .on( 'input', function ( event ) {
             var currText = textarea.val();
+            // Windows compatibility: Normalize line endings (CRLF -> LF) for consistency
+            if ( currText.indexOf('\r\n') !== -1 ) {
+              currText = currText.replace(/\r\n/g, '\n');
+            }
             if ( ! self.cfg.multilineText && currText.match(/[\t\n\r]/) ) {
             //if ( ( event.keyCode === 13 /* enter */ || event.keyCode === 46 /* del */ || event.type === 'paste' ) && ! self.cfg.multilineText ) {
               currText = currText.replace(/[\t\n\r]/g,' ').trim();
@@ -1883,12 +2029,32 @@
               self.cfg.onTextChange[n](textElem[0]);
             registerChange('text edit of '+getElementPath(textElem));
             prevText = currText;
+          } )
+        // Windows compatibility: Handle paste events to normalize CRLF
+        .on( 'paste', function ( event ) {
+            // Allow default paste behavior, then normalize in input handler
+            var self_textarea = this;
+            setTimeout( function () {
+              var pastedText = $(self_textarea).val();
+              if ( pastedText.indexOf('\r\n') !== -1 ) {
+                var normalized = pastedText.replace(/\r\n/g, '\n');
+                if ( ! self.cfg.multilineText ) {
+                  normalized = normalized.replace(/[\t\n\r]/g,' ').trim();
+                }
+                $(self_textarea).val(normalized);
+                $(self_textarea).trigger('input');
+              }
+            }, 0 );
           } );
 
-      if ( ! isReadOnly(textElem) )
+      if ( ! isReadOnly(textElem) ) {
         textarea
           .prop( 'disabled', false )
           .focus();
+        
+        // Snap image to left when edit toolbar opens
+        snapImageToLeft();
+      }
 
       var isinvalid = self.cfg.textValidator(prevText,false,svgElem);
       if ( isinvalid )

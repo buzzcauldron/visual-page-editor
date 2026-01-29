@@ -39,7 +39,7 @@
     </xsl:element>
   </xsl:template>
 
-  <xsl:template match="svg:g[@class='Page']">
+  <xsl:template match="svg:g[contains(concat(' ', @class, ' '), ' Page ')]">
     <Page imageFilename="{svg:image/@data-href}" imageHeight="{svg:image/@height}" imageWidth="{svg:image/@width}">
       <xsl:if test="@id">
         <xsl:attribute name="id">
@@ -66,10 +66,25 @@
   <xsl:template match="@style"/>
   <xsl:template match="svg:polygon[@class='GroupBox']"/>
 
-  <xsl:template match="svg:g[@class='TextRegion' or @class='TableRegion' or @class='TextLine' or @class='Word' or @class='Glyph' or @class='Property' or @class='Group' or @class='Member' or @class='ImageRegion' or @class='SeparatorRegion' or @class='CustomRegion' or @class='TextEquiv']">
-    <xsl:element name="{@class}">
+  <xsl:template match="svg:g[contains(concat(' ', normalize-space(@class), ' '), ' TextRegion ') or contains(concat(' ', normalize-space(@class), ' '), ' TableRegion ') or contains(concat(' ', normalize-space(@class), ' '), ' TextLine ') or contains(concat(' ', normalize-space(@class), ' '), ' Word ') or contains(concat(' ', normalize-space(@class), ' '), ' Glyph ') or contains(concat(' ', normalize-space(@class), ' '), ' Property ') or contains(concat(' ', normalize-space(@class), ' '), ' Group ') or contains(concat(' ', normalize-space(@class), ' '), ' Member ') or contains(concat(' ', normalize-space(@class), ' '), ' ImageRegion ') or contains(concat(' ', normalize-space(@class), ' '), ' SeparatorRegion ') or contains(concat(' ', normalize-space(@class), ' '), ' CustomRegion ')]">
+    <xsl:variable name="elementName">
+      <xsl:choose>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' TextRegion ')">TextRegion</xsl:when>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' TableRegion ')">TableRegion</xsl:when>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' TextLine ')">TextLine</xsl:when>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' Word ')">Word</xsl:when>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' Glyph ')">Glyph</xsl:when>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' Property ')">Property</xsl:when>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' Group ')">Group</xsl:when>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' Member ')">Member</xsl:when>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' ImageRegion ')">ImageRegion</xsl:when>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' SeparatorRegion ')">SeparatorRegion</xsl:when>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' CustomRegion ')">CustomRegion</xsl:when>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:element name="{$elementName}">
       <xsl:apply-templates select="@*[local-name()!='class'] | node()"/>
-      <xsl:if test="(@class='TextRegion' or @class='TableRegion' or @class='TextLine' or @class='Word' or @class='Glyph' or @class='ImageRegion' or @class='SeparatorRegion' or @class='CustomRegion') and not(svg:polygon[@class='Coords'])">
+      <xsl:if test="($elementName='TextRegion' or $elementName='TableRegion' or $elementName='TextLine' or $elementName='Word' or $elementName='Glyph' or $elementName='ImageRegion' or $elementName='SeparatorRegion' or $elementName='CustomRegion') and not(svg:polygon[contains(concat(' ', normalize-space(@class), ' '), ' Coords ')])">
         <Coords points="0,0 0,0"/>
       </xsl:if>
     </xsl:element>
@@ -81,7 +96,7 @@
     </xsl:attribute>
   </xsl:template>
 
-  <xsl:template match="svg:text[@class='Unicode']">
+  <xsl:template match="svg:text[contains(concat(' ', normalize-space(@class), ' '), ' Unicode ')]">
     <xsl:if test="normalize-space() or ../@conf">
       <Unicode>
         <xsl:apply-templates select="node()"/>
@@ -89,8 +104,8 @@
     </xsl:if>
   </xsl:template>
 
-  <xsl:template match="svg:g[@class='TextEquiv']">
-    <xsl:if test="normalize-space() or @conf or svg:g[@class='Property']">
+  <xsl:template match="svg:g[contains(concat(' ', normalize-space(@class), ' '), ' TextEquiv ')]">
+    <xsl:if test="normalize-space() or @conf or svg:g[contains(concat(' ', normalize-space(@class), ' '), ' Property ')]">
       <TextEquiv>
         <xsl:apply-templates select="@*[local-name()!='class'] | node()"/>
       </TextEquiv>
@@ -104,8 +119,20 @@
     <xsl:value-of select="node()"/>
   </xsl:template>
 
-  <xsl:template match="svg:polygon[@class='Coords'] | svg:polyline[@class='Baseline']">
-    <xsl:element name="{@class}">
+  <xsl:template match="svg:polygon[contains(concat(' ', normalize-space(@class), ' '), ' Coords ')] | svg:polyline[contains(concat(' ', normalize-space(@class), ' '), ' Baseline ')]">
+    <xsl:variable name="elementName">
+      <!-- Check element type first (local-name()) to determine if it's a polygon or polyline,
+           then use that to determine element name. This prevents incorrect matching if class
+           somehow contains both "Coords" and "Baseline". -->
+      <xsl:choose>
+        <xsl:when test="local-name()='polygon'">Coords</xsl:when>
+        <xsl:when test="local-name()='polyline'">Baseline</xsl:when>
+        <!-- Fallback to class-based detection if element type is unclear -->
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' Coords ')">Coords</xsl:when>
+        <xsl:when test="contains(concat(' ', normalize-space(@class), ' '), ' Baseline ')">Baseline</xsl:when>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:element name="{$elementName}">
       <xsl:apply-templates select="@*[local-name()!='class']"/>
     </xsl:element>
   </xsl:template>

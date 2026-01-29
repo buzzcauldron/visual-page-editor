@@ -29,6 +29,12 @@ if [ ! -h "$GITDIR/hooks/pre-commit" ]; then
   exit 1;
 fi
 
+### Run automated code review (optional - doesn't block commit) ###
+if [ -f "./scripts/code-review.sh" ]; then
+  echo "${0##*/}: running automated code review..." 1>&2;
+  ./scripts/code-review.sh || echo "${0##*/}: code review found issues (continuing with commit checks)..." 1>&2;
+fi
+
 ### Update versions on files and check syntax ###
 FILES=( $(git status --porcelain | sed 's| .* | |' | grep '^[MRA]') );
 V=$(date -u +%Y.%m.%d);

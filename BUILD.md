@@ -4,11 +4,13 @@
 
 ✅ **All build files are ready and validated!**
 
-- ✓ RPM spec file: `rpm/nw-page-editor.spec`
+- ✓ RPM spec file: `rpm/visual-page-editor.spec`
 - ✓ RPM build script: `rpm/build-rpm.sh`
 - ✓ DEB control file: `debian/control`
 - ✓ DEB rules file: `debian/rules`
 - ✓ DEB build script: `build-deb.sh`
+- ✓ macOS build script: `build-macos.sh`
+- ✓ Windows build script: `build-windows.ps1` / `build-windows.bat`
 
 ## Building on Linux
 
@@ -71,28 +73,149 @@ docker run --rm -it \
 "
 ```
 
+## Building on macOS
+
+### Prerequisites
+
+- **Intel Mac**: macOS 10.13 or later
+- **Apple Silicon (M1/M2/M3)**: macOS 11.0 (Big Sur) or later
+- curl (usually pre-installed)
+- unzip (usually pre-installed)
+
+### Build macOS .app Bundle
+
+The build script automatically detects your Mac's architecture and downloads the appropriate NW.js build:
+
+```bash
+cd /path/to/visual-page-editor
+./build-macos.sh
+```
+
+**Architecture Detection:**
+- On **Apple Silicon** (M1/M2/M3) Macs: Downloads `nwjs-sdk-v*-osx-arm64.zip` for native performance
+- On **Intel** Macs: Downloads `nwjs-sdk-v*-osx-x64.zip`
+
+The .app bundle will be in: `build-macos/Visual Page Editor.app`
+
+**Apple Silicon Notes:**
+- The build script automatically detects ARM64 architecture
+- Creates a native ARM64 .app bundle (no Rosetta 2 needed)
+- For best performance, ensure you're building on an Apple Silicon Mac
+
+### Custom NW.js Version
+
+```bash
+NWJS_VERSION=0.50.0 ./build-macos.sh
+```
+
+### Create DMG (Optional)
+
+After building, you can create a DMG file:
+
+```bash
+cd build-macos
+hdiutil create -volname "Visual Page Editor" -srcfolder "Visual Page Editor.app" -ov -format UDZO visual-page-editor-1.0.0-macos.dmg
+```
+
+## Building on Windows
+
+### Prerequisites
+
+- Windows 10 or later
+- PowerShell 5.0 or later (included with Windows 10+)
+- curl (or use PowerShell's Invoke-WebRequest)
+
+### Build Windows Portable Package
+
+The build script automatically detects your Windows architecture and downloads the appropriate NW.js build:
+
+**Using PowerShell (recommended):**
+```powershell
+cd C:\path\to\visual-page-editor
+.\build-windows.ps1
+```
+
+**Using Command Prompt:**
+```cmd
+cd C:\path\to\visual-page-editor
+build-windows.bat
+```
+
+**Architecture Detection:**
+- On **Windows ARM64** (Surface Pro X, Windows 11 on ARM): Downloads `nwjs-sdk-v*-win-arm64.zip` for native performance
+- On **Windows x64** (Intel/AMD): Downloads `nwjs-sdk-v*-win-x64.zip`
+
+The package will be in: `build-windows\visual-page-editor\`
+
+**Windows ARM64 Notes:**
+- The build script automatically detects ARM64 architecture
+- Creates a native ARM64 package (no emulation needed)
+- For best performance, ensure you're building on a Windows ARM64 device
+
+### Custom NW.js Version
+
+```powershell
+.\build-windows.ps1 -NWJS_VERSION 0.50.0
+```
+
+### Create ZIP Archive (Optional)
+
+After building, you can create a ZIP file:
+
+```powershell
+Compress-Archive -Path "build-windows\visual-page-editor" -DestinationPath "build-windows\visual-page-editor-1.0.0-windows-x64.zip" -Force
+```
+
 ## What Gets Built
 
-Both packages will:
+All packages will:
 - ✅ Automatically download NW.js v0.44.4 (or specified version)
 - ✅ Bundle NW.js with the application
 - ✅ Create self-contained packages with no external dependencies
 - ✅ Include all application files, examples, and documentation
 
+**Linux packages (RPM/DEB):**
+- Standard Linux package format
+- Can be installed via package manager
+- Includes system integration
+
+**macOS package:**
+- Native .app bundle
+- Can be double-clicked to run
+- Can be distributed as DMG
+
+**Windows package:**
+- Portable folder structure
+- No installation required
+- Can be distributed as ZIP
+
 ## Custom NW.js Version
 
 To use a different NW.js version:
 
+**Linux:**
 ```bash
 NWJS_VERSION=0.50.0 ./rpm/build-rpm.sh
 NWJS_VERSION=0.50.0 ./build-deb.sh
 ```
 
+**macOS:**
+```bash
+NWJS_VERSION=0.50.0 ./build-macos.sh
+```
+
+**Windows:**
+```powershell
+.\build-windows.ps1 -NWJS_VERSION 0.50.0
+```
+
 ## Next Steps
 
-1. **If you have access to a Linux system**: Use the build scripts directly
-2. **If you're on macOS/Windows**: Use Docker (see above)
-3. **For CI/CD**: Use the Docker approach in your pipeline
+1. **Linux**: Use the build scripts directly (RPM/DEB)
+2. **macOS**: Use `build-macos.sh` to create .app bundle
+3. **Windows**: Use `build-windows.ps1` to create portable package
+4. **Cross-platform Linux builds**: Use Docker (see above)
+5. **For CI/CD**: Use the appropriate build script for your target platform
 
-The packages are ready to build - you just need a Linux environment (native or Docker)!
+The packages are ready to build for all platforms!
 

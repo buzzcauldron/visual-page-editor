@@ -38,6 +38,14 @@ $(window).on('load', function () {
           $('#selectedId').text( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') );
           $('#modeElement').text((editable.index(g)+1)+'/'+editable.length);
 
+          // Update baseline type radio buttons if TextLine is selected
+          if ( g.is('.TextLine') ) {
+            var baselineType = pageCanvas.util.getBaselineType(g[0]);
+            $('input[name="baseline-type"][value="' + baselineType + '"]').prop('checked', true);
+            pageCanvas.cfg.baselineType = baselineType;
+          }
+          // Don't reset to main when selecting non-TextLine - keep user's selection for creating baselines
+
           updateSelectedInfo();
 
           if ( text.length !== 0 ) {
@@ -93,6 +101,16 @@ $(window).on('load', function () {
           $('#modeElement').text('-/'+$('.editable').length);
           $('#textedit').val('');
           $('#textinfo').empty();
+          // Keep the current baseline type selection for creating new baselines
+          // Only update config from radio button if one is checked
+          var selectedType = $('input[name="baseline-type"]:checked').val();
+          if ( selectedType ) {
+            pageCanvas.cfg.baselineType = selectedType;
+          } else {
+            // Only default to main if nothing is selected
+            $('input[name="baseline-type"][value="main"]').prop('checked', true);
+            pageCanvas.cfg.baselineType = 'main';
+          }
           setDocumentProperties();
         },
       onDragStart: function () {
@@ -202,8 +220,12 @@ $(window).on('load', function () {
       if ( coordsconf )
         info += '<div>&nbsp;&nbsp;conf: '+coordsconf+'</div>';
     }
-    if ( baselinesetby || baselineconf || typeof orie !== 'undefined' ) {
+    if ( baselinesetby || baselineconf || typeof orie !== 'undefined' || elem.is('.TextLine') ) {
       info += '<div>Baseline:</div>';
+      if ( elem.is('.TextLine') ) {
+        var baselineType = pageCanvas.util.getBaselineType(elem[0]);
+        info += '<div>&nbsp;&nbsp;type: '+baselineType+'</div>';
+      }
       if ( typeof orie !== 'undefined' )
         info += '<div>&nbsp;&nbsp;orientation: '+((orie*180/Math.PI).toFixed(1))+'°</div>';
       if ( baselinesetby )
@@ -299,7 +321,11 @@ $(window).on('load', function () {
   text_props_div = $('div.modal-textequiv-props'),
   coords_props_div = $('div.modal-coords-props'),
   baseline_props_div = $('div.modal-baseline-props');
-  $('#prop-modal .close').click(closePropModal);
+  // Close button handler for prop modal (in addition to clicking outside)
+  $('#prop-modal .close').click( function (e) {
+      e.stopPropagation();
+      closePropModal();
+    } );
   $(window).click( function (event) { if (event.target == prop_modal[0]) closePropModal(); } );
   Mousetrap.bind( 'mod+e', function () { return openPropertyModal($('.selected')); } );
 
@@ -878,28 +904,66 @@ $(window).on('load', function () {
 
   /// Setup readme ///
   function populateReadme() {
-    $.ajax({ url: '../README.md', dataType: 'text' })
-      .fail( function () { console.log('Failed to retrieve readme.'); } )
+    var content = $('#readme-content');
+    var readmePaths = [
+      '../README.md',
+      './README.md',
+      'README.md'
+    ];
+    
+    // Try to load README from multiple possible locations
+    function tryLoadReadme(index) {
+      if (index >= readmePaths.length) {
+        // All paths failed, show error message
+        content.html('<h1>Visual Page Editor</h1><p>README file not found. Please check the installation.</p><p>For documentation, please visit: <a href="https://github.com/buzzcauldron/visual-page-editor" target="_blank">GitHub Repository</a></p>');
+        return;
+      }
+      
+      $.ajax({ 
+        url: readmePaths[index], 
+        dataType: 'text',
+        cache: false
+      })
+      .fail( function (jqXHR, textStatus, errorThrown) {
+        console.log('Failed to retrieve readme from: ' + readmePaths[index] + ' - ' + textStatus);
+        // Try next path
+        tryLoadReadme(index + 1);
+      } )
       .done( function ( data ) {
-          $('#readme-modal > .modal-content')[0].innerHTML = marked.parse(data);
-          var
-          ul = $('<ul/>'),
-          content = $('#readme-modal > .modal-content'),
-          versions = pageCanvas.getVersion(),
-          keys = Object.keys(versions).sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+          // Successfully loaded README
+          content.html(marked.parse(data));
+          
+          // Add version information
+          var ul = $('<ul/>'),
+              versions = pageCanvas.getVersion(),
+              keys = Object.keys(versions).sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+          
           for ( var k in keys ) {
             k = keys[k];
             $('<li>'+k+': '+versions[k]+'</li>').appendTo(ul);
-            //console.log(k+': '+versions[k]);
           }
+          
           $('<h1>Component versions</h1>').appendTo(content);
           ul.appendTo(content);
         } );
+    }
+    
+    // Start trying to load from first path
+    tryLoadReadme(0);
   }
+  
   $('#openReadme').click( function () {
-      if ( $('#readme-modal > .modal-content').find('*').length === 0 )
+      var content = $('#readme-content');
+      if ( content.length === 0 || content.find('*').length === 0 ) {
         populateReadme();
+      }
       $('#readme-modal').addClass('modal-active');
+    } );
+  
+  // Close button handler for readme modal (in addition to clicking outside)
+  $('#readme-modal .close').click( function (e) {
+      e.stopPropagation();
+      $('#readme-modal').removeClass('modal-active');
     } );
 
   $('.modal-content').click( function (e) { e.stopPropagation(); } );
@@ -936,6 +1000,25 @@ $(window).on('load', function () {
   $('label[id^=orient-]')
     .each(handleTextOrientation)
     .click(handleTextOrientation);
+
+  /// Setup baseline type ///
+  function handleBaselineType() {
+    if ( $(this).children('input').prop('checked') ) {
+      var baselineType = $(this).children('input').attr('value');
+      pageCanvas.cfg.baselineType = baselineType;
+      // Update selected TextLine if one is selected
+      var selected = $('.selected').closest('.TextLine');
+      if ( selected.length > 0 ) {
+        // Update the baseline type (this updates XML and CSS class for color change)
+        pageCanvas.util.setBaselineType(selected[0], baselineType);
+        // Force visual update by triggering a redraw
+        selected.find('.Baseline').trigger('change');
+      }
+    }
+  }
+  $('label[id^=baseline-type-]')
+    .each(handleBaselineType)
+    .click(handleBaselineType);
 
   /// Setup table size ///
   $('label[id^="table-"] input')
@@ -1139,6 +1222,13 @@ $(window).on('load', function () {
         else {
           pageCanvas.cfg.polyrectOffset = parseFloat($('#baselineOffset').val());
           pageCanvas.cfg.baselineMaxPoints = line_type === '1' ? 2 : 0;
+          // Read baseline type immediately before creating (from radio button)
+          var selectedType = $('input[name="baseline-type"]:checked').val();
+          pageCanvas.cfg.baselineType = selectedType || 'main';
+          // Update config to persist the selection
+          if ( selectedType ) {
+            pageCanvas.cfg.baselineType = selectedType;
+          }
           pageCanvas.mode.lineBaselineCreate( line_restriction );
         }
       }

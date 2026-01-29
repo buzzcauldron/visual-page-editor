@@ -134,6 +134,7 @@ body {
   max-height: 100%;
   overflow-y: auto;
   background: #E3E3E3;
+  z-index: 1000;
 }
 
 #drawer * {
@@ -192,6 +193,17 @@ body {
   vector-effect: non-scaling-stroke;
   stroke-width: 1;
   marker-start: url(#xpg_polystart);
+}
+
+/* Margin baselines - contrasting color (orange) */
+.TextLine.baseline-margin > .Baseline {
+  stroke: #FF6600 !important;
+  stroke-width: 1.5;
+}
+
+/* Main baselines - ensure blue color (explicit) */
+.TextLine.baseline-main > .Baseline {
+  stroke: blue;
 }
 .TextEquiv {
   fill: darkmagenta;

@@ -1,0 +1,31 @@
+{
+  "esversion": 6,
+  "browser": true,
+  "node": true,
+  "jquery": true,
+  "undef": true,
+  "unused": true,
+  "strict": false,
+  "globals": {
+    "nw": false,
+    "Mousetrap": false,
+    "marked": false,
+    "PageCanvas": false,
+    "SvgCanvas": false,
+    "process": false,
+    "require": false,
+    "module": false,
+    "exports": false,
+    "global": false,
+    "alert": false,
+    "confirm": false,
+    "console": false,
+    "localStorage": false,
+    "sessionStorage": false,
+    "XMLHttpRequest": false,
+    "FileReader": false,
+    "Blob": false,
+    "URL": false,
+    "caches": false
+  }
+}
