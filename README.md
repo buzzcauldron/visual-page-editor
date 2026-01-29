@@ -155,10 +155,12 @@ docker run --rm --platform linux/amd64 -v $(pwd):/workspace visual-page-editor e
    - Check "Allow connections from network clients"
    - Restart XQuartz
 
-3. Run the container:
+3. Run the container (or use `./docker-run.sh` which auto-detects macOS):
    ```bash
    docker run --rm --platform linux/amd64 -e DISPLAY=host.docker.internal:0 -v $(pwd):/workspace visual-page-editor examples/lorem.xml
    ```
+
+4. On macOS, the app window is drawn by XQuartz: it appears **inside the XQuartz window** (the red X icon in the Dock). Bring XQuartz to the foreground if you don’t see the editor.
 
 **Note:** The Docker image includes all necessary dependencies including `libxtst6` for X11 support. The entrypoint script has been fixed to properly generate without syntax errors.
 
