@@ -9,6 +9,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     tar \
     gzip \
     ca-certificates \
+    libatomic1 \
     libnss3 \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
@@ -27,6 +28,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     libatspi2.0-0 \
     libxss1 \
     libxtst6 \
+    libgl1 \
+    libgl1-mesa-dri \
     libgtk-3-0 \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
@@ -53,6 +56,18 @@ COPY xsd /app/xsd
 COPY xslt /app/xslt
 COPY bin /app/bin
 
+# Some builds store XSD "pointers" instead of the actual schema files.
+# Fetch the real schemas so the app can start without requiring a git submodule.
+RUN mkdir -p /app/xsd/pageformat/old && \
+    if [ ! -s /app/xsd/pageformat/pagecontent_omnius.xsd ]; then \
+      curl -fLSs -o /app/xsd/pageformat/pagecontent_omnius.xsd \
+        "https://raw.githubusercontent.com/omni-us/pageformat/master/pagecontent_omnius.xsd"; \
+    fi && \
+    if [ ! -s /app/xsd/pageformat/old/pagecontent_searchink.xsd ]; then \
+      curl -fLSs -o /app/xsd/pageformat/old/pagecontent_searchink.xsd \
+        "https://raw.githubusercontent.com/omni-us/pageformat/master/old/pagecontent_searchink.xsd"; \
+    fi
+
 # Create entrypoint script
 RUN cat > /app/entrypoint.sh << 'EOF' && chmod +x /app/entrypoint.sh
 #!/bin/bash
@@ -72,7 +87,7 @@ if [ -z "$DISPLAY" ]; then
 fi
 
 # Run the application
-/app/nwjs/nw /app "$@"
+/app/nwjs/nw --disable-gpu --disable-gpu-compositing /app "$@"
 EOF
 
 # Set environment variables
