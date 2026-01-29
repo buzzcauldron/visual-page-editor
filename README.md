@@ -107,6 +107,20 @@ Visual Page Editor is cross-platform and works on **Linux**, **macOS**, and **Wi
    - Use the full path to the launcher: `C:\path\to\visual-page-editor\bin\visual-page-editor.bat`
    - For PowerShell, you can use: `C:\path\to\visual-page-editor\bin\visual-page-editor.ps1`
 
+#### Windows
+
+1. Download the SDK version of NW.js for Windows from [http://nwjs.io/downloads](http://nwjs.io/downloads)
+2. Extract NW.js to a location of your choice (e.g., `C:\Program Files\nwjs\`)
+3. Add the NW.js directory (containing `nw.exe`) to your PATH, or the launcher will check common locations automatically
+4. Clone this repository:
+   ```cmd
+   git clone https://github.com/buzzcauldron/visual-page-editor.git
+   cd visual-page-editor
+   ```
+5. Use `bin\visual-page-editor.bat` (or `bin\visual-page-editor.ps1` for PowerShell) to launch the application, or add the `bin` directory to your PATH
+   
+   **Note:** The `.bat` file will automatically use the PowerShell script (`.ps1`) if available for better argument handling. Both launchers are provided for compatibility.
+
 ### Docker Desktop Variant
 
 The application can also be run in a Docker container, which is useful for consistent environments across different platforms.
