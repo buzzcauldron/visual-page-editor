@@ -921,11 +921,7 @@
       if ( imagesLoadReady < $(pageSvg).find('.PageImage').length )
         return;
 
-      /// Load the Page SVG in the canvas ///
-      self.loadXmlSvg(pageSvg);
-      self.util.offsetAndOrientPages();
-
-      /// Revise any 'main' labels to 'default' upon opening ///
+      /// Convert any baseline type 'main' to 'default' before loading (so saved XML has default) ///
       $(pageSvg).find('.TextLine').each(function() {
         var g = $(this);
         var attr = g.attr('custom');
@@ -934,8 +930,13 @@
           g.attr('custom', attr);
         }
       });
-      /// Add baseline type CSS classes (keep default as default) ///
-      $(pageSvg).find('.TextLine').each(function() {
+
+      /// Load the Page SVG in the canvas ///
+      self.loadXmlSvg(pageSvg);
+      self.util.offsetAndOrientPages();
+
+      /// Add baseline type CSS classes (run on in-canvas nodes) ///
+      $(self.util.svgRoot).find('.TextLine').each(function() {
         var g = $(this);
         var baselineType = self.util.getBaselineType(g[0]);
         g.removeClass('baseline-default baseline-main baseline-margin');
@@ -2073,19 +2074,18 @@
       if ( typeof attr === 'undefined' || ! attr.match(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/) )
         return 'default';
       var match = attr.match(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/);
+      // Convert legacy 'main' to 'default' for backward compatibility (Version 5 behaviour)
+      if ( match && match[1] === 'main' ) {
+        setBaselineType(g[0], 'default');
+        return 'default';
+      }
       return match ? match[1] : 'default';
     }
     self.util.getBaselineType = getBaselineType;
 
     /**
-     * Returns the label to use in XML output: only "default" or "margin".
-     */
-    function baselineTypeForXml( type ) {
-      return (type === 'margin') ? 'margin' : 'default';
-    }
-
-    /**
      * Sets the baseline type of a given TextLine element.
+     * Stores type literally (default, margin, or main for backward compatibility).
      */
     function setBaselineType( elem, type ) {
       if ( typeof elem === 'undefined' )
@@ -2099,13 +2099,13 @@
       // Remove existing type entry
       attr = attr.replace(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/g, '');
       attr = attr.trim();
-      // Add new type entry (XML output uses only "default" and "margin")
+      // Add new type entry
       if ( attr.length > 0 && ! attr.endsWith(' ') )
         attr += ' ';
-      attr += 'type {type:' + baselineTypeForXml(type) + ';}';
+      attr += 'type {type:' + type + ';}';
       g.attr('custom', attr);
       // Add/remove class for CSS styling
-      g.removeClass('baseline-default baseline-main baseline-margin');
+      g.removeClass('baseline-main baseline-margin baseline-default');
       g.addClass('baseline-' + type);
       self.util.registerChange('set baseline type to ' + type);
     }
@@ -2340,13 +2340,13 @@
       // Remove existing type entry
       attr = attr.replace(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/g, '');
       attr = attr.trim();
-      // Add new type entry (XML output uses only "default" and "margin")
+      // Add new type entry
       if ( attr.length > 0 && ! attr.endsWith(' ') )
         attr += ' ';
-      attr += 'type {type:' + baselineTypeForXml(baselineType) + ';}';
+      attr += 'type {type:' + baselineType + ';}';
       g.attr('custom', attr);
       // Add/remove class for CSS styling
-      g.removeClass('baseline-default baseline-main baseline-margin');
+      g.removeClass('baseline-main baseline-margin baseline-default');
       g.addClass('baseline-' + baselineType);
 
       self.util.selectElem(elem,true,true);
