@@ -370,8 +370,8 @@ $(window).on('load', function () {
         } );
     } );
 
-  /// Open file if provided as argument (primary window: hash #1 or empty) ///
-  if ( nw.App.argv.length > 0 && (window.location.hash === '#1' || window.location.hash === '') ) {
+  /// Open file if provided as argument ///
+  if ( nw.App.argv.length > 0 && window.location.hash === '#1' ) {
     global.pageWindows = [ true ];
     if ( parseArgs(nw.App.argv) )
       window.setTimeout( function () {

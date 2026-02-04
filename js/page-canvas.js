@@ -1741,15 +1741,16 @@
 
 
     /**
-     * Creates a poly-stripe for a given baseline element.
+     * Creates a poly-stripe for a given baseline element (Coords polygon around the baseline for easier selection).
      */
     function setPolystripe( baseline, height, offset ) {
       if ( ! $(baseline).hasClass('Baseline') ) {
         console.log('error: setPolystripe expects a Baseline element');
         return;
       }
-      if ( height <= 0 || offset < 0 || offset > 0.5 )
+      if ( offset < 0 || offset > 0.5 )
         return;
+      height = Math.max(height, 5);
       var n,
       coords = $(baseline).siblings('.Coords'),
       offup = height - offset*height,
@@ -1761,8 +1762,7 @@
       else
         coords[0].points.clear();
 
-      if ( baseline.parentElement.hasAttribute('polystripe') )
-        $(baseline.parentElement).attr('polystripe',height+' '+offset);
+      $(baseline.parentElement).attr('polystripe', height + ' ' + offset);
 
       baseline = baseline.points;
       coords = coords[0].points;
@@ -2442,8 +2442,10 @@ console.log(reg[0]);
      * Creates polyrect, sorts line within region, sets the editable, selects it and registers change.
      */
     function finishBaseline( baseline, restrict ) {
-      //setPolyrect( baseline, self.cfg.polyrectHeight, self.cfg.polyrectOffset );
-      setPolystripe( baseline, self.cfg.polyrectHeight, self.cfg.polyrectOffset );
+      var h = self.cfg.polyrectHeight;
+      if ( typeof h !== 'number' || h <= 0 || isNaN(h) )
+        h = 40;
+      setPolystripe( baseline, Math.max(h, 5), self.cfg.polyrectOffset );
 
       $(baseline)
         .parent()
@@ -2454,11 +2456,16 @@ console.log(reg[0]);
                 self.util.setEditing( event, 'points', { points_selector: '> polyline', restrict: restrict } );
               };
           } );
-      window.setTimeout( function () {
-          if ( typeof $(baseline).parent()[0].setEditing !== 'undefined' )
-            $(baseline).parent()[0].setEditing();
-          self.util.selectElem(baseline,true);
-        }, 50 );
+      var editAfterCreate = self.cfg.editAfterCreate !== false;
+      if ( editAfterCreate ) {
+        window.setTimeout( function () {
+            if ( typeof $(baseline).parent()[0].setEditing !== 'undefined' )
+              $(baseline).parent()[0].setEditing();
+            self.util.selectElem(baseline, true);
+          }, 50 );
+      } else {
+        requestAnimationFrame( function () { self.util.selectElem(baseline, true); } );
+      }
 
       for ( var n=0; n<self.cfg.onFinishBaseline.length; n++ )
         self.cfg.onFinishBaseline[n](baseline,'Baseline');
