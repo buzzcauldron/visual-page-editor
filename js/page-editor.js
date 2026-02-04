@@ -38,13 +38,13 @@ $(window).on('load', function () {
           $('#selectedId').text( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') );
           $('#modeElement').text((editable.index(g)+1)+'/'+editable.length);
 
-          // Update baseline type radio buttons if TextLine is selected
+          // Update baseline type radio buttons if TextLine is selected (getBaselineType returns default when legacy main)
           if ( g.is('.TextLine') ) {
             var baselineType = pageCanvas.util.getBaselineType(g[0]);
             $('input[name="baseline-type"][value="' + baselineType + '"]').prop('checked', true);
             pageCanvas.cfg.baselineType = baselineType;
           }
-          // Don't reset to default when selecting non-TextLine - keep user's selection for creating baselines
+          // Don't reset to main when selecting non-TextLine - keep user's selection for creating baselines
 
           updateSelectedInfo();
 

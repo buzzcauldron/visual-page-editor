@@ -67,11 +67,13 @@
 | `Mod + Z` | Undo |
 | `Mod + Y` | Redo |
 | `Mod + E` | Open property modal (selected element) |
-| `Delete` / `Backspace` | Delete (context-dependent) |
-| `Mod + Delete` / `Mod + Backspace` | Delete (alternate) |
+| `Backspace` | In text box: delete character. Elsewhere: delete selected element. |
+| `Delete` | Delete selected element (when focus is not in a text field). |
+| `Mod + Backspace` | **Always** delete selected line/element (even when editing text). |
+| `Mod + Delete` | Delete selected element (when focus is not in a text field). |
 | `Mod + R` | Toggle protection |
 | `Mod + G` | Gamma filter (cycle) |
-| `Mod + I` | Invalid text (mark) / Show only image |
+| `Mod + I` | Show only image (toggle). *(Invalid-text check is also bound in code but loses to this.)* |
 | `Mod + H` | Highlight editables |
 | `Mod + Shift + H` | Unhighlight editables |
 | `Mod + F` | Focus filter field |
@@ -109,5 +111,19 @@ Same as above where applicable; additionally:
 
 ## Notes
 
-- Inputs and dropdowns (e.g. page number, filter, baseline type) receive key events when focused; shortcuts are ignored there so you can type normally.
+- **Mod** = `Ctrl` (Windows/Linux) or `Cmd` (macOS).
+- When focus is in the text edit box (`#textedit`), **Backspace** and **Delete** edit text; **Mod + Backspace** still deletes the selected line.
+- Inputs and dropdowns (e.g. page number, filter, baseline type) receive key events when focused; shortcuts are ignored there so you can type normally (the text edit box has no `mousetrap` class so it does not trigger delete shortcuts).
 - **Edit modes** tooltip in the drawer: use `Mod + ,` / `Mod + .` (and Shift for reverse) to cycle element type and tool.
+
+---
+
+## Review summary (implementation vs doc)
+
+| Item | Status |
+|------|--------|
+| Delete/Backspace | Doc updated: Backspace in text box = edit; Mod+Backspace = always delete. |
+| Mod + I | Two bindings: svg-canvas (invalid text) and page-editor (show only image). Last-loaded (page-editor) wins → **Show only image**. Doc updated. |
+| Mod + E | Property modal; single binding in page-editor. ✓ |
+| Pan vs table | Alt+arrow and Mod+arrow bound in svg-canvas for pan; Alt+arrow also in page-canvas for table cell navigation. Same key: pan and table both apply depending on context. ✓ |
+| Sequence shortcuts | `- .`, `+ .`, `- c`, `- r`, `+ c`, `+ r` (Mousetrap sequence). Doc matches. ✓ |
