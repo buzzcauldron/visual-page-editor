@@ -58,7 +58,8 @@
     boxX0,
     boxY0,
     boxW,
-    boxH;
+    boxH,
+    panToSelectedRafId = 0;
 
     /// Check container element ///
     svgContainer = document.getElementById(svgContainer);
@@ -431,8 +432,10 @@
 
     ///////////////////////////////////////////
     /// Keep track of mouse cursor position ///
+    /// Throttled with rAF so at most one update per frame.
     ///////////////////////////////////////////
-
+    var mouseMoveRafId = 0;
+    var pendingMousePoint = null;
     $(svgContainer).mousemove( function ( event ) {
         if ( ! svgRoot )
           return;
@@ -442,11 +445,21 @@
         point = self.util.toViewboxCoords(point);
         self.util.mouseCoords.x = point.x;
         self.util.mouseCoords.y = point.y;
-        var onMouseMove = self.cfg.onMouseMove;
-        if ( Array.isArray(onMouseMove) )
-          for ( var k = 0; k < onMouseMove.length; k++ )
-            if ( typeof onMouseMove[k] === 'function' )
-              onMouseMove[k](point);
+        pendingMousePoint = point;
+        if ( mouseMoveRafId )
+          return;
+        mouseMoveRafId = requestAnimationFrame( function () {
+          mouseMoveRafId = 0;
+          var p = pendingMousePoint;
+          pendingMousePoint = null;
+          if ( p ) {
+            var onMouseMove = self.cfg.onMouseMove;
+            if ( Array.isArray(onMouseMove) )
+              for ( var k = 0; k < onMouseMove.length; k++ )
+                if ( typeof onMouseMove[k] === 'function' )
+                  onMouseMove[k](p);
+          }
+        } );
       } );
 
 
@@ -1073,11 +1086,23 @@
       if ( $(document.activeElement).filter('input[type=text], textarea').length > 0 )
         $(document.activeElement).blur();
       $(svgElem).addClass('selected');
-      if ( self.cfg.centerOnSelection &&
-           ( typeof nocenter === 'undefined' || ! nocenter ) )
-        panToSelected();
-      for ( var n=0; n<self.cfg.onSelect.length; n++ )
-        self.cfg.onSelect[n](svgElem);
+      // Defer pan and onSelect to next frame so first click feels instant (selection paints immediately)
+      var doCenter = self.cfg.centerOnSelection && ( typeof nocenter === 'undefined' || ! nocenter );
+      var onSelect = self.cfg.onSelect;
+      var runAfterPaint = doCenter || ( Array.isArray(onSelect) && onSelect.length > 0 );
+      if ( runAfterPaint ) {
+        if ( panToSelectedRafId )
+          cancelAnimationFrame( panToSelectedRafId );
+        panToSelectedRafId = requestAnimationFrame( function () {
+          panToSelectedRafId = 0;
+          if ( doCenter )
+            panToSelected();
+          if ( Array.isArray(onSelect) )
+            for ( var n = 0; n < onSelect.length; n++ )
+              if ( typeof onSelect[n] === 'function' )
+                onSelect[n](svgElem);
+        } );
+      }
     }
 
     /**
@@ -1147,8 +1172,12 @@
           var fn = self.util.finishDrawing;
           if ( typeof fn === 'function' ) {
             var $del = $(delElem);
-            if ( $del.hasClass('drawing') || $del.find('.drawing').length )
+            if ( $del.hasClass('drawing') || $del.find('.drawing').length ) {
               fn();
+              // Remove any orphaned dragpoints (e.g. from point-edit before delete)
+              if ( svgRoot )
+                $(svgRoot).find('.dragpoint').remove();
+            }
           }
           unselectElem(selElem);
           
@@ -1266,7 +1295,7 @@
         sel = '.selected';
       if ( typeof sel === 'string' )
         sel = $(svgRoot).find(sel);
-      sel = $(sel).closest('g, svg');
+      sel = ( sel && typeof sel.closest === 'function' ) ? sel.closest('g, svg') : $(sel).closest('g, svg');
       if ( sel.length === 0 )
         return false;
 
@@ -1402,9 +1431,12 @@
      */
     function removeEditings( event ) {
       if ( ! self.util.dragging && svgRoot ) {
+        var editing = $(svgRoot).find('.editing');
+        if ( editing.length === 0 )
+          return;
         var onRemove = self.cfg.onRemoveEditing;
         var hasCallbacks = Array.isArray(onRemove) && onRemove.length > 0;
-        $(svgRoot).find('.editing').each( function () {
+        editing.each( function () {
           var el = this;
           if ( typeof el.removeEditing !== 'undefined' )
             el.removeEditing(true);
@@ -2897,8 +2929,9 @@
         .mousemove(updatePoint)
         .click(handleClick);
 
-      var eventList = $._data(svgRoot,'events');
-      eventList.click.unshift(eventList.click.pop()); // Make this click event first in queue
+      var eventList = $._data(svgRoot, 'events');
+      if ( eventList && eventList.click && eventList.click.length > 0 )
+        eventList.click.unshift(eventList.click.pop()); // Make draw click handler first in queue
 
       self.mode.disablers.push( function () {
           $(svgRoot)
@@ -3075,9 +3108,11 @@
 
         $(elem).removeClass('drawing');
 
-        if ( ! isvalidpoly(pointListToArray(elem.points),elem,true) )
+        if ( ! isvalidpoly(pointListToArray(elem.points),elem,true) ) {
+          if ( svgRoot )
+            $(svgRoot).find('.dragpoint').remove();
           delpoly(elem);
-
+        }
         else if ( typeof onfinish === 'function' )
           onfinish(elem);
 
@@ -3090,8 +3125,9 @@
         .mousemove(updatePoint)
         .click(addPoint);
 
-      var eventList = $._data(svgRoot,'events');
-      eventList.click.unshift(eventList.click.pop()); // Make this click event first in queue
+      var eventList = $._data(svgRoot, 'events');
+      if ( eventList && eventList.click && eventList.click.length > 0 )
+        eventList.click.unshift(eventList.click.pop()); // Make draw click handler first in queue
 
       self.mode.disablers.push( function () {
           $(svgRoot)

@@ -34,19 +34,16 @@ $(window).on('load', function () {
           g = $(elem).closest('g'),
           editable = pageCanvas.util.getSortedEditables(),
           text = g.find('> .TextEquiv > .Unicode');
+          // Quick updates first so selection and sidebar feel instant
           $('#selectedType').text( g.hasClass('TableCell') ? 'TableCell' : g.attr('class').replace(/ .*/,'') );
           $('#selectedId').text( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') );
           $('#modeElement').text((editable.index(g)+1)+'/'+editable.length);
 
-          // Update baseline type radio buttons if TextLine is selected (getBaselineType returns default when legacy main)
           if ( g.is('.TextLine') ) {
             var baselineType = pageCanvas.util.getBaselineType(g[0]);
             $('input[name="baseline-type"][value="' + baselineType + '"]').prop('checked', true);
             pageCanvas.cfg.baselineType = baselineType;
           }
-          // Don't reset to main when selecting non-TextLine - keep user's selection for creating baselines
-
-          updateSelectedInfo();
 
           if ( text.length !== 0 ) {
             text = pageCanvas.cfg.textFormatter(text.html());
@@ -65,6 +62,9 @@ $(window).on('load', function () {
 
           if ( prop_modal.hasClass('modal-active') )
             populatePropertyModal(g);
+
+          // Defer heavy panel update so selection and sidebar paint first
+          requestAnimationFrame( function () { updateSelectedInfo(); } );
         },
       onSelectedDblclick: function () { openPropertyModal($('.selected')); },
       onProtectionChange: updateSelectedInfo,
@@ -762,6 +762,16 @@ $(window).on('load', function () {
       $(this).toggleClass('is-active');
     } );
 
+  /// Allow clicking label text to select radio/checkbox (works even if native label association is blocked) ///
+  $('#drawer').on('click', 'label', function ( e ) {
+    var label = $(this);
+    var input = label.children('input[type="radio"], input[type="checkbox"]').first();
+    if ( input.length && e.target !== input[0] && ! $.contains(input[0], e.target) ) {
+      e.preventDefault();
+      input[0].click();
+    }
+  } );
+
   /// Keyboard shortcuts to cycle through edit modes ///
   function cycleEditMode( name, offset ) {
     var
@@ -1051,6 +1061,13 @@ $(window).on('load', function () {
   handleGroupSize();
 
   /// Setup edit mode after create ///
+  function handleEditAfterCreateCheckbox() {
+    pageCanvas.cfg.editAfterCreate = $(this).children('input').prop('checked');
+  }
+  $('#editAfterCreate')
+    .each(handleEditAfterCreateCheckbox)
+    .click(handleEditAfterCreateCheckbox);
+
   function editModeAfterCreate( elem, elem_type ) {
     if ( ! $('#editAfterCreate input')[0].checked )
       return;
@@ -1100,41 +1117,72 @@ $(window).on('load', function () {
     pageCanvas.util.setTextClipping( $(this).children('input').prop('checked') );
   }
 
-  /// Setup edit mode selection ///
+  /// Setup edit mode selection (mode panel refs cached for speed) ///
+  var modePanelCache = null;
   function handleEditMode( showHightlight ) {
     $('.highlight').removeClass('highlight');
 
+    if ( ! modePanelCache ) {
+      modePanelCache = {
+        text: $('#textMode input'),
+        edit: $('#editAfterCreate input'),
+        page: $('#pageMode input'),
+        region: $('#regMode input'),
+        line: $('#lineMode input'),
+        word: $('#wordMode input'),
+        glyph: $('#glyphMode input'),
+        table: $('#tabMode input'),
+        group: $('#groupMode input'),
+        other: $('#otherMode input'),
+        all: $('#allMode input'),
+        select: $('#selMode input'),
+        baseline: $('#baseMode input'),
+        coords: $('#coorMode input'),
+        drag: $('#dragMode input'),
+        create: $('#createMode input'),
+        modify: $('#modifyMode input'),
+        coordsRestriction: $('#coordsRestriction'),
+        axisAligned: $('#axisAligned input'),
+        textlineRestriction: $('#textlineRestriction'),
+        groupMemberType: $('#group-member-type'),
+        groupSizeMin: $('#group-size-min input'),
+        groupSizeMax: $('#group-size-max input'),
+        otherRegionList: $('#otherMode [list="other-regions"]'),
+        editModesFieldset: $('#editModesFieldset input')
+      };
+    }
+    var c = modePanelCache;
     var
-    text = $('#textMode input'),
-    edit = $('#editAfterCreate input'),
-    text_checked = $('#textMode input').prop('checked'),
-    rect_checked = $('#coordsRestriction').val() === '4',
-    axis_checked = $('#axisAligned input').prop('checked'),
-    line_type = $('#textlineRestriction').val(),
-    group_member_type = $('#group-member-type').val(),
-    group_size = [parseInt($('#group-size-min input').val()), parseInt($('#group-size-max input').val())],
-    other_region = $('#otherMode [list="other-regions"]').val(),
+    text = c.text,
+    edit = c.edit,
+    text_checked = c.text.prop('checked'),
+    rect_checked = c.coordsRestriction.val() === '4',
+    axis_checked = c.axisAligned.prop('checked'),
+    line_type = c.textlineRestriction.val(),
+    group_member_type = c.groupMemberType.val(),
+    group_size = [parseInt(c.groupSizeMin.val(), 10), parseInt(c.groupSizeMax.val(), 10)],
+    other_region = c.otherRegionList.val(),
     other_region_type,
-    page = $('#pageMode input'),
-    region = $('#regMode input'),
-    line = $('#lineMode input'),
-    word = $('#wordMode input'),
-    glyph = $('#glyphMode input'),
-    table = $('#tabMode input'),
-    group = $('#groupMode input'),
-    other = $('#otherMode input'),
-    all = $('#allMode input'),
-    select = $('#selMode input'),
-    baseline = $('#baseMode input'),
-    coords = $('#coorMode input'),
-    drag = $('#dragMode input'),
-    create = $('#createMode input');
-    modify = $('#modifyMode input');
+    page = c.page,
+    region = c.region,
+    line = c.line,
+    word = c.word,
+    glyph = c.glyph,
+    table = c.table,
+    group = c.group,
+    other = c.other,
+    all = c.all,
+    select = c.select,
+    baseline = c.baseline,
+    coords = c.coords,
+    drag = c.drag,
+    create = c.create,
+    modify = c.modify;
 
     pageCanvas.cfg.coordsMaxPoints = rect_checked ? 4 : 0;
 
     if ( ! other_region ) {
-      $('#otherMode [list="other-regions"]').val('ImageRegion');
+      c.otherRegionList.val('ImageRegion');
       other_region = 'ImageRegion';
     }
     if ( other_region != 'ImageRegion' && other_region != 'SeparatorRegion' && other_region != 'CustomRegion' ) {
@@ -1144,12 +1192,12 @@ $(window).on('load', function () {
     function isvalidpoly( points, elem, complete ) { return pageCanvas.util.isValidCoords(points, elem, complete, other_region); }
 
     var coords_restriction = false;
-    if ( $('#coordsRestriction').val() === '4' && axis_checked )
+    if ( c.coordsRestriction.val() === '4' && axis_checked )
       coords_restriction = pageCanvas.enum.restrict.AxisAlignedRectangle;
     else if ( axis_checked )
       coords_restriction = pageCanvas.enum.restrict.AxisAligned;
 
-    $('#editModesFieldset input')
+    c.editModesFieldset
       .prop('disabled',false)
       .parent()
       .removeClass('disabled');
