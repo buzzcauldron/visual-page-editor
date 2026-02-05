@@ -29,6 +29,11 @@ This project can be developed with TypeScript on a dedicated branch. The setup a
   - `noEmit: true` – type-check only; no compiled output (app keeps using `js/*.js`).  
   - `strict: false` – relaxed so current code passes without changes.
 
+- **types/canvas.d.ts**  
+  - Type definitions for `SvgCanvas` and `PageCanvas` APIs.  
+  - Augments `Window` with `pageCanvas`, `PageCanvas`, `SvgCanvas`.  
+  - Improves IDE autocomplete in `page-editor.js`, `web-app.js`, `nw-app.js`.
+
 - **package.json**  
   - `typescript` and `@types/jquery` in devDependencies.  
   - Scripts: `npm run typecheck` (tsc --noEmit), `npm run ts` (tsc).
