@@ -84,8 +84,8 @@ Both packages will:
 To use a different NW.js version:
 
 ```bash
-NWJS_VERSION=0.50.0 ./rpm/build-rpm.sh
-NWJS_VERSION=0.50.0 ./build-deb.sh
+NWJS_VERSION=0.77.0 ./rpm/build-rpm.sh
+NWJS_VERSION=0.77.0 ./build-deb.sh
 ```
 
 ## Next Steps

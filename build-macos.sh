@@ -11,12 +11,12 @@ NAME="visual-page-editor"
 VERSION="$([ -f "$SCRIPT_DIR/VERSION" ] && cat "$SCRIPT_DIR/VERSION" | tr -d '\n')"
 [ -z "$VERSION" ] && VERSION="$(node -p "require('$SCRIPT_DIR/package.json').version" 2>/dev/null)" || true
 VERSION="${VERSION:-1.0.0}"
-# Default to 0.50.0 for ARM64 support (0.44.4 doesn't have ARM64 builds)
+# Default to 0.77.0 for ARM64 support (first NW.js with osx-arm64 builds; 0.50.0 does not exist)
 # Can be overridden via NWJS_VERSION environment variable
 if [ -z "${NWJS_VERSION:-}" ]; then
     # Detect if we need ARM64 - if so, use a version that supports it
     if sysctl -n hw.optional.arm64 2>/dev/null | grep -q "1" || [ "$(uname -m)" = "arm64" ]; then
-        NWJS_VERSION="0.50.0"  # First stable version with ARM64 support
+        NWJS_VERSION="0.77.0"  # First version with osx-arm64 on dl.nwjs.io
     else
         NWJS_VERSION="0.44.4"  # Older version is fine for Intel Macs
     fi
@@ -140,8 +140,8 @@ download_nwjs() {
     if [ "$http_code" != "200" ] && [ "$http_code" != "302" ]; then
         echo -e "${RED}ERROR: NW.js v${NWJS_VERSION} for ${NWJS_ARCH} is not available (HTTP $http_code)${NC}"
         if [ "$ARCH" = "arm64" ]; then
-            echo -e "${YELLOW}Note: ARM64 support requires NW.js v0.50.0 or later.${NC}"
-            echo -e "${YELLOW}Try setting: NWJS_VERSION=0.50.0 ./build-macos.sh${NC}"
+            echo -e "${YELLOW}Note: ARM64 support requires NW.js v0.77.0 or later.${NC}"
+            echo -e "${YELLOW}Try setting: NWJS_VERSION=0.77.0 ./build-macos.sh${NC}"
             echo -e "${YELLOW}Or use: NWJS_VERSION=0.94.0 ./build-macos.sh${NC}"
         fi
         echo "You can download it manually from: $nwjs_url"
@@ -180,8 +180,8 @@ download_nwjs() {
     else
         echo -e "${RED}Warning: Could not download NW.js automatically.${NC}"
         if [ "$ARCH" = "arm64" ]; then
-            echo -e "${YELLOW}Note: ARM64 support requires NW.js v0.50.0 or later.${NC}"
-            echo -e "${YELLOW}Try setting: NWJS_VERSION=0.50.0 ./build-macos.sh${NC}"
+            echo -e "${YELLOW}Note: ARM64 support requires NW.js v0.77.0 or later.${NC}"
+            echo -e "${YELLOW}Try setting: NWJS_VERSION=0.77.0 ./build-macos.sh${NC}"
         fi
         echo "You can download it manually from: $nwjs_url"
         echo "Extract it to: $nwjs_extracted"
