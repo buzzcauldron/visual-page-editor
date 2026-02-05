@@ -52,6 +52,7 @@ $(window).on('load', function () {
             if ( $('.selected').closest('g')[0] !== g[0] )
               return;
             var text = g.find('> .TextEquiv > .Unicode');
+            // When a TextLine is selected, switch default/margin radio to match that line's type
             if ( g.is('.TextLine') ) {
               var lineType = pageCanvas.util.getBaselineType(g[0]);
               if ( lineType === 'margin' || lineType === 'default' ) {
@@ -816,9 +817,6 @@ $(window).on('load', function () {
   }
   Mousetrap.bind( 'c', function () {
     runAndFlushDrawerState( function () {
-      /// Page mode forces Select and disables Create; switch to Line so Create can persist ///
-      if ( $( '#pageMode input' ).prop( 'checked' ) )
-        $( '#lineMode input' ).prop( 'checked', true );
       $( '#createMode input' ).prop( 'checked', true );
       handleEditMode();
     } );
@@ -826,9 +824,6 @@ $(window).on('load', function () {
   } );
   Mousetrap.bind( 'b', function () {
     runAndFlushDrawerState( function () {
-      /// Page mode forces Select and disables Baseline; switch to Line so Baseline can persist ///
-      if ( $( '#pageMode input' ).prop( 'checked' ) )
-        $( '#lineMode input' ).prop( 'checked', true );
       $( '#baseMode input' ).prop( 'checked', true );
       handleEditMode();
     } );
