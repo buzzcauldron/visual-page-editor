@@ -136,3 +136,9 @@ Then `saveDrawerStateNow` and `loadDrawerState` both iterate `$drawer.find('labe
 | Drawer state      | Shared serialize/deserialize helpers        | Same rules for save and load     |
 
 You can apply 1, 3, and 4 without touching the build; 2 is optional and can stay as-is with the existing script.
+
+---
+
+## Reminder: Do not re-apply “orthogonal default/margin”
+
+Making default/margin **orthogonal** (do not change the baseline-type radio when selecting a TextLine; do not force “default” on unselect) was implemented and then **reverted at user request**. Do **not** re-apply that behaviour: keep the current logic where selecting a line updates the default/margin radio to match that line, and where unselecting can set the radio to default when none is checked.

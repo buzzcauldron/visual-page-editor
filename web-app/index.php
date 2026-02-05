@@ -97,6 +97,7 @@ if ( getenv('CSS') !== false ) {
   <meta charset="UTF-8"/>
   <title>visual-page-editor v<?=$version?> - <?=$uname?></title>
   <link rel="icon" href="data:;base64,iVBORw0KGgo="/>
+  <script>window.PAGE_EDITOR_VERSION='<?=$version?>';</script>
   <link type="text/css" rel="stylesheet" id="page_styles" href="../css/page-editor.css<?=$v?>"/>
   <link type="text/css" rel="stylesheet" href="../node_modules/github-markdown-css/github-markdown.css"/>
   <?=$provided_css_files?>

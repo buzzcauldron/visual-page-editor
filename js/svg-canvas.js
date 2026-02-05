@@ -24,7 +24,7 @@
   var
   sns = 'http://www.w3.org/2000/svg',
   xns = 'http://www.w3.org/1999/xlink',
-  version = '1.1.3';
+  version = ( typeof window !== 'undefined' && window.PAGE_EDITOR_VERSION ) || '1.0.0';
 
   /// Set SvgCanvas global object ///
   if ( ! global.SvgCanvas )

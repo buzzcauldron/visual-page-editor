@@ -23,7 +23,7 @@
   'use strict';
 
   var
-  version = '1.1.3';
+  version = ( typeof window !== 'undefined' && window.PAGE_EDITOR_VERSION ) || '1.0.0';
 
   /// Set PageCanvas global object ///
   if ( ! global.PageCanvas )
