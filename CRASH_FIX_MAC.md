@@ -42,3 +42,5 @@ The shell script will:
 - Detect x64 NW.js on Apple Silicon
 - Show an error message and exit (preventing crash)
 - Guide you to install the correct ARM64 version
+
+**If the app still crashes after switching to ARM64:** Clear the launcher’s path cache so it re-detects NW.js: `rm -f ~/.cache/visual-page-editor/nw-path`, then run `./bin/visual-page-editor` again. Check `/tmp/visual-page-editor.log` for errors; see **DEBUG.md** → “Project crashed”.

@@ -2,7 +2,7 @@
 /**
  * Common code to be executed by other php scripts.
  *
- * @version $Version: 1.1.0$
+ * @version $Version: 1.1.3$
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * @license MIT License

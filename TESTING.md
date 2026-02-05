@@ -23,7 +23,7 @@ From the repo root:
 
 | Platform | How to run | Notes |
 |----------|------------|--------|
-| **macOS** | `./bin/visual-page-editor [files...]` | Uses NW.js from `/Applications/nwjs.app` or `~/.nwjs`; ARM64 via `build-macos.sh` or `NWJS_VERSION=0.50.0`. |
+| **macOS** | `./bin/visual-page-editor [files...]` | Uses NW.js from `/Applications/nwjs.app` or `~/.nwjs`; ARM64 via `build-macos.sh` or `NWJS_VERSION=0.77.0`. |
 | **Linux (native)** | `./bin/visual-page-editor [files...]` | Same launcher; needs `nw` in PATH or auto-download. |
 | **Docker (Linux)** | `./docker-run.sh [files...]` | Uses `Dockerfile.desktop` (Xvfb when no DISPLAY). On macOS host: XQuartz + “Allow connections from network clients” for GUI. |
 
@@ -33,7 +33,7 @@ After merging `origin/arm64-support`, the codebase should include:
 
 - **Baseline types**: Main vs Margin (HTML radios, `getBaselineType` / `setBaselineType`, CSS `.baseline-main` / `.baseline-margin`).
 - **Drawer**: Toggle, persistence, visibility.
-- **build-macos.sh**: ARM64 detection, NW.js 0.50.0 for ARM64.
+- **build-macos.sh**: ARM64 detection, NW.js 0.77.0 for ARM64.
 - **XSD fallback**: Load `pagecontent_omnius.xsd`; fallback path in `nw-app.js`.
 - **TextLine / XML**: Baseline type in XML export, TextLine handling.
 

@@ -1,7 +1,7 @@
 /**
  * Javascript library for viewing and interactive editing of Page XMLs.
  *
- * @version 1.1.0
+ * @version 1.1.3
  * @author Mauricio Villegas <mauricio_ville@yahoo.com>
  * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
  * @license MIT License
@@ -23,7 +23,7 @@
   'use strict';
 
   var
-  version = '1.1.0';
+  version = ( typeof window !== 'undefined' && window.PAGE_EDITOR_VERSION ) || '1.0.0';
 
   /// Set PageCanvas global object ///
   if ( ! global.PageCanvas )
@@ -361,6 +361,9 @@
     /// Apply input configuration ///
     self.setConfig( config );
 
+    /// Trigger XSLT preload when config (e.g. from nw-app) sets XSLT hrefs ///
+    self.cfg.onSetConfig.push( function () { loadXslt( true ); } );
+
     /**
      * Returns the version of the library and its dependencies.
      */
@@ -404,9 +407,12 @@
 
     /**
      * Loads the XSLT for converting Page XML to SVG.
+     * When async is true, returns a Promise that resolves when all XSLTs are loaded.
+     * @param {boolean} async  Always true; sync loading removed for startup/load performance.
+     * @returns {Promise|undefined}  Promise when loading, undefined when nothing to load.
      */
     function loadXslt( async ) {
-      var href, n;
+      var href, n, promises = [];
 
       /// Load import XSLT(s) ///
       if ( self.cfg.importSvgXsltHref &&
@@ -420,9 +426,9 @@
         xslt_import = Array.apply(null, Array(importSvgXsltHref.length));
         xslt_import_xml = Array.apply(null, Array(importSvgXsltHref.length));
 
-        for ( n=0; n<xslt_import.length; n++ ) // jshint -W083
+        for ( n=0; n<xslt_import.length; n++ ) { // jshint -W083
           (function(idx) {
-            $.ajax({ url: self.util.addAjaxVersionTimestamp(importSvgXsltHref[idx]), async: async, dataType: 'xml' })
+            var req = $.ajax({ url: self.util.addAjaxVersionTimestamp(importSvgXsltHref[idx]), async: true, dataType: 'xml' })
               .fail( function () { self.throwError( 'Failed to retrieve '+importSvgXsltHref[idx] ); } )
               .done( function ( data ) {
                   xslt_import[idx] = new XSLTProcessor();
@@ -432,7 +438,9 @@
                     xslt_import_version[idx] = xslt_import_version[idx].replace(/'/g,'');
                   xslt_import_xml[idx] = data;
                 } );
+            promises.push(req);
           })(n);
+        }
       }
 
       /// Load export XSLT(s) ///
@@ -446,9 +454,9 @@
         exportSvgXsltHref = href;
         xslt_export = Array.apply(null, Array(exportSvgXsltHref.length));
 
-        for ( n=0; n<xslt_export.length; n++ ) // jshint -W083
+        for ( n=0; n<xslt_export.length; n++ ) { // jshint -W083
           (function(idx) {
-            $.ajax({ url: self.util.addAjaxVersionTimestamp(exportSvgXsltHref[idx]), async: async, dataType: 'xml' })
+            var req = $.ajax({ url: self.util.addAjaxVersionTimestamp(exportSvgXsltHref[idx]), async: true, dataType: 'xml' })
               .fail( function () { self.throwError( 'Failed to retrieve '+exportSvgXsltHref[idx] ); } )
               .done( function ( data ) {
                   xslt_export[idx] = new XSLTProcessor();
@@ -457,8 +465,26 @@
                   if ( xslt_export_version[idx] )
                     xslt_export_version[idx] = xslt_export_version[idx].replace(/'/g,'');
                 } );
+            promises.push(req);
           })(n);
+        }
       }
+
+      if ( promises.length > 0 )
+        return $.when.apply( $, promises );
+    }
+
+    /**
+     * Returns a Promise that resolves when XSLTs are ready for transform.
+     * Never blocks; uses async load only.
+     */
+    function ensureXsltReady() {
+      var importReady = ! self.cfg.importSvgXsltHref || ( xslt_import.length > 0 && xslt_import.every(returnElem) );
+      var exportReady = ! self.cfg.exportSvgXsltHref || ( xslt_export.length > 0 && xslt_export.every(returnElem) );
+      if ( importReady && exportReady )
+        return $.Deferred().resolve().promise();
+      var p = loadXslt( true );
+      return p ? p : $.Deferred().resolve().promise();
     }
 
     /**
@@ -505,8 +531,8 @@
       $(pageSvg).find('.selectable-member').removeClass('selectable-member');
       $(pageSvg).find('.addible-member').removeClass('addible-member');
       $(pageSvg).find('.modifiable').removeClass('modifiable');
-      /// Remove baseline type CSS classes (baseline-default, baseline-main, baseline-margin) before export ///
-      $(pageSvg).find('.baseline-default, .baseline-main, .baseline-margin').removeClass('baseline-default baseline-main baseline-margin');
+      /// Remove baseline type CSS classes before export ///
+      $(pageSvg).find('.baseline-default, .baseline-margin').removeClass('baseline-default baseline-margin');
 
       /// Remove offset from coordinates of pages ///
       var pages = $(pageSvg).find('.Page');
@@ -618,10 +644,10 @@
       hasXmlDecl = typeof pageDoc === 'string' && pageDoc.substr(0,5) === '<?xml' ? true : false ;
 
       if ( typeof pageDoc === 'string' )
-        try { pageDoc = $.parseXML( pageDoc ); } catch(e) { onError(e); }
+        try { pageDoc = $.parseXML( pageDoc ); } catch(e) { onError(e); return; }
 
-      /// Apply XSLT to get Page SVG ///
-      loadXslt(false);
+      /// Apply XSLT to get Page SVG (async; never blocks) ///
+      ensureXsltReady().done( function applyXsltTransform() {
       pageSvg = pageDoc;
 
       var chosen_xslt_import = xslt_import;
@@ -797,6 +823,7 @@
         if ( m < 0 )
           finishLoadXmlPage(image);
       }
+    } ).fail( function () { onError( 'Failed to load XSLT stylesheets' ); } );
     };
 
     /**
@@ -921,30 +948,24 @@
       if ( imagesLoadReady < $(pageSvg).find('.PageImage').length )
         return;
 
-      /// Convert any baseline type 'main' to 'default' before loading (so saved XML has default) ///
-      $(pageSvg).find('.TextLine').each(function() {
-        var g = $(this);
-        var attr = g.attr('custom');
-        if ( typeof attr !== 'undefined' && attr.match(/type\s*\{type\s*:\s*main\s*;\s*\}/) ) {
-          attr = attr.replace(/type\s*\{type\s*:\s*main\s*;\s*\}/g, 'type {type:default;}');
-          g.attr('custom', attr);
-        }
-      });
-
       /// Load the Page SVG in the canvas ///
       self.loadXmlSvg(pageSvg);
       self.util.offsetAndOrientPages();
 
-      /// Add baseline type CSS classes (run on in-canvas nodes) ///
-      $(self.util.svgRoot).find('.TextLine').each(function() {
+      /// Add baseline type CSS classes ///
+      $(pageSvg).find('.TextLine').each(function() {
         var g = $(this);
         var baselineType = self.util.getBaselineType(g[0]);
-        g.removeClass('baseline-default baseline-main baseline-margin');
+        g.removeClass('baseline-default baseline-margin');
         g.addClass('baseline-' + baselineType);
       });
 
       /// Set currently selected mode ///
       self.mode.current();
+
+      /// Re-apply drawer state (e.g. Create mode) so it persists across image changes ///
+      if ( typeof window.restoreEditorUIOnLoad === 'function' )
+        window.restoreEditorUIOnLoad();
 
       /// Scale font size ///
       baseFontSize = 0.010 * Math.min( self.util.canvasRange().width, self.util.canvasRange().height );
@@ -2071,14 +2092,9 @@
       if ( g.length === 0 )
         return 'default';
       var attr = g.attr('custom');
-      if ( typeof attr === 'undefined' || ! attr.match(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/) )
+      if ( typeof attr === 'undefined' || ! attr.match(/type\s*\{type\s*:\s*(default|margin)\s*;\s*\}/) )
         return 'default';
-      var match = attr.match(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/);
-      // Convert legacy 'main' to 'default' for backward compatibility (Version 5 behaviour)
-      if ( match && match[1] === 'main' ) {
-        setBaselineType(g[0], 'default');
-        return 'default';
-      }
+      var match = attr.match(/type\s*\{type\s*:\s*(default|margin)\s*;\s*\}/);
       return match ? match[1] : 'default';
     }
     self.util.getBaselineType = getBaselineType;
@@ -2093,10 +2109,10 @@
       var g = $(elem).closest('.TextLine');
       if ( g.length === 0 )
         return;
-      if ( type !== 'main' && type !== 'margin' && type !== 'default' )
+      if ( type !== 'margin' && type !== 'default' )
         type = 'default';
       var attr = g.attr('custom') || '';
-      // Remove existing type entry
+      // Remove existing type entry (regex strips legacy main|default|margin)
       attr = attr.replace(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/g, '');
       attr = attr.trim();
       // Add new type entry
@@ -2104,8 +2120,7 @@
         attr += ' ';
       attr += 'type {type:' + type + ';}';
       g.attr('custom', attr);
-      // Add/remove class for CSS styling
-      g.removeClass('baseline-main baseline-margin baseline-default');
+      g.removeClass('baseline-default baseline-margin');
       g.addClass('baseline-' + type);
       self.util.registerChange('set baseline type to ' + type);
     }
@@ -2345,8 +2360,7 @@
         attr += ' ';
       attr += 'type {type:' + baselineType + ';}';
       g.attr('custom', attr);
-      // Add/remove class for CSS styling
-      g.removeClass('baseline-main baseline-margin baseline-default');
+      g.removeClass('baseline-default baseline-margin');
       g.addClass('baseline-' + baselineType);
 
       self.util.selectElem(elem,true,true);
@@ -2461,10 +2475,12 @@ console.log(reg[0]);
         window.setTimeout( function () {
             if ( typeof $(baseline).parent()[0].setEditing !== 'undefined' )
               $(baseline).parent()[0].setEditing();
-            self.util.selectElem(baseline, true);
+            self.util.selectElem(baseline, true, true);
           }, 50 );
       } else {
-        requestAnimationFrame( function () { self.util.selectElem(baseline, true); } );
+        requestAnimationFrame( function () {
+            self.util.selectElem(baseline, true, true);
+          } );
       }
 
       for ( var n=0; n<self.cfg.onFinishBaseline.length; n++ )
@@ -2716,7 +2732,10 @@ console.log(reg[0]);
                 self.util.setEditing( event, 'points', { points_selector: '> polygon', restrict: restrict } );
               };
           } );
-      window.setTimeout( function () { $(coords).parent()[0].setEditing(); self.util.selectElem(coords,true); }, 50 );
+      window.setTimeout( function () {
+        $(coords).parent()[0].setEditing();
+        self.util.selectElem(coords, true, true);
+      }, 50 );
 
       for ( var n=0; n<self.cfg.onFinishCoords.length; n++ )
         self.cfg.onFinishCoords[n](coords,elem_type,restrict);
@@ -3238,7 +3257,7 @@ console.log(reg[0]);
       window.setTimeout( function () {
           var elem = $(self.util.svgRoot).find('.TextRegion[id^='+id+']')[0];
           elem.setEditing();
-          self.util.selectElem(elem,true);
+          self.util.selectElem(elem, true, true);
         }, 50 );
 
       for ( var n=0; n<self.cfg.onFinishTable.length; n++ )

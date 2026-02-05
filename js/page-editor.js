@@ -1,7 +1,7 @@
 /**
  * Interactive editing of Page XMLs functionality.
  *
- * @version 1.1.0
+ * @version 1.1.3
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -14,57 +14,69 @@
 
 $(window).on('load', function () {
 
+  /// Restore UI state (edit mode, drawer options) on document load – used so selection persists across images
+  function restoreEditorUIOnLoad() {
+    var changeReg = pageCanvas.cfg.registerChangeEnabled;
+    pageCanvas.cfg.registerChangeEnabled = false;
+    try {
+      loadDrawerState();
+      if ( pageCanvas.cfg.modeFilter === '.xpath-select' )
+        filterMode();
+      setDocumentProperties();
+    } finally {
+      pageCanvas.cfg.registerChangeEnabled = changeReg;
+    }
+  }
+  window.restoreEditorUIOnLoad = restoreEditorUIOnLoad;
+
   /// Create PageCanvas instance ///
   var pageCanvas = window.pageCanvas = new window.PageCanvas( 'xpg',
     { stylesId: 'page_styles',
       textareaId: 'textedit',
       handleError: function ( err ) { alert(err.message+"\n"+err.stack); throw err; },
       handleWarning: function ( msg ) { console.log('WARNING: '+msg); alert('WARNING: '+msg); },
-      onLoad: function () {
-          //$('#imageBase').text(pageCanvas.util.imgBase);
-          handleEditMode();
-          if ( pageCanvas.cfg.modeFilter === '.xpath-select' )
-            filterMode();
-          setDocumentProperties();
-        },
+      onLoad: restoreEditorUIOnLoad,
       onMouseMove: updateCursor,
       onUnload: function () { $('#stateInfo span').text('-'); },
       onSelect: function ( elem ) {
           var
           g = $(elem).closest('g'),
-          editable = pageCanvas.util.getSortedEditables(),
-          text = g.find('> .TextEquiv > .Unicode');
-          // Quick updates first so selection and sidebar feel instant
+          editable = pageCanvas.util.getSortedEditables();
+          // Minimal sync updates so selection and sidebar feel instant
           $('#selectedType').text( g.hasClass('TableCell') ? 'TableCell' : g.attr('class').replace(/ .*/,'') );
           $('#selectedId').text( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') );
           $('#modeElement').text((editable.index(g)+1)+'/'+editable.length);
 
-          if ( g.is('.TextLine') ) {
-            var baselineType = pageCanvas.util.getBaselineType(g[0]);
-            $('input[name="baseline-type"][value="' + baselineType + '"]').prop('checked', true);
-            pageCanvas.cfg.baselineType = baselineType;
-          }
-
-          if ( text.length !== 0 ) {
-            text = pageCanvas.cfg.textFormatter(text.html());
-            $('#textedit').val(text);
-          }
-          else
-            $('#textedit').val('');
-
-          $('[class*=selected-parent-]').removeClass( function (index, className) {
-              return (className.match(/(^|\s)selected-parent-\S+/g) || []).join(' ');
-            } );
-          g.closest('.Word').addClass('selected-parent-word');
-          g.closest('.TextLine').addClass('selected-parent-line');
-          g.closest('.TextRegion').addClass('selected-parent-region');
-          g.closest('.Page').addClass('selected-parent-page');
-
-          if ( prop_modal.hasClass('modal-active') )
-            populatePropertyModal(g);
-
-          // Defer heavy panel update so selection and sidebar paint first
-          requestAnimationFrame( function () { updateSelectedInfo(); } );
+          // Defer all heavier work so click feels instant; skip if selection changed during rapid clicks
+          requestAnimationFrame( function () {
+            if ( $('.selected').closest('g')[0] !== g[0] )
+              return;
+            var text = g.find('> .TextEquiv > .Unicode');
+            // When a TextLine is selected, switch default/margin radio to match that line's type
+            if ( g.is('.TextLine') ) {
+              var lineType = pageCanvas.util.getBaselineType(g[0]);
+              if ( lineType === 'margin' || lineType === 'default' ) {
+                $('input[name="baseline-type"][value="'+lineType+'"]').prop('checked', true);
+                pageCanvas.cfg.baselineType = lineType;
+              }
+            }
+            if ( text.length !== 0 ) {
+              text = pageCanvas.cfg.textFormatter(text.html());
+              $('#textedit').val(text);
+            }
+            else
+              $('#textedit').val('');
+            $('[class*=selected-parent-]').removeClass( function (index, className) {
+                return (className.match(/(^|\s)selected-parent-\S+/g) || []).join(' ');
+              } );
+            g.closest('.Word').addClass('selected-parent-word');
+            g.closest('.TextLine').addClass('selected-parent-line');
+            g.closest('.TextRegion').addClass('selected-parent-region');
+            g.closest('.Page').addClass('selected-parent-page');
+            if ( prop_modal.hasClass('modal-active') )
+              populatePropertyModal(g);
+            updateSelectedInfo();
+          } );
         },
       onSelectedDblclick: function () { openPropertyModal($('.selected')); },
       onProtectionChange: updateSelectedInfo,
@@ -761,6 +773,13 @@ $(window).on('load', function () {
       $('#drawer').toggle();
       $(this).toggleClass('is-active');
     } );
+  $('#drawerClose').click( function() {
+      if ( $('#drawer').is(':visible') ) {
+        $('#drawer').hide();
+        $('#drawerButton').removeClass('is-active');
+      }
+      return false;
+    } );
 
   /// Allow clicking label text to select radio/checkbox (works even if native label association is blocked) ///
   $('#drawer').on('click', 'label', function ( e ) {
@@ -772,13 +791,16 @@ $(window).on('load', function () {
     }
   } );
 
-  /// Keyboard shortcuts to cycle through edit modes ///
+  /// Keyboard shortcuts to cycle through edit modes (persist same as radio click) ///
   function cycleEditMode( name, offset ) {
     var
     opts = $('#editModesFieldset input[name='+name+']:not([disabled])'),
     optsel = opts.index(opts.filter(':checked'));
-    if ( opts.length > 1 )
+    if ( opts.length > 1 ) {
       opts.eq( (optsel+offset)%opts.length ).parent().click();
+      if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
+      if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
+    }
     return false;
   }
   Mousetrap.bind( 'mod+,', function () { return cycleEditMode( 'mode1', 1 ); } );
@@ -786,33 +808,72 @@ $(window).on('load', function () {
   Mousetrap.bind( 'mod+.', function () { return cycleEditMode( 'mode2', 1 ); } );
   Mousetrap.bind( 'mod+shift+.', function () { return cycleEditMode( 'mode2', -1 ); } );
 
-  /// Save state of drawer in local storage ///
-  function saveDrawerState() {
+  /// Single-key shortcuts: c=Create, b=Baseline, m=Margin, d=Default (persist mode immediately) ///
+  function runAndFlushDrawerState( action ) {
+    if ( typeof action === 'function' ) action();
+    else if ( typeof action === 'string' ) $(action).click();
+    if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
+    if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
+  }
+  Mousetrap.bind( 'c', function () {
+    runAndFlushDrawerState( function () {
+      $( '#createMode input' ).prop( 'checked', true );
+      handleEditMode();
+    } );
+    return false;
+  } );
+  Mousetrap.bind( 'b', function () {
+    runAndFlushDrawerState( function () {
+      $( '#baseMode input' ).prop( 'checked', true );
+      handleEditMode();
+    } );
+    return false;
+  } );
+  Mousetrap.bind( 'm', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('margin'); } ); return false; } );
+  Mousetrap.bind( 'd', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('default'); } ); return false; } );
+
+  /// Save state of drawer in local storage (debounced to reduce writes) ///
+  function serializeDrawerInput( $label ) {
+    var input = $label.children('input').first();
+    var type = input.attr('type');
+    if ( type === 'checkbox' ) return { key: $label[0].id, val: input.prop('checked') };
+    if ( type === 'radio' ) return input.prop('checked') ? { key: input.attr('name'), val: $label[0].id } : null;
+    if ( type === 'text' ) return { key: $label[0].id, val: input.val() };
+    return null;
+  }
+  function deserializeDrawerInput( $label, drawerState ) {
+    var input = $label.children('input').first();
+    var type = input.attr('type');
+    if ( type === 'checkbox' && typeof drawerState[$label[0].id] !== 'undefined' )
+      input.prop('checked', drawerState[$label[0].id]);
+    else if ( type === 'radio' && typeof drawerState[input.attr('name')] !== 'undefined' && drawerState[input.attr('name')] === $label[0].id )
+      input.prop('checked', true);
+    else if ( type === 'text' && typeof drawerState[$label[0].id] !== 'undefined' )
+      input.val(drawerState[$label[0].id]);
+  }
+  var saveDrawerStateTimer;
+  function saveDrawerStateNow() {
+    var $drawer = $('#drawer');
     var drawerState = {};
-    $('#drawer label').each( function () {
-        var input = $(this).children('input');
-        switch( input.attr('type') ) {
-          case 'checkbox':
-            drawerState[this.id] = input.prop('checked');
-            break;
-          case 'radio':
-            if ( input.prop('checked') )
-              drawerState[input.attr('name')] = this.id;
-            break;
-          case 'text':
-            drawerState[this.id] = input.val();
-            break;
-        }
+    $drawer.find('label').each( function () {
+        var entry = serializeDrawerInput( $(this) );
+        if ( entry ) drawerState[entry.key] = entry.val;
       } );
-    $('#drawer select').each( function () {
+    $drawer.find('select').each( function () {
         drawerState[$(this).attr('name')] = $(this).val();
       } );
-
     drawerState.bottom_pane_font_size = parseFloat( $('#textinfo').css('font-size') );
     drawerState.bottom_pane_height = $('#textedit').css('height');
     drawerState.bottom_info_width = $('#textinfo').css('width');
-
     localStorage.drawerState = JSON.stringify(drawerState);
+  }
+  function saveDrawerState() {
+    if ( saveDrawerStateTimer )
+      clearTimeout(saveDrawerStateTimer);
+    saveDrawerStateTimer = window.setTimeout( function () {
+      saveDrawerStateTimer = null;
+      saveDrawerStateNow();
+    }, 120 );
   }
 
   /// Load drawer state from local storage ///
@@ -821,27 +882,17 @@ $(window).on('load', function () {
       console.log('warning: drawer state not found in local storage');
       return handleEditMode();
     }
-
-    var drawerState = JSON.parse(localStorage.drawerState);
-    $('#drawer label').each( function () {
-        var input = $(this).children('input');
-        switch( input.attr('type') ) {
-          case 'checkbox':
-            if ( typeof drawerState[this.id] !== 'undefined' )
-              input.prop('checked',drawerState[this.id]);
-            break;
-          case 'radio':
-            if ( typeof drawerState[input.attr('name')] !== 'undefined' &&
-                 drawerState[input.attr('name')] === this.id )
-              input.prop('checked',true);
-            break;
-          case 'text':
-            if ( typeof drawerState[this.id] !== 'undefined' )
-              input.val(drawerState[this.id]);
-            break;
-        }
+    var drawerState;
+    try {
+      drawerState = JSON.parse(localStorage.drawerState);
+    } catch ( e ) {
+      return handleEditMode();
+    }
+    var $drawer = $('#drawer');
+    $drawer.find('label').each( function () {
+        deserializeDrawerInput( $(this), drawerState );
       } );
-    $('#drawer select').each( function () {
+    $drawer.find('select').each( function () {
         if ( typeof drawerState[$(this).attr('name')] !== 'undefined' )
           $(this).val(drawerState[$(this).attr('name')]);
       } );
@@ -855,15 +906,23 @@ $(window).on('load', function () {
       $.stylesheet('#page_styles { #textinfo }').css( 'width', drawerState.bottom_info_width );
       $.stylesheet('#page_styles { #textedit }').css( 'padding-right', drawerState.bottom_info_width );
     }
-
     handleEditMode();
   }
 
   /// Restore saved drawer state on window initialization ///
   loadDrawerState();
 
-  /// Save drawer state on non-mode drawer changes ///
-  $('#generalFieldset input, #newPropsFieldset input, #visibilityFieldset input')
+  /// Flush pending drawer state on unload so no change is lost ///
+  $(window).on( 'beforeunload', function () {
+    if ( saveDrawerStateTimer ) {
+      clearTimeout(saveDrawerStateTimer);
+      saveDrawerStateTimer = null;
+      saveDrawerStateNow();
+    }
+  } );
+
+  /// Save drawer state on drawer changes (including edit mode so Create etc. persist across loads) ///
+  $('#generalFieldset input, #newPropsFieldset input, #visibilityFieldset input, #editModesFieldset input')
     .change(saveDrawerState);
 
   /// Setup page rotations ///
@@ -969,7 +1028,31 @@ $(window).on('load', function () {
       }
       $('#readme-modal').addClass('modal-active');
     } );
-  
+
+  /// Setup keyboard shortcuts reference (KEYBOARD-SHORTCUTS.md) ///
+  function openShortcuts() {
+    var content = $('#readme-content');
+    var paths = [ '../KEYBOARD-SHORTCUTS.md', './KEYBOARD-SHORTCUTS.md', 'KEYBOARD-SHORTCUTS.md' ];
+    function tryLoad(index) {
+      if ( index >= paths.length ) {
+        content.html('<h1>Keyboard Shortcuts</h1><p>KEYBOARD-SHORTCUTS.md not found.</p><p>See <a href="https://github.com/buzzcauldron/visual-page-editor/blob/main/KEYBOARD-SHORTCUTS.md" target="_blank">KEYBOARD-SHORTCUTS.md</a> on GitHub.</p>');
+        $('#readme-modal').addClass('modal-active');
+        return;
+      }
+      $.ajax({ url: paths[index], dataType: 'text', cache: false })
+        .done( function ( data ) {
+          content.html(marked.parse(data));
+          $('#readme-modal').addClass('modal-active');
+        } )
+        .fail( function () { tryLoad(index + 1); } );
+    }
+    tryLoad(0);
+    return false;
+  }
+  $('#openShortcuts').click( openShortcuts );
+  $('#openEditShortcuts').click( openShortcuts );
+  Mousetrap.bind( ['mod+?','mod+shift+/'], function () { return openShortcuts(); } );
+
   // Close button handler for readme modal (in addition to clicking outside)
   $('#readme-modal .close').click( function (e) {
       e.stopPropagation();
@@ -1011,20 +1094,22 @@ $(window).on('load', function () {
     .each(handleTextOrientation)
     .click(handleTextOrientation);
 
-  /// Setup baseline type ///
-  function handleBaselineType() {
-    if ( $(this).children('input').prop('checked') ) {
-      var baselineType = $(this).children('input').attr('value');
-      pageCanvas.cfg.baselineType = baselineType;
-      // Update selected TextLine if one is selected
-      var selected = $('.selected').closest('.TextLine');
-      if ( selected.length > 0 ) {
-        // Update the baseline type (this updates XML and CSS class for color change)
-        pageCanvas.util.setBaselineType(selected[0], baselineType);
-        // Force visual update by triggering a redraw
-        selected.find('.Baseline').trigger('change');
-      }
+  /// Baseline type: preference for new lines; selected line(s) get this type when clicked or via shortcut (no prompt) ///
+  function applyBaselineTypeToSelected( baselineType ) {
+    pageCanvas.cfg.baselineType = baselineType;
+    $('input[name="baseline-type"][value="'+baselineType+'"]').prop('checked', true);
+    var selected = $('.selected').closest('.TextLine');
+    selected.each( function () {
+      pageCanvas.util.setBaselineType(this, baselineType);
+    } );
+    if ( selected.length > 0 ) {
+      selected.find('.Baseline').trigger('change');
+      updateSelectedInfo();
     }
+  }
+  function handleBaselineType() {
+    var baselineType = $(this).children('input').attr('value');
+    applyBaselineTypeToSelected(baselineType);
   }
   $('label[id^=baseline-type-]')
     .each(handleBaselineType)
@@ -1096,6 +1181,7 @@ $(window).on('load', function () {
     }
     else
       pageCanvas.cfg.editablesSortCompare = null;
+    pageCanvas.util.invalidateEditablesCache();
     pageCanvas.mode.current();
     saveDrawerState();
   }

@@ -35,7 +35,7 @@ fi
 for f in \
   html/index.html \
   css/page-editor.css \
-  js/nw-app.js js/web-app.js js/page-editor.js js/svg-canvas.js js/page-canvas.js \
+  js/nw-app.js js/web-app.js js/page-editor.js js/editor-config.js js/svg-canvas.js js/page-canvas.js \
   bin/visual-page-editor bin/visual-page-editor.ps1 bin/visual-page-editor.bat \
   web-app/index.php web-app/common.inc.php web-app/start-server.sh \
   scripts/test-platforms.sh
@@ -45,8 +45,15 @@ do
   perl -i -pe "s/(@version\s+\\\$Version:\s*)[0-9]+\\.[0-9]+\\.[0-9]+(?=\s*\\\$)/\${1}$VER/g" "$ROOT/$f"
   # @version 1.0.0 (plain)
   perl -i -pe "s/(@version\s+)[0-9]+\\.[0-9]+\\.[0-9]+/\${1}$VER/g" "$ROOT/$f"
-  # version = '1.0.0'; (js)
-  perl -i -pe "s/version\s*=\s*'[0-9]+\\.[0-9]+\\.[0-9]+'/version = '$VER'/g" "$ROOT/$f"
+  # version = '1.0.0'; (js) – skip page-canvas.js and svg-canvas.js (they use window.PAGE_EDITOR_VERSION)
+  if [ "$f" != "js/page-canvas.js" ] && [ "$f" != "js/svg-canvas.js" ]; then
+    perl -i -pe "s/version\s*=\s*'[0-9]+\\.[0-9]+\\.[0-9]+'/version = '$VER'/g" "$ROOT/$f"
+  fi
 done
+
+# Runtime version global in index.html (single source for JS version at runtime)
+if [ -f "$ROOT/html/index.html" ]; then
+  perl -i -pe "s/window\\.PAGE_EDITOR_VERSION='[0-9]+\\.[0-9]+\\.[0-9]+'/window.PAGE_EDITOR_VERSION='$VER'/g" "$ROOT/html/index.html"
+fi
 
 echo "Done. All app-facing version strings set to $VER."

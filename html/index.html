@@ -2,7 +2,7 @@
 <!--
   - Main HTML file of visual-page-editor.
   -
-  - @version 1.1.0
+  - @version 1.1.3
   - @author buzzcauldron
   - @copyright Copyright(c) 2025, buzzcauldron
   - @license MIT License
@@ -11,6 +11,7 @@
 <head>
   <meta charset="UTF-8"/>
   <title>visual-page-editor</title>
+  <script>window.PAGE_EDITOR_VERSION='1.1.3';</script>
   <link type="text/css" rel="stylesheet" id="page_styles" href="../css/page-editor.css"/>
   <!-- Optional: github-markdown-css for Readme modal (run npm install if missing) -->
   <link type="text/css" rel="stylesheet" href="../node_modules/github-markdown-css/github-markdown.css" onerror="this.remove()"/>
@@ -18,14 +19,15 @@
   <script type="text/javascript" src="../js/jquery.stylesheet-0.3.7.min.js"></script>
   <script type="text/javascript" src="../js/interact-1.3.4.min.js"></script>
   <script type="text/javascript" src="../js/mousetrap-1.6.2.min.js"></script>
-  <script type="text/javascript" src="../js/marked-4.0.12.min.js"></script>
+  <script type="text/javascript" src="../js/marked-4.0.12.min.js" defer></script>
   <script type="text/javascript" src="../js/tiff-2016-11-01.min.js"></script>
   <script type="text/javascript" src="../js/pdfjs-1.8.579.min.js"></script>
   <script type="text/javascript" src="../js/turf-5.1.6.min.js"></script>
-  <script type="text/javascript" src="../js/xmllint.js"></script>
+  <script type="text/javascript" src="../js/xmllint.js" defer></script>
   <script type="text/javascript" src="../js/svg-canvas.js"></script>
   <script type="text/javascript" src="../js/page-canvas.js"></script>
   <script type="text/javascript" src="../js/page-editor.js"></script>
+  <script type="text/javascript" src="../js/editor-config.js"></script>
   <script type="text/javascript" src="../js/nw-app.js"></script>
   <script type="text/javascript" src="../js/nw-winstate.js"></script>
 </head>
@@ -59,6 +61,9 @@
   </div>
 
   <div id="drawer">
+    <div class="drawer-header">
+      <button type="button" id="drawerClose" class="drawer-close" title="Close menu (Mod+Enter)" aria-label="Close menu">&#215;</button>
+    </div>
     <fieldset id="generalFieldset">
       <input style="display:none;" id="openFileDialog" type="file" accept=".xml,image/*" multiple=""/>
       <input style="display:none;" id="saveFileAsDialog" type="file" accept=".xml" nwsaveas=""/>
@@ -68,13 +73,19 @@
       <button id="print">Print</button>
       <button id="quit">Quit</button>
       <button id="openReadme">Readme</button>
+      <button id="openShortcuts" class="tooltip-down" data-tooltip="Mod+?">Shortcuts</button>
       <button id="pageXmlValidate">Validate against Page XML schema</button>
       <label id="autoSave"><input class="mousetrap" type="checkbox"/> Auto-save</label>
+      <label id="openLastFileOnStartup"><input class="mousetrap" type="checkbox" checked=""/> Open last file on startup</label>
       <label id="centerSelected"><input class="mousetrap" type="checkbox"/> Center on selection</label>
       <label id="xmlTextValidate"><input class="mousetrap" type="checkbox"/> Validate text as XML</label>
     </fieldset>
     <fieldset id="editModesFieldset">
       <legend class="tooltip-down" data-tooltip="Cycle via keyboard:&#xa;Mod+, / Mod+. (element type / tool)&#xa;Mod+Shift+, / Mod+Shift+. (reverse)&#xa;Mod = Ctrl (Win/Linux) or Cmd (macOS)">Edit modes</legend>
+      <div class="edit-keyboard-shortcuts-hint">
+        <button type="button" id="openEditShortcuts" class="link-style">Edit keyboard shortcuts</button>
+        <span class="hint-text"> Mod+, Mod+. cycle · Mod+E properties · Tab next · Mod+? all</span>
+      </div>
       <div class="radio-set">
         <label id="selMode"><input class="mousetrap" type="radio" name="mode2" value="select" checked=""/> Select</label>
         <label id="baseMode"><input class="mousetrap" type="radio" name="mode2" value="baseline"/> Baseline</label>
@@ -83,7 +94,7 @@
         <label id="modifyMode"><input class="mousetrap" type="radio" name="mode2" value="modify"/> Modify</label>
         <label id="createMode"><input class="mousetrap" type="radio" name="mode2" value="create"/> Create</label>
         <label id="textMode"><input class="mousetrap" type="checkbox"/> Text editable</label>
-        <label id="editAfterCreate"><input class="mousetrap" type="checkbox" checked=""/> Edit mode after create</label>
+        <label id="editAfterCreate"><input class="mousetrap" type="checkbox"/> Edit mode after create</label>
       </div>
       <div class="radio-set">
         <label id="pageMode"><input class="mousetrap" type="radio" name="mode1" value="page"/> Page</label>
