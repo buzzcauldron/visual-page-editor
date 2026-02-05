@@ -1,7 +1,7 @@
 /**
  * Interactive editing of Page XMLs functionality.
  *
- * @version 1.1.1
+ * @version 1.1.2
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -48,8 +48,7 @@ $(window).on('load', function () {
           $('#selectedId').text( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') );
           $('#modeElement').text((editable.index(g)+1)+'/'+editable.length);
 
-          updateSelectedInfo();
-
+          // updateSelectedInfo (heavy) deferred to rAF below – avoid running twice
           // When a TextLine is selected, switch default/margin radio to match that line's type
           if ( g.is('.TextLine') ) {
             var lineType = pageCanvas.util.getBaselineType(g[0]);
@@ -78,7 +77,11 @@ $(window).on('load', function () {
             populatePropertyModal(g);
 
           // Defer heavy panel update so selection and sidebar paint first
-          requestAnimationFrame( function () { updateSelectedInfo(); } );
+          // Skip if selection changed during rapid clicks (avoids wasted work)
+          requestAnimationFrame( function () {
+            if ( $('.selected').closest('g')[0] === g[0] )
+              updateSelectedInfo();
+          } );
         },
       onSelectedDblclick: function () { openPropertyModal($('.selected')); },
       onProtectionChange: updateSelectedInfo,
@@ -1193,6 +1196,7 @@ $(window).on('load', function () {
     }
     else
       pageCanvas.cfg.editablesSortCompare = null;
+    pageCanvas.util.invalidateEditablesCache();
     pageCanvas.mode.current();
     saveDrawerState();
   }

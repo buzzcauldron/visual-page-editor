@@ -2,12 +2,17 @@
 
 Summary of hot paths and optimizations for the visual page editor.
 
+## Startup and document load
+
+- **XSLT loading**: XSLT stylesheets are preloaded asynchronously when config is set (e.g. by nw-app). Document load no longer uses synchronous XSLT fetches; it waits for the preload via `ensureXsltReady()` so the main thread is never blocked by 8 sequential sync requests.
+- **Script loading**: Optional scripts (`marked`, `xmllint`) use `defer` so they do not block initial parse; they run before DOMContentLoaded and are available for user actions (Readme, Validate).
+
 ## Hot paths
 
 1. **Selection (click on element)**  
    - `selectElem` → unselect, add class, then in **rAF**: pan (if enabled), **onSelect** callbacks.  
    - **onSelect** (page-editor): type/id/modeElement, baseline type, textedit, parent classes, then **updateSelectedInfo** (heavy: getGroupMembersWithConf, getPropertiesWithConf, etc.).  
-   - **Optimization**: `updateSelectedInfo()` is deferred to a second `requestAnimationFrame` so the sidebar and selection paint first; the #textinfo panel fills in on the next frame.
+   - **Optimization**: `updateSelectedInfo()` runs once, deferred to `requestAnimationFrame` so the sidebar and selection paint first; skips if selection changed during rapid clicks (avoids wasted work).
 
 2. **Mode switch (radio click)**  
    - `handleEditMode()` runs: 30+ jQuery selectors, then one `pageCanvas.mode.xxx()` which sets up click/dblclick on editables.  
@@ -25,10 +30,9 @@ Summary of hot paths and optimizations for the visual page editor.
 
 - **selectElem**: Pan and onSelect already run in rAF so selection highlight appears immediately.  
 - **removeEditings**: Early exit when no `.editing` elements.  
-- **getSortedEditables**: Single `.find('.editable')`; sort only when `editablesSortCompare` is set (tab-sort mode).
+- **getSortedEditables**: Cached; invalidated on load, mode change, sort change.
 
 ## Possible future improvements
 
-- **Large documents**: Cache or invalidate sorted editables when the document changes so selection doesn’t re-query and re-sort every time.  
-- **updateSelectedInfo**: Could be throttled or skipped when switching selection rapidly (e.g. only run for the latest selection).  
+- **Implemented (cache + delegation)**: Cached sorted editables; event delegation for editable click/dblclick.  
 - **handleEditMode**: Cache could be invalidated if the mode panel DOM is ever rebuilt (e.g. dynamic drawer); currently the panel is static.
