@@ -93,6 +93,9 @@
   </div>
 
   <div id="drawer">
+    <div class="drawer-header">
+      <button type="button" id="drawerClose" class="drawer-close" title="Close menu (Mod+Enter)" aria-label="Close menu">&#215;</button>
+    </div>
     <fieldset id="generalFieldset">
       <input style="display:none;" id="openFileDialog" type="file" accept=".xml,image/*" multiple=""/>
       <input style="display:none;" id="saveFileAsDialog" type="file" accept=".xml" nwsaveas=""/>
@@ -123,7 +126,7 @@
         <label id="modifyMode"><input class="mousetrap" type="radio" name="mode2" value="modify"/> Modify</label>
         <label id="createMode"><input class="mousetrap" type="radio" name="mode2" value="create"/> Create</label>
         <label id="textMode"><input class="mousetrap" type="checkbox"/> Text editable</label>
-        <label id="editAfterCreate"><input class="mousetrap" type="checkbox" checked=""/> Edit mode after create</label>
+        <label id="editAfterCreate"><input class="mousetrap" type="checkbox"/> Edit mode after create</label>
       </div>
       <div class="radio-set">
         <label id="pageMode"><input class="mousetrap" type="radio" name="mode1" value="page"/> Page</label>

@@ -12,6 +12,7 @@
 | `Mod + P` | Print |
 | `Mod + Q` / `Mod + W` | Quit / close window |
 | `Mod + N` | New window |
+| `Mod + ?` / `Mod + Shift + /` | Open keyboard shortcuts reference |
 | `Mod + Shift + I` (Win/Linux) / `Mod + Option + I` (macOS) | Toggle DevTools |
 | `Mod + Option + R` (macOS) | Reload ignoring cache |
 | `Mod + Shift + R` | Reload (prompt if unsaved) |
@@ -54,6 +55,10 @@
 | `Mod + Shift + ,` | Previous element type |
 | `Mod + .` | Next tool (mode2: Select → Baseline → Coords → …) |
 | `Mod + Shift + .` | Previous tool |
+| `c` | Create mode |
+| `b` | Baseline mode |
+| `m` | Baseline type: Margin (set preference + convert selected line(s)) |
+| `d` | Baseline type: Default (set preference + convert selected line(s)) |
 
 ## Selection & editing
 
@@ -109,5 +114,5 @@ Same as above where applicable; additionally:
 
 ## Notes
 
-- Inputs and dropdowns (e.g. page number, filter, baseline type) receive key events when focused; shortcuts are ignored there so you can type normally.
+- Inputs and dropdowns (e.g. page number, filter, baseline type) receive key events when focused; shortcuts (including single keys `c`/`b`/`m`/`d`) are ignored there so you can type normally.
 - **Edit modes** tooltip in the drawer: use `Mod + ,` / `Mod + .` (and Shift for reverse) to cycle element type and tool.

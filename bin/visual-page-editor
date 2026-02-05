@@ -12,7 +12,7 @@
 ## Based on nw-page-editor by Mauricio Villegas
 ##
 
-# Detect platform
+# Detect platform and hardware architecture (for attuning NW.js version to machine)
 OS="$(uname -s)"
 case "${OS}" in
   Linux*)     PLATFORM="linux";;
@@ -22,6 +22,22 @@ case "${OS}" in
   MSYS*)      PLATFORM="windows";;
   *)          PLATFORM="unknown";;
 esac
+
+# Set MAC_ARCH / WIN_ARCH / MACHINE_ARCH early so cache can be validated against hardware
+MAC_ARCH=""
+WIN_ARCH="x64"
+MACHINE_ARCH="x64"
+if [ "$PLATFORM" = "macos" ]; then
+  MAC_ARCH=$(uname -m)
+  case "$MAC_ARCH" in arm64|arm64e) MACHINE_ARCH="arm64";; *) MACHINE_ARCH="x64";; esac
+elif [ "$PLATFORM" = "windows" ]; then
+  if [ -n "${PROCESSOR_ARCHITECTURE:-}" ] && [ "$PROCESSOR_ARCHITECTURE" = "ARM64" ]; then WIN_ARCH="arm64"; MACHINE_ARCH="arm64"
+  elif [ -n "${PROCESSOR_ARCHITEW6432:-}" ] && [ "$PROCESSOR_ARCHITEW6432" = "ARM64" ]; then WIN_ARCH="arm64"; MACHINE_ARCH="arm64"
+  elif [ "$(uname -m 2>/dev/null)" = "aarch64" ]; then WIN_ARCH="arm64"; MACHINE_ARCH="arm64"
+  fi
+elif [ "$PLATFORM" = "linux" ]; then
+  case "$(uname -m 2>/dev/null)" in aarch64|arm64) MACHINE_ARCH="arm64";; esac
+fi
 
 # Function to resolve script directory
 readlinkf() { 
@@ -55,11 +71,12 @@ fi
 [ ! -f "$nw_page_editor/js/nw-app.js" ] && [ -f "$nw_page_editor/share/nw-page-editor/js/nw-app.js" ] &&
   nw_page_editor="$nw_page_editor/share/nw-page-editor";
 
-# Initialize MAC_ARCH variable (only used on macOS)
-MAC_ARCH=""
-
 # NW.js version configuration (can be overridden via environment variable)
 NWJS_VERSION="${NWJS_VERSION:-0.94.0}"
+
+# Cache dir for resolved NW.js path (speeds up subsequent startups)
+CACHE_DIR="${HOME}/.cache/visual-page-editor"
+CACHE_FILE="${CACHE_DIR}/nw-path"
 
 # Function to download NW.js automatically
 download_nwjs() {
@@ -206,70 +223,76 @@ download_nwjs() {
   return 0
 }
 
-# Find NW.js binary based on platform
-if [ "$PLATFORM" = "macos" ]; then
-  # Detect macOS architecture
-  MAC_ARCH=$(uname -m)
-  
-  # macOS: Check standard locations
-  # Try architecture-specific locations first
-  if [ "$MAC_ARCH" = "arm64" ]; then
-    # Apple Silicon: prefer ARM64 builds, but allow x64 via Rosetta 2
-    # First check for ARM64 versions in SDK directories
-    nw="/Applications/nwjs-sdk-v0.94.0-osx-arm64/nwjs.app/Contents/MacOS/nwjs"
-    [ ! -f "$nw" ] && nw=$(find /Applications -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
-    [ ! -f "$nw" ] && nw="/Applications/nwjs.app/Contents/MacOS/nwjs"
-    [ ! -f "$nw" ] && nw=$(mdfind "kMDItemKind == 'Application' && kMDItemFSName == 'nwjs.app'" 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
-    [ ! -f "$nw" ] && nw=$(find /Applications -name "nwjs.app" -type d 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
-    
-    # Check if found binary is ARM64 (preferred) or x64 (acceptable via Rosetta)
-    if [ -f "$nw" ]; then
-      FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
-      if [ -z "$FILE_ARCH" ]; then
-        # Found x64 binary on ARM64 Mac - will run via Rosetta 2
-        # This is acceptable, but we'll warn the user
-        echo "Note: Found x64 NW.js on Apple Silicon. It will run via Rosetta 2." >&2
-        echo "      For better performance, install ARM64 version: nwjs-sdk-v*-osx-arm64.zip" >&2
+# Find NW.js binary: try cache first (only use if path + version + architecture match this machine)
+nw=""
+if [ -f "$CACHE_FILE" ]; then
+  cached_path=$(head -n 1 "$CACHE_FILE" 2>/dev/null)
+  cached_ver=$(sed -n '2p' "$CACHE_FILE" 2>/dev/null)
+  cached_arch=$(sed -n '3p' "$CACHE_FILE" 2>/dev/null)
+  if [ -n "$cached_path" ] && [ -f "$cached_path" ] && [ -x "$cached_path" ] && [ "$cached_ver" = "$NWJS_VERSION" ]; then
+    # Attune to hardware: use cache only if cached binary matches current machine architecture
+    arch_ok=1
+    if [ -n "$cached_arch" ]; then
+      [ "$cached_arch" != "$MACHINE_ARCH" ] && arch_ok=0
+    else
+      # No arch in cache: validate with file (e.g. avoid using x64 cache on Apple Silicon)
+      if [ "$PLATFORM" = "macos" ] && [ "$MACHINE_ARCH" = "arm64" ]; then
+        FILE_ARCH=$(file "$cached_path" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
+        [ -z "$FILE_ARCH" ] && arch_ok=0
+      elif [ "$PLATFORM" = "windows" ] && [ "$MACHINE_ARCH" = "arm64" ]; then
+        case "$cached_path" in *arm64*) ;; *) arch_ok=0;; esac
       fi
     fi
+    [ "$arch_ok" = 1 ] && nw="$cached_path"
+  fi
+fi
+
+if [ ! -f "$nw" ]; then
+# Find NW.js binary based on platform
+if [ "$PLATFORM" = "macos" ]; then
+  # macOS: Check fastest paths first (MAC_ARCH already set above) (no find/mdfind) to avoid slow startup
+  # 1) ~/.nwjs (where the launcher downloads NW.js) - single file check
+  if [ "$MAC_ARCH" = "arm64" ]; then
+    nw="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app/Contents/MacOS/nwjs"
+    [ ! -f "$nw" ] && nw="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs"
   else
-    # Intel Mac: prefer x64 builds
-    nw="/Applications/nwjs.app/Contents/MacOS/nwjs"
+    nw="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs"
+  fi
+  # 2) Fixed /Applications paths (no find)
+  if [ ! -f "$nw" ]; then
+    if [ "$MAC_ARCH" = "arm64" ]; then
+      nw="/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app/Contents/MacOS/nwjs"
+      [ ! -f "$nw" ] && nw="/Applications/nwjs.app/Contents/MacOS/nwjs"
+    else
+      nw="/Applications/nwjs.app/Contents/MacOS/nwjs"
+    fi
+  fi
+  # 3) find/mdfind only if still not found (slow)
+  if [ ! -f "$nw" ]; then
+    if [ "$MAC_ARCH" = "arm64" ]; then
+      nw=$(find "$HOME/.nwjs" -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+      [ ! -f "$nw" ] && nw=$(find "$HOME/.nwjs" -path "*nwjs-sdk*x64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+      [ ! -f "$nw" ] && nw=$(find /Applications -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+    else
+      nw=$(find "$HOME/.nwjs" -path "*nwjs-sdk*x64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+    fi
     [ ! -f "$nw" ] && nw=$(mdfind "kMDItemKind == 'Application' && kMDItemFSName == 'nwjs.app'" 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
     [ ! -f "$nw" ] && nw=$(find /Applications -name "nwjs.app" -type d 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
   fi
-  
-  # Check user's download directory (~/.nwjs)
-  if [ "$MAC_ARCH" = "arm64" ]; then
-    [ ! -f "$nw" ] && nw="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app/Contents/MacOS/nwjs"
-    [ ! -f "$nw" ] && nw=$(find "$HOME/.nwjs" -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
-  else
-    [ ! -f "$nw" ] && nw="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs"
-    [ ! -f "$nw" ] && nw=$(find "$HOME/.nwjs" -path "*nwjs-sdk*x64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
-  fi
-  
-  # Fallback to PATH if not found in Applications or download directory
+  # 4) PATH
   [ ! -f "$nw" ] && nw=$(which nwjs 2>/dev/null)
   [ ! -f "$nw" ] && nw=$(which nw 2>/dev/null)
   
-  # Final check for Apple Silicon: warn if using x64 via Rosetta
+  # Warn if using x64 on Apple Silicon (Rosetta is slower)
   if [ "$MAC_ARCH" = "arm64" ] && [ -f "$nw" ]; then
     FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
     if [ -z "$FILE_ARCH" ]; then
-      echo "Note: Running x64 NW.js on Apple Silicon (via Rosetta 2). For better performance, install ARM64 version." >&2
+      echo "Note: Found x64 NW.js on Apple Silicon. It will run via Rosetta 2." >&2
+      echo "      For better performance, install ARM64 version: nwjs-sdk-v*-osx-arm64.zip" >&2
     fi
   fi
 elif [ "$PLATFORM" = "windows" ]; then
-  # Detect Windows architecture (Git Bash/WSL: PROCESSOR_ARCHITECTURE or uname -m)
-  WIN_ARCH="x64"
-  if [ -n "${PROCESSOR_ARCHITECTURE:-}" ] && [ "$PROCESSOR_ARCHITECTURE" = "ARM64" ]; then
-    WIN_ARCH="arm64"
-  elif [ -n "${PROCESSOR_ARCHITEW6432:-}" ] && [ "$PROCESSOR_ARCHITEW6432" = "ARM64" ]; then
-    WIN_ARCH="arm64"
-  elif [ "$(uname -m 2>/dev/null)" = "aarch64" ]; then
-    WIN_ARCH="arm64"
-  fi
-  # Windows: prefer native architecture (ARM64 first on Windows ARM, then x64)
+  # Windows: prefer native architecture (WIN_ARCH already set above) (ARM64 first on Windows ARM, then x64)
   if [ "$WIN_ARCH" = "arm64" ]; then
     [ ! -f "$nw" ] && [ -f "/c/Program Files/nwjs-arm64/nw.exe" ] && nw="/c/Program Files/nwjs-arm64/nw.exe"
     [ ! -f "$nw" ] && [ -d "$HOME/nwjs/nwjs-sdk-v${NWJS_VERSION}-win-arm64" ] && nw="$HOME/nwjs/nwjs-sdk-v${NWJS_VERSION}-win-arm64/nw.exe"
@@ -302,6 +325,7 @@ else
   [ ! -f "$nw" ] && nw="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw"
   [ ! -f "$nw" ] && nw=$(find "$HOME/.nwjs" -name "nw" -type f -perm +111 2>/dev/null | head -n 1)
   [ ! -f "$nw" ] && nw=$(which nw 2>/dev/null || which nwjs 2>/dev/null)
+fi
 fi
 
 # Validate paths
@@ -411,39 +435,53 @@ fi
 
 # Launch application with better error handling
 EXIT_CODE=0
-if [ "$PLATFORM" = "macos" ] && [ "$MAC_ARCH" = "arm64" ]; then
-  # On Apple Silicon, check if we're using x64 NW.js (which causes crashes)
+if [ "$PLATFORM" = "macos" ] && [ "$MAC_ARCH" = "arm64" ] && [ -f "$nw" ]; then
   FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
   if [ -z "$FILE_ARCH" ]; then
-    # Try to find ARM64 version - check SDK directories first
+    # Using x64 on Apple Silicon: try once to find ARM64 (faster than x64 via Rosetta)
     ARM64_NW=$(find /Applications -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
-    if [ -z "$ARM64_NW" ] || [ ! -f "$ARM64_NW" ]; then
-      # Also check if there's a direct nwjs binary in SDK directory
-      ARM64_NW=$(find /Applications -path "*nwjs-sdk*arm64*" -name "nwjs" -type f -perm +111 2>/dev/null | head -n 1)
-    fi
+    [ ! -f "$ARM64_NW" ] && ARM64_NW=$(find "$HOME/.nwjs" -path "*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
     if [ -n "$ARM64_NW" ] && [ -f "$ARM64_NW" ]; then
-      FILE_ARCH=$(file "$ARM64_NW" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
-      if [ -n "$FILE_ARCH" ]; then
-        nw="$ARM64_NW"
-        echo "Using ARM64 NW.js: $nw" >&2
-      fi
-    fi
-    # If still x64, allow it but warn (Rosetta 2 should handle it)
-    FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
-    if [ -z "$FILE_ARCH" ]; then
+      nw="$ARM64_NW"
+      echo "Using ARM64 NW.js: $nw" >&2
+    else
       echo "" >&2
-      echo "WARNING: x64 NW.js detected on Apple Silicon!" >&2
-      echo "Attempting to run via Rosetta 2. This may cause issues." >&2
-      echo "For best results, install ARM64 version from https://nwjs.io/downloads/" >&2
+      echo "WARNING: x64 NW.js on Apple Silicon (Rosetta 2). Install ARM64 for faster startup." >&2
       echo "" >&2
-      # Allow it to continue instead of aborting
     fi
   fi
 fi
 
+# Save resolved path and architecture to cache (attune version to hardware for next run)
+if [ -f "$nw" ]; then
+  CACHE_ARCH="$MACHINE_ARCH"
+  if [ "$PLATFORM" = "macos" ]; then
+    FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
+    [ -n "$FILE_ARCH" ] && CACHE_ARCH="arm64" || CACHE_ARCH="x64"
+  elif [ "$PLATFORM" = "windows" ]; then
+    case "$nw" in *arm64*) CACHE_ARCH="arm64";; *) CACHE_ARCH="x64";; esac
+  fi
+  mkdir -p "$CACHE_DIR" 2>/dev/null && printf '%s\n%s\n%s\n' "$nw" "$NWJS_VERSION" "$CACHE_ARCH" > "$CACHE_FILE" 2>/dev/null || true
+fi
+
+# Resolve app path to absolute so NW.js receives a valid path
+APP_PATH="$nw_page_editor"
+if [ -d "$APP_PATH" ]; then
+  case "$APP_PATH" in
+    /*) ;;
+    *) APP_PATH=$(cd "$APP_PATH" && pwd) || true ;;
+  esac
+fi
+
+# On macOS, binary inside .app bundle often ignores first arg and looks for bundle's app.nw; use --nwapp= to force our app
+NW_LAUNCH_ARGS=("$APP_PATH" "${argv[@]}")
+if [ "$PLATFORM" = "macos" ] && case "$nw" in *".app/Contents/MacOS/"*) true;; *) false;; esac; then
+  NW_LAUNCH_ARGS=("--nwapp=$APP_PATH" "${argv[@]}")
+fi
+
 # Launch with error trapping
 set +e  # Don't exit on error, we'll handle it
-"$nw" "$nw_page_editor" "${argv[@]}" 2>>"$LOG_FILE"
+"$nw" "${NW_LAUNCH_ARGS[@]}" 2>>"$LOG_FILE"
 EXIT_CODE=$?
 set -e  # Re-enable error exit
 
@@ -462,7 +500,12 @@ if [ $EXIT_CODE -ne 0 ]; then
     echo "1. Ensure you're using ARM64 NW.js (not x64)" >&2
     echo "2. Download: nwjs-sdk-v*-osx-arm64.zip from https://nwjs.io/downloads/" >&2
     echo "3. Extract and move nwjs.app to /Applications/" >&2
+    echo "4. Clear path cache and retry: rm -f $CACHE_FILE" >&2
+    # Clear path cache so next run re-detects (may find ARM64 instead of cached x64)
+    rm -f "$CACHE_FILE" 2>/dev/null || true
   fi
+  echo "" >&2
+  echo "See DEBUG.md section 'Project crashed' for more." >&2
 fi
 
 exit $EXIT_CODE

@@ -14,19 +14,28 @@
 
 $(window).on('load', function () {
 
+  /// Restore UI state (edit mode, drawer options) on document load – used so selection persists across images
+  function restoreEditorUIOnLoad() {
+    var changeReg = pageCanvas.cfg.registerChangeEnabled;
+    pageCanvas.cfg.registerChangeEnabled = false;
+    try {
+      loadDrawerState();
+      if ( pageCanvas.cfg.modeFilter === '.xpath-select' )
+        filterMode();
+      setDocumentProperties();
+    } finally {
+      pageCanvas.cfg.registerChangeEnabled = changeReg;
+    }
+  }
+  window.restoreEditorUIOnLoad = restoreEditorUIOnLoad;
+
   /// Create PageCanvas instance ///
   var pageCanvas = window.pageCanvas = new window.PageCanvas( 'xpg',
     { stylesId: 'page_styles',
       textareaId: 'textedit',
       handleError: function ( err ) { alert(err.message+"\n"+err.stack); throw err; },
       handleWarning: function ( msg ) { console.log('WARNING: '+msg); alert('WARNING: '+msg); },
-      onLoad: function () {
-          //$('#imageBase').text(pageCanvas.util.imgBase);
-          handleEditMode();
-          if ( pageCanvas.cfg.modeFilter === '.xpath-select' )
-            filterMode();
-          setDocumentProperties();
-        },
+      onLoad: restoreEditorUIOnLoad,
       onMouseMove: updateCursor,
       onUnload: function () { $('#stateInfo span').text('-'); },
       onSelect: function ( elem ) {
@@ -38,15 +47,16 @@ $(window).on('load', function () {
           $('#selectedId').text( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') );
           $('#modeElement').text((editable.index(g)+1)+'/'+editable.length);
 
-          // Update baseline type radio buttons if TextLine is selected
-          if ( g.is('.TextLine') ) {
-            var baselineType = pageCanvas.util.getBaselineType(g[0]);
-            $('input[name="baseline-type"][value="' + baselineType + '"]').prop('checked', true);
-            pageCanvas.cfg.baselineType = baselineType;
-          }
-          // Don't reset to default when selecting non-TextLine - keep user's selection for creating baselines
-
           updateSelectedInfo();
+
+          // When a TextLine is selected, switch default/margin radio to match that line's type
+          if ( g.is('.TextLine') ) {
+            var lineType = pageCanvas.util.getBaselineType(g[0]);
+            if ( lineType === 'margin' || lineType === 'default' ) {
+              $('input[name="baseline-type"][value="'+lineType+'"]').prop('checked', true);
+              pageCanvas.cfg.baselineType = lineType;
+            }
+          }
 
           if ( text.length !== 0 ) {
             text = pageCanvas.cfg.textFormatter(text.html());
@@ -761,6 +771,13 @@ $(window).on('load', function () {
       $('#drawer').toggle();
       $(this).toggleClass('is-active');
     } );
+  $('#drawerClose').click( function() {
+      if ( $('#drawer').is(':visible') ) {
+        $('#drawer').hide();
+        $('#drawerButton').removeClass('is-active');
+      }
+      return false;
+    } );
 
   /// Keyboard shortcuts to cycle through edit modes ///
   function cycleEditMode( name, offset ) {
@@ -776,11 +793,29 @@ $(window).on('load', function () {
   Mousetrap.bind( 'mod+.', function () { return cycleEditMode( 'mode2', 1 ); } );
   Mousetrap.bind( 'mod+shift+.', function () { return cycleEditMode( 'mode2', -1 ); } );
 
-  /// Save state of drawer in local storage ///
-  function saveDrawerState() {
+  /// Single-key shortcuts: c=Create, b=Baseline, m=Margin, d=Default (persist mode immediately) ///
+  Mousetrap.bind( 'c', function () {
+    $('#createMode').click();
+    if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
+    if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
+    return false;
+  } );
+  Mousetrap.bind( 'b', function () {
+    $('#baseMode').click();
+    if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
+    if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
+    return false;
+  } );
+  Mousetrap.bind( 'm', function () { applyBaselineTypeToSelected('margin'); return false; } );
+  Mousetrap.bind( 'd', function () { applyBaselineTypeToSelected('default'); return false; } );
+
+  /// Save state of drawer in local storage (debounced to reduce writes) ///
+  var saveDrawerStateTimer;
+  function saveDrawerStateNow() {
+    var $drawer = $('#drawer');
     var drawerState = {};
-    $('#drawer label').each( function () {
-        var input = $(this).children('input');
+    $drawer.find('label').each( function () {
+        var input = $(this).children('input').first();
         switch( input.attr('type') ) {
           case 'checkbox':
             drawerState[this.id] = input.prop('checked');
@@ -794,15 +829,21 @@ $(window).on('load', function () {
             break;
         }
       } );
-    $('#drawer select').each( function () {
+    $drawer.find('select').each( function () {
         drawerState[$(this).attr('name')] = $(this).val();
       } );
-
     drawerState.bottom_pane_font_size = parseFloat( $('#textinfo').css('font-size') );
     drawerState.bottom_pane_height = $('#textedit').css('height');
     drawerState.bottom_info_width = $('#textinfo').css('width');
-
     localStorage.drawerState = JSON.stringify(drawerState);
+  }
+  function saveDrawerState() {
+    if ( saveDrawerStateTimer )
+      clearTimeout(saveDrawerStateTimer);
+    saveDrawerStateTimer = window.setTimeout( function () {
+      saveDrawerStateTimer = null;
+      saveDrawerStateNow();
+    }, 120 );
   }
 
   /// Load drawer state from local storage ///
@@ -811,10 +852,15 @@ $(window).on('load', function () {
       console.log('warning: drawer state not found in local storage');
       return handleEditMode();
     }
-
-    var drawerState = JSON.parse(localStorage.drawerState);
-    $('#drawer label').each( function () {
-        var input = $(this).children('input');
+    var drawerState;
+    try {
+      drawerState = JSON.parse(localStorage.drawerState);
+    } catch ( e ) {
+      return handleEditMode();
+    }
+    var $drawer = $('#drawer');
+    $drawer.find('label').each( function () {
+        var input = $(this).children('input').first();
         switch( input.attr('type') ) {
           case 'checkbox':
             if ( typeof drawerState[this.id] !== 'undefined' )
@@ -831,7 +877,7 @@ $(window).on('load', function () {
             break;
         }
       } );
-    $('#drawer select').each( function () {
+    $drawer.find('select').each( function () {
         if ( typeof drawerState[$(this).attr('name')] !== 'undefined' )
           $(this).val(drawerState[$(this).attr('name')]);
       } );
@@ -845,12 +891,20 @@ $(window).on('load', function () {
       $.stylesheet('#page_styles { #textinfo }').css( 'width', drawerState.bottom_info_width );
       $.stylesheet('#page_styles { #textedit }').css( 'padding-right', drawerState.bottom_info_width );
     }
-
     handleEditMode();
   }
 
   /// Restore saved drawer state on window initialization ///
   loadDrawerState();
+
+  /// Flush pending drawer state on unload so no change is lost ///
+  $(window).on( 'beforeunload', function () {
+    if ( saveDrawerStateTimer ) {
+      clearTimeout(saveDrawerStateTimer);
+      saveDrawerStateTimer = null;
+      saveDrawerStateNow();
+    }
+  } );
 
   /// Save drawer state on non-mode drawer changes ///
   $('#generalFieldset input, #newPropsFieldset input, #visibilityFieldset input')
@@ -959,7 +1013,31 @@ $(window).on('load', function () {
       }
       $('#readme-modal').addClass('modal-active');
     } );
-  
+
+  /// Setup keyboard shortcuts reference (KEYBOARD-SHORTCUTS.md) ///
+  function openShortcuts() {
+    var content = $('#readme-content');
+    var paths = [ '../KEYBOARD-SHORTCUTS.md', './KEYBOARD-SHORTCUTS.md', 'KEYBOARD-SHORTCUTS.md' ];
+    function tryLoad(index) {
+      if ( index >= paths.length ) {
+        content.html('<h1>Keyboard Shortcuts</h1><p>KEYBOARD-SHORTCUTS.md not found.</p><p>See <a href="https://github.com/buzzcauldron/visual-page-editor/blob/main/KEYBOARD-SHORTCUTS.md" target="_blank">KEYBOARD-SHORTCUTS.md</a> on GitHub.</p>');
+        $('#readme-modal').addClass('modal-active');
+        return;
+      }
+      $.ajax({ url: paths[index], dataType: 'text', cache: false })
+        .done( function ( data ) {
+          content.html(marked.parse(data));
+          $('#readme-modal').addClass('modal-active');
+        } )
+        .fail( function () { tryLoad(index + 1); } );
+    }
+    tryLoad(0);
+    return false;
+  }
+  $('#openShortcuts').click( openShortcuts );
+  $('#openEditShortcuts').click( openShortcuts );
+  Mousetrap.bind( ['mod+?','mod+shift+/'], function () { return openShortcuts(); } );
+
   // Close button handler for readme modal (in addition to clicking outside)
   $('#readme-modal .close').click( function (e) {
       e.stopPropagation();
@@ -1001,20 +1079,22 @@ $(window).on('load', function () {
     .each(handleTextOrientation)
     .click(handleTextOrientation);
 
-  /// Setup baseline type ///
-  function handleBaselineType() {
-    if ( $(this).children('input').prop('checked') ) {
-      var baselineType = $(this).children('input').attr('value');
-      pageCanvas.cfg.baselineType = baselineType;
-      // Update selected TextLine if one is selected
-      var selected = $('.selected').closest('.TextLine');
-      if ( selected.length > 0 ) {
-        // Update the baseline type (this updates XML and CSS class for color change)
-        pageCanvas.util.setBaselineType(selected[0], baselineType);
-        // Force visual update by triggering a redraw
-        selected.find('.Baseline').trigger('change');
-      }
+  /// Baseline type: preference for new lines; selected line(s) get this type when clicked or via shortcut (no prompt) ///
+  function applyBaselineTypeToSelected( baselineType ) {
+    pageCanvas.cfg.baselineType = baselineType;
+    $('input[name="baseline-type"][value="'+baselineType+'"]').prop('checked', true);
+    var selected = $('.selected').closest('.TextLine');
+    selected.each( function () {
+      pageCanvas.util.setBaselineType(this, baselineType);
+    } );
+    if ( selected.length > 0 ) {
+      selected.find('.Baseline').trigger('change');
+      updateSelectedInfo();
     }
+  }
+  function handleBaselineType() {
+    var baselineType = $(this).children('input').attr('value');
+    applyBaselineTypeToSelected(baselineType);
   }
   $('label[id^=baseline-type-]')
     .each(handleBaselineType)

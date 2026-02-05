@@ -505,8 +505,8 @@
       $(pageSvg).find('.selectable-member').removeClass('selectable-member');
       $(pageSvg).find('.addible-member').removeClass('addible-member');
       $(pageSvg).find('.modifiable').removeClass('modifiable');
-      /// Remove baseline type CSS classes (baseline-default, baseline-main, baseline-margin) before export ///
-      $(pageSvg).find('.baseline-default, .baseline-main, .baseline-margin').removeClass('baseline-default baseline-main baseline-margin');
+      /// Remove baseline type CSS classes before export ///
+      $(pageSvg).find('.baseline-default, .baseline-margin').removeClass('baseline-default baseline-margin');
 
       /// Remove offset from coordinates of pages ///
       var pages = $(pageSvg).find('.Page');
@@ -925,25 +925,20 @@
       self.loadXmlSvg(pageSvg);
       self.util.offsetAndOrientPages();
 
-      /// Revise any 'main' labels to 'default' upon opening ///
-      $(pageSvg).find('.TextLine').each(function() {
-        var g = $(this);
-        var attr = g.attr('custom');
-        if ( typeof attr !== 'undefined' && attr.match(/type\s*\{type\s*:\s*main\s*;\s*\}/) ) {
-          attr = attr.replace(/type\s*\{type\s*:\s*main\s*;\s*\}/g, 'type {type:default;}');
-          g.attr('custom', attr);
-        }
-      });
-      /// Add baseline type CSS classes (keep default as default) ///
+      /// Add baseline type CSS classes ///
       $(pageSvg).find('.TextLine').each(function() {
         var g = $(this);
         var baselineType = self.util.getBaselineType(g[0]);
-        g.removeClass('baseline-default baseline-main baseline-margin');
+        g.removeClass('baseline-default baseline-margin');
         g.addClass('baseline-' + baselineType);
       });
 
       /// Set currently selected mode ///
       self.mode.current();
+
+      /// Re-apply drawer state (e.g. Create mode) so it persists across image changes ///
+      if ( typeof window.restoreEditorUIOnLoad === 'function' )
+        window.restoreEditorUIOnLoad();
 
       /// Scale font size ///
       baseFontSize = 0.010 * Math.min( self.util.canvasRange().width, self.util.canvasRange().height );
@@ -2070,9 +2065,9 @@
       if ( g.length === 0 )
         return 'default';
       var attr = g.attr('custom');
-      if ( typeof attr === 'undefined' || ! attr.match(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/) )
+      if ( typeof attr === 'undefined' || ! attr.match(/type\s*\{type\s*:\s*(default|margin)\s*;\s*\}/) )
         return 'default';
-      var match = attr.match(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/);
+      var match = attr.match(/type\s*\{type\s*:\s*(default|margin)\s*;\s*\}/);
       return match ? match[1] : 'default';
     }
     self.util.getBaselineType = getBaselineType;
@@ -2093,10 +2088,10 @@
       var g = $(elem).closest('.TextLine');
       if ( g.length === 0 )
         return;
-      if ( type !== 'main' && type !== 'margin' && type !== 'default' )
+      if ( type !== 'margin' && type !== 'default' )
         type = 'default';
       var attr = g.attr('custom') || '';
-      // Remove existing type entry
+      // Remove existing type entry (regex strips legacy main|default|margin)
       attr = attr.replace(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/g, '');
       attr = attr.trim();
       // Add new type entry (XML output uses only "default" and "margin")
@@ -2104,8 +2099,7 @@
         attr += ' ';
       attr += 'type {type:' + baselineTypeForXml(type) + ';}';
       g.attr('custom', attr);
-      // Add/remove class for CSS styling
-      g.removeClass('baseline-default baseline-main baseline-margin');
+      g.removeClass('baseline-default baseline-margin');
       g.addClass('baseline-' + type);
       self.util.registerChange('set baseline type to ' + type);
     }
@@ -2345,8 +2339,7 @@
         attr += ' ';
       attr += 'type {type:' + baselineTypeForXml(baselineType) + ';}';
       g.attr('custom', attr);
-      // Add/remove class for CSS styling
-      g.removeClass('baseline-default baseline-main baseline-margin');
+      g.removeClass('baseline-default baseline-margin');
       g.addClass('baseline-' + baselineType);
 
       self.util.selectElem(elem,true,true);
