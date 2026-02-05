@@ -4,7 +4,9 @@ A modern visual editor for Page XML files, based on [nw-page-editor](https://git
 
 **GitHub Repository:** [https://github.com/buzzcauldron/visual-page-editor](https://github.com/buzzcauldron/visual-page-editor)
 
-**Version:** 1.1.0
+**Version:** 1.1.1
+
+**Fixes in 1.1.1:** The bug where the document view would snap to the right (showing the right edge of the page instead of the left) in certain edit/zoom conditions (e.g. TextLine + Baseline mode, horizontal baseline, ltr, baselines visible) is **fixed**. The view now correctly keeps the left edge of the document at the left of the viewport. See `DEBUG.md` → "Document snaps to the right" for details.
 
 ## Description
 
@@ -318,6 +320,8 @@ This project is based on [nw-page-editor](https://github.com/mauvilsa/nw-page-ed
 For the latest updates, bug reports, feature requests, and contributions, please visit the GitHub repository:
 
 **🔗 [https://github.com/buzzcauldron/visual-page-editor](https://github.com/buzzcauldron/visual-page-editor)**
+
+Before tagging a release, run the checks in **PUBLISH-READINESS.md**.
 
 ### Reporting Issues
 

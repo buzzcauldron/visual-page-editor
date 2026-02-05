@@ -1,7 +1,7 @@
 /**
  * Javascript library for viewing and interactive editing of SVGs.
  *
- * @version 1.1.0
+ * @version 1.1.1
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -24,7 +24,7 @@
   var
   sns = 'http://www.w3.org/2000/svg',
   xns = 'http://www.w3.org/1999/xlink',
-  version = '1.1.0';
+  version = '1.1.1';
 
   /// Set SvgCanvas global object ///
   if ( ! global.SvgCanvas )
@@ -658,7 +658,7 @@
     };
 
     function viewBoxLimits() {
-      var factW = boxW/width, factH = boxH/height;
+      var factW = width > 0 ? boxW / width : 1, factH = height > 0 ? boxH / height : 1;
       if ( factW > 1.2 && factH > 1.2 ) {
         if ( factW < factH ) {
           boxW = 1.2 * width;
@@ -753,6 +753,7 @@
 
     /**
      * Adjusts the size of the SVG canvas based on its container size.
+     * Guards against first call (prevW/prevH undefined) and zero height to avoid NaN/Infinity.
      */
     function adjustSize() {
       var
@@ -760,12 +761,15 @@
       prevH = canvasH;
       canvasW = $(svgContainer).innerWidth();
       canvasH = $(svgContainer).innerHeight();
+      if ( ! canvasH )
+        canvasH = 1;
       canvasR = canvasW / canvasH;
-      boxW *= canvasW / prevW ;
-      boxH *= canvasH / prevH ;
+      if ( typeof prevW === 'number' && typeof prevH === 'number' && prevW > 0 && prevH > 0 ) {
+        boxW *= canvasW / prevW;
+        boxH *= canvasH / prevH;
+      }
       svgRoot.setAttribute( 'width', canvasW );
       svgRoot.setAttribute( 'height', canvasH );
-      //console.log('called adjustSize: '+canvasW+' '+canvasH);
     }
 
     /**
@@ -803,18 +807,19 @@
     }
 
     /**
-     * Snaps the image to the left side of the viewport.
+     * Snaps the view to the left side of the document (left edge of content at left of viewport).
+     * BUG FIX (1.1.1): The previous implementation caused the document to snap to the RIGHT when zoomed in
+     * (view showed the right edge instead of the left). This is now fixed: we set boxX0 = xmin and re-apply
+     * it after viewBoxLimits() so the left edge stays at the viewport left.
      */
     function snapImageToLeft() {
       if ( ! svgRoot )
         return;
-      // Get canvas bounds - use xmin which is the left edge of the SVG content
       if ( typeof xmin === 'undefined' || isNaN(xmin) )
         return;
-      // Set viewBox to show left side of image
-      boxX0 = xmin + ( boxW <= width ? 0 : width - boxW );
-      // Keep current Y position and zoom level
+      boxX0 = xmin;
       viewBoxLimits();
+      boxX0 = xmin;
       if ( isNaN(boxX0) || isNaN(boxY0) || isNaN(boxW) || isNaN(boxH) )
         return;
       svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
