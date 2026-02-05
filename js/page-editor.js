@@ -816,14 +816,20 @@ $(window).on('load', function () {
   }
   Mousetrap.bind( 'c', function () {
     runAndFlushDrawerState( function () {
-      $('#createMode input').prop( 'checked', true );
+      /// Page mode forces Select and disables Create; switch to Line so Create can persist ///
+      if ( $( '#pageMode input' ).prop( 'checked' ) )
+        $( '#lineMode input' ).prop( 'checked', true );
+      $( '#createMode input' ).prop( 'checked', true );
       handleEditMode();
     } );
     return false;
   } );
   Mousetrap.bind( 'b', function () {
     runAndFlushDrawerState( function () {
-      $('#baseMode input').prop( 'checked', true );
+      /// Page mode forces Select and disables Baseline; switch to Line so Baseline can persist ///
+      if ( $( '#pageMode input' ).prop( 'checked' ) )
+        $( '#lineMode input' ).prop( 'checked', true );
+      $( '#baseMode input' ).prop( 'checked', true );
       handleEditMode();
     } );
     return false;

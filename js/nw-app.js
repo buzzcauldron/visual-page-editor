@@ -375,12 +375,21 @@ $(window).on('load', function () {
     chooser.trigger('click');
   }
 
-  /// Button to open file ///
+  /// Button to open file – start in current file dir, or last filepath used ///
   $('#openFile').click( function () {
+      var workingdir = null;
       var fileNum = parseInt($('#pageNum').val());
-      if ( fileNum > 0 )
-        $('#openFileDialog').attr('nwworkingdir',fileList[fileNum-1].replace(/[^/]+$/,''));
-
+      if ( fileNum > 0 && fileList && fileList.length >= fileNum )
+        workingdir = path.dirname( fileList[fileNum - 1] );
+      if ( ! workingdir && typeof localStorage.lastOpenFiles !== 'undefined' ) {
+        try {
+          var lastOpen = JSON.parse( localStorage.lastOpenFiles );
+          if ( lastOpen && lastOpen.fileList && lastOpen.fileList.length > 0 )
+            workingdir = path.dirname( lastOpen.fileList[0] );
+        } catch ( e ) { /* ignore */ }
+      }
+      if ( workingdir )
+        $('#openFileDialog').attr( 'nwworkingdir', workingdir );
       chooseFile( '#openFileDialog', function(files) {
           parseArgs( files.split(';'), true );
         } );
@@ -401,7 +410,8 @@ $(window).on('load', function () {
       if ( typeof localStorage.lastOpenFiles !== 'undefined' )
         lastOpen = JSON.parse(localStorage.lastOpenFiles);
     } catch ( e ) { /* ignore */ }
-    if ( lastOpen && lastOpen.fileList && lastOpen.fileList.length > 0 && fs.existsSync(lastOpen.fileList[0]) ) {
+    if ( lastOpen && lastOpen.fileList && lastOpen.fileList.length > 0 && fs.existsSync(lastOpen.fileList[0]) &&
+         $( '#openLastFileOnStartup input' ).prop( 'checked' ) ) {
       if ( parseArgs(lastOpen.fileList, false, lastOpen.fileNum) )
         window.setTimeout( function () {
             if ( typeof pageCanvas.fitPage !== 'undefined' )
