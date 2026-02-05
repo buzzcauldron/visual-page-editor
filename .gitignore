@@ -11,6 +11,11 @@ dist/
 build/
 build-macos/
 
+# Debian package build output (do not commit)
+debian/.debhelper/
+debian/debhelper-build-stamp
+debian/visual-page-editor/
+
 # Node modules
 node_modules/
 
