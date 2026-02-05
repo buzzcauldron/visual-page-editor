@@ -644,6 +644,12 @@
       Mousetrap.bind( ['alt+up',   'mod+up'], function () { return pan(0,0.02); } );
       Mousetrap.bind( ['alt+down', 'mod+down'], function () { return pan(0,-0.02); } );
 
+      /// Arrow keys: pan when zoomed in; when fit-to-page, trigger page navigation (prev/next)
+      Mousetrap.bind( 'left',  function () { if ( fitState !== FITTED.PAGE ) { pan( 0.02, 0); return false; } $('#prevPage').click(); return false; } );
+      Mousetrap.bind( 'right', function () { if ( fitState !== FITTED.PAGE ) { pan(-0.02, 0); return false; } $('#nextPage').click(); return false; } );
+      Mousetrap.bind( 'up',    function () { if ( fitState !== FITTED.PAGE ) { pan( 0, 0.02); return false; } $('#prevPage').click(); return false; } );
+      Mousetrap.bind( 'down',  function () { if ( fitState !== FITTED.PAGE ) { pan( 0,-0.02); return false; } $('#nextPage').click(); return false; } );
+
       /// Pan by dragging (smoothing: inertia + pointer tolerance for easier use) ///
       if ( typeof interact !== 'undefined' && typeof interact.pointerMoveTolerance === 'function' ) {
         interact.pointerMoveTolerance( 6 );
