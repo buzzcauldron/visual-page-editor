@@ -173,6 +173,7 @@ body {
 
 #drawer label {
   display: block;
+  cursor: pointer;
 }
 #drawer label.disabled {
   color: LightGray;
