@@ -1,7 +1,7 @@
 /**
  * Javascript library for viewing and interactive editing of Page XMLs.
  *
- * @version 1.1.1
+ * @version 1.1.2
  * @author Mauricio Villegas <mauricio_ville@yahoo.com>
  * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
  * @license MIT License
@@ -23,7 +23,7 @@
   'use strict';
 
   var
-  version = '1.1.1';
+  version = '1.1.2';
 
   /// Set PageCanvas global object ///
   if ( ! global.PageCanvas )
@@ -361,6 +361,9 @@
     /// Apply input configuration ///
     self.setConfig( config );
 
+    /// Trigger XSLT preload when config (e.g. from nw-app) sets XSLT hrefs ///
+    self.cfg.onSetConfig.push( function () { loadXslt( true ); } );
+
     /**
      * Returns the version of the library and its dependencies.
      */
@@ -404,9 +407,12 @@
 
     /**
      * Loads the XSLT for converting Page XML to SVG.
+     * When async is true, returns a Promise that resolves when all XSLTs are loaded.
+     * @param {boolean} async  Always true; sync loading removed for startup/load performance.
+     * @returns {Promise|undefined}  Promise when loading, undefined when nothing to load.
      */
     function loadXslt( async ) {
-      var href, n;
+      var href, n, promises = [];
 
       /// Load import XSLT(s) ///
       if ( self.cfg.importSvgXsltHref &&
@@ -420,9 +426,9 @@
         xslt_import = Array.apply(null, Array(importSvgXsltHref.length));
         xslt_import_xml = Array.apply(null, Array(importSvgXsltHref.length));
 
-        for ( n=0; n<xslt_import.length; n++ ) // jshint -W083
+        for ( n=0; n<xslt_import.length; n++ ) { // jshint -W083
           (function(idx) {
-            $.ajax({ url: self.util.addAjaxVersionTimestamp(importSvgXsltHref[idx]), async: async, dataType: 'xml' })
+            var req = $.ajax({ url: self.util.addAjaxVersionTimestamp(importSvgXsltHref[idx]), async: true, dataType: 'xml' })
               .fail( function () { self.throwError( 'Failed to retrieve '+importSvgXsltHref[idx] ); } )
               .done( function ( data ) {
                   xslt_import[idx] = new XSLTProcessor();
@@ -432,7 +438,9 @@
                     xslt_import_version[idx] = xslt_import_version[idx].replace(/'/g,'');
                   xslt_import_xml[idx] = data;
                 } );
+            promises.push(req);
           })(n);
+        }
       }
 
       /// Load export XSLT(s) ///
@@ -446,9 +454,9 @@
         exportSvgXsltHref = href;
         xslt_export = Array.apply(null, Array(exportSvgXsltHref.length));
 
-        for ( n=0; n<xslt_export.length; n++ ) // jshint -W083
+        for ( n=0; n<xslt_export.length; n++ ) { // jshint -W083
           (function(idx) {
-            $.ajax({ url: self.util.addAjaxVersionTimestamp(exportSvgXsltHref[idx]), async: async, dataType: 'xml' })
+            var req = $.ajax({ url: self.util.addAjaxVersionTimestamp(exportSvgXsltHref[idx]), async: true, dataType: 'xml' })
               .fail( function () { self.throwError( 'Failed to retrieve '+exportSvgXsltHref[idx] ); } )
               .done( function ( data ) {
                   xslt_export[idx] = new XSLTProcessor();
@@ -457,8 +465,26 @@
                   if ( xslt_export_version[idx] )
                     xslt_export_version[idx] = xslt_export_version[idx].replace(/'/g,'');
                 } );
+            promises.push(req);
           })(n);
+        }
       }
+
+      if ( promises.length > 0 )
+        return $.when.apply( $, promises );
+    }
+
+    /**
+     * Returns a Promise that resolves when XSLTs are ready for transform.
+     * Never blocks; uses async load only.
+     */
+    function ensureXsltReady() {
+      var importReady = ! self.cfg.importSvgXsltHref || ( xslt_import.length > 0 && xslt_import.every(returnElem) );
+      var exportReady = ! self.cfg.exportSvgXsltHref || ( xslt_export.length > 0 && xslt_export.every(returnElem) );
+      if ( importReady && exportReady )
+        return $.Deferred().resolve().promise();
+      var p = loadXslt( true );
+      return p ? p : $.Deferred().resolve().promise();
     }
 
     /**
@@ -618,10 +644,10 @@
       hasXmlDecl = typeof pageDoc === 'string' && pageDoc.substr(0,5) === '<?xml' ? true : false ;
 
       if ( typeof pageDoc === 'string' )
-        try { pageDoc = $.parseXML( pageDoc ); } catch(e) { onError(e); }
+        try { pageDoc = $.parseXML( pageDoc ); } catch(e) { onError(e); return; }
 
-      /// Apply XSLT to get Page SVG ///
-      loadXslt(false);
+      /// Apply XSLT to get Page SVG (async; never blocks) ///
+      ensureXsltReady().done( function applyXsltTransform() {
       pageSvg = pageDoc;
 
       var chosen_xslt_import = xslt_import;
@@ -797,6 +823,7 @@
         if ( m < 0 )
           finishLoadXmlPage(image);
       }
+    } ).fail( function () { onError( 'Failed to load XSLT stylesheets' ); } );
     };
 
     /**
@@ -2446,16 +2473,12 @@ console.log(reg[0]);
       var editAfterCreate = self.cfg.editAfterCreate !== false;
       if ( editAfterCreate ) {
         window.setTimeout( function () {
-            if ( typeof self.snapImageToLeft === 'function' )
-              self.snapImageToLeft();
             if ( typeof $(baseline).parent()[0].setEditing !== 'undefined' )
               $(baseline).parent()[0].setEditing();
             self.util.selectElem(baseline, true, true);
           }, 50 );
       } else {
         requestAnimationFrame( function () {
-            if ( typeof self.snapImageToLeft === 'function' )
-              self.snapImageToLeft();
             self.util.selectElem(baseline, true, true);
           } );
       }
@@ -2710,8 +2733,6 @@ console.log(reg[0]);
               };
           } );
       window.setTimeout( function () {
-        if ( typeof self.snapImageToLeft === 'function' )
-          self.snapImageToLeft();
         $(coords).parent()[0].setEditing();
         self.util.selectElem(coords, true, true);
       }, 50 );
@@ -3234,8 +3255,6 @@ console.log(reg[0]);
               };
           } );
       window.setTimeout( function () {
-          if ( typeof self.snapImageToLeft === 'function' )
-            self.snapImageToLeft();
           var elem = $(self.util.svgRoot).find('.TextRegion[id^='+id+']')[0];
           elem.setEditing();
           self.util.selectElem(elem, true, true);
