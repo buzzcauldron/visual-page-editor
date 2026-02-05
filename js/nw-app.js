@@ -1,7 +1,7 @@
 /**
  * NW.js app functionality for visual-page-editor.
  *
- * @version 1.1.2
+ * @version 1.1.3
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * @license MIT License
@@ -23,15 +23,17 @@ $(window).on('load', function () {
 
   /// Additional pageCanvas configuration (setConfig appends onLoad; do not call restoreEditorUIOnLoad here – it is already the first callback) ///
   pageCanvas.setConfig(
-    { importSvgXsltHref: [ '../xslt/page2svg.xslt', '../xslt/page_from_2010-03-19.xslt', '../xslt/page2page.xslt', '../xslt/alto_v2_to_page.xslt', '../xslt/alto_v3_to_page.xslt' ],
-      exportSvgXsltHref: [ '../xslt/svg2page.xslt', '../xslt/sortattr.xslt', '../xslt/page_fix_xsd_sequence.xslt' ],
-      getImageFromXMLPath: findImageFromPath,
+    Object.assign(
+      { getImageFromXMLPath: findImageFromPath,
       relativeFontSize: localStorage.relativeFontSize,
       onFontChange: function (s) { localStorage.relativeFontSize = s; },
       onLoad: finishFileLoad,
       onUnload: function () { $('#saveFile').prop('disabled',true); },
       onFirstChange: function () { $('#saveFile').prop('disabled',false); $('title').text($('title').text()+' *'); }
-    } );
+      },
+      window.EDITOR_XSLT_CONFIG || {}
+    )
+  );
 
   var
   xmlExt = 'xml',
