@@ -114,7 +114,7 @@ The .app bundle will be in: `build-macos/Visual Page Editor.app`
 ### Custom NW.js Version
 
 ```bash
-NWJS_VERSION=0.50.0 ./build-macos.sh
+NWJS_VERSION=0.77.0 ./build-macos.sh
 ```
 
 ### Create DMG (Optional)
@@ -204,13 +204,13 @@ To use a different NW.js version:
 
 **Linux:**
 ```bash
-NWJS_VERSION=0.50.0 ./rpm/build-rpm.sh
-NWJS_VERSION=0.50.0 ./build-deb.sh
+NWJS_VERSION=0.77.0 ./rpm/build-rpm.sh
+NWJS_VERSION=0.77.0 ./build-deb.sh
 ```
 
 **macOS:**
 ```bash
-NWJS_VERSION=0.50.0 ./build-macos.sh
+NWJS_VERSION=0.77.0 ./build-macos.sh
 ```
 
 **Windows:**
