@@ -16,17 +16,8 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
-    "paths": {
-      "*": ["node_modules/*", "js/*"]
-    }
+    "paths": { "*": ["node_modules/*", "js/*"] }
   },
-  "include": [
-    "js/*.js",
-    "js/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "js/*.min.js",
-    "dist"
-  ]
+  "include": ["js/*.js", "js/*.ts", "types/*.d.ts"],
+  "exclude": ["node_modules", "js/*.min.js", "dist"]
 }
