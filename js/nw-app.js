@@ -1,7 +1,7 @@
 /**
  * NW.js app functionality for visual-page-editor.
  *
- * @version 1.1.0
+ * @version 1.1.1
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * @license MIT License
