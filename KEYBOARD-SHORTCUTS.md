@@ -23,8 +23,8 @@
 |----------|--------|
 | `Page Down` / `Shift + Page Down` | Next page / +10 pages |
 | `Page Up` / `Shift + Page Up` | Previous page / −10 pages |
-| `Left` / `Up` | Previous page |
-| `Right` / `Down` | Next page |
+| `Left` / `Up` | **When fit-to-page:** previous page. **When zoomed in:** pan left/up (zoomed doc navigation). |
+| `Right` / `Down` | **When fit-to-page:** next page. **When zoomed in:** pan right/down (zoomed doc navigation). |
 | `Enter` (in page number field) | Go to entered page |
 
 ## View & zoom
