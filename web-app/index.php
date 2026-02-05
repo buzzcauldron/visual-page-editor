@@ -2,7 +2,7 @@
 <!--
   - Main PHP file of visual-page-editor web edition.
   -
-  - @version $Version: 1.1.0$
+  - @version $Version: 1.1.3$
   - @author buzzcauldron
   - @copyright Copyright(c) 2025, buzzcauldron
   - @license MIT License
@@ -97,6 +97,7 @@ if ( getenv('CSS') !== false ) {
   <meta charset="UTF-8"/>
   <title>visual-page-editor v<?=$version?> - <?=$uname?></title>
   <link rel="icon" href="data:;base64,iVBORw0KGgo="/>
+  <script>window.PAGE_EDITOR_VERSION='<?=$version?>';</script>
   <link type="text/css" rel="stylesheet" id="page_styles" href="../css/page-editor.css<?=$v?>"/>
   <link type="text/css" rel="stylesheet" href="../node_modules/github-markdown-css/github-markdown.css"/>
   <?=$provided_css_files?>
@@ -111,6 +112,7 @@ if ( getenv('CSS') !== false ) {
   <script type="text/javascript" src="../js/svg-canvas.js<?=$v?>"></script>
   <script type="text/javascript" src="../js/page-canvas.js<?=$v?>"></script>
   <script type="text/javascript" src="../js/page-editor.js<?=$v?>"></script>
+  <script type="text/javascript" src="../js/editor-config.js<?=$v?>"></script>
   <?=$script?>
   <script type="text/javascript" src="../js/web-app.js<?=$v?>"></script>
   <?=$provided_js_files?>
@@ -146,9 +148,13 @@ if ( getenv('CSS') !== false ) {
   </div>
 
   <div id="drawer">
+    <div class="drawer-header">
+      <button type="button" id="drawerClose" class="drawer-close" title="Close menu (Mod+Enter)" aria-label="Close menu">&#215;</button>
+    </div>
     <fieldset id="generalFieldset">
       <button id="saveFile" disabled="">Save</button>
       <button id="openReadme">Readme</button>
+      <button id="openShortcuts" class="tooltip-down" data-tooltip="Mod+?">Shortcuts</button>
       <span><b>User: </b><?php echo $uname; if ( isset($_COOKIE['PHP_AUTH_USER']) && $uname === $_COOKIE['PHP_AUTH_USER'] ) echo ' (<a href="logout.php">logout</a>)';?></span>
       <label id="autoSave"><input class="mousetrap" type="checkbox"/> Auto-save</label>
       <label id="centerSelected"><input class="mousetrap" type="checkbox"/> Center on selection</label>
@@ -156,6 +162,10 @@ if ( getenv('CSS') !== false ) {
     </fieldset>
     <fieldset id="editModesFieldset">
       <legend class="tooltip-down" data-tooltip="Change via keyboard:&#xa;&#xa0;&#xa0;ctrl[+shift]+, ctrl[+shift]+.">Edit modes</legend>
+      <div class="edit-keyboard-shortcuts-hint">
+        <button type="button" id="openEditShortcuts" class="link-style">Edit keyboard shortcuts</button>
+        <span class="hint-text"> Mod+, Mod+. cycle · Mod+E properties · Tab next · Mod+? all</span>
+      </div>
       <div class="radio-set">
         <label id="selMode"><input class="mousetrap" type="radio" name="mode2" value="select" checked=""/> Select</label>
         <label id="baseMode"><input class="mousetrap" type="radio" name="mode2" value="baseline"/> Baseline</label>
@@ -164,7 +174,7 @@ if ( getenv('CSS') !== false ) {
         <label id="modifyMode"><input class="mousetrap" type="radio" name="mode2" value="modify"/> Modify</label>
         <label id="createMode"><input class="mousetrap" type="radio" name="mode2" value="create"/> Create</label>
         <label id="textMode"><input class="mousetrap" type="checkbox"/> Text editable</label>
-        <label id="editAfterCreate"><input class="mousetrap" type="checkbox" checked=""/> Edit mode after create</label>
+        <label id="editAfterCreate"><input class="mousetrap" type="checkbox"/> Edit mode after create</label>
       </div>
       <div class="radio-set">
         <label id="pageMode"><input class="mousetrap" type="radio" name="mode1" value="page"/> Page</label>
@@ -223,7 +233,6 @@ if ( getenv('CSS') !== false ) {
       <div>
         Baseline type:
         <label id="baseline-type-default"><input class="mousetrap" type="radio" name="baseline-type" value="default" checked=""/> Default</label>
-        <label id="baseline-type-main"><input class="mousetrap" type="radio" name="baseline-type" value="main"/> Main</label>
         <label id="baseline-type-margin"><input class="mousetrap" type="radio" name="baseline-type" value="margin"/> Margin</label>
       </div>
       <div>
@@ -331,6 +340,8 @@ if ( getenv('CSS') !== false ) {
   </div>
   <div id="readme-modal" class="modal">
     <div class="modal-content markdown-body">
+      <span class="close">&#215;</span>
+      <div id="readme-content"></div>
     </div>
   </div>
   <div id="spinner" class="modal">

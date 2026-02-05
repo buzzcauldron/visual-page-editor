@@ -7,7 +7,7 @@ Summary of privilege, permission, and architecture choices made for ARM64 / Appl
 | Choice | Detail |
 |--------|--------|
 | **Prefer native ARM64** | On Apple Silicon and Windows ARM64, the launcher prefers ARM64 NW.js. x64 is allowed as fallback (Rosetta 2 / Windows emulation) with a console warning. |
-| **NW.js version** | When ARM64 is detected: **0.50.0** (first NW.js with ARM64 builds). On Intel/x64: **0.44.0** or **0.44.4** is acceptable. Override with `NWJS_VERSION`. |
+| **NW.js version** | When ARM64 is detected: **0.77.0** (first NW.js with ARM64 builds). On Intel/x64: **0.44.0** or **0.44.4** is acceptable. Override with `NWJS_VERSION`. |
 | **Hardware vs process arch** | `build-macos.sh` and launchers use **hardware** architecture (e.g. `sysctl hw.optional.arm64`) so we pick ARM64 even when the shell is running under Rosetta (`uname -m` = x86_64). |
 
 ## macOS .app bundle
@@ -37,5 +37,5 @@ Summary of privilege, permission, and architecture choices made for ARM64 / Appl
 ## Summary
 
 - **Privilege**: No extra privileges requested; no sandbox/hardened entitlements; launchers run as the current user. Docker defaults to non-privileged.
-- **ARM64**: Native ARM64 is preferred when available; x64 is allowed with a warning. NW.js 0.50.0+ used when building or running on ARM64.
+- **ARM64**: Native ARM64 is preferred when available; x64 is allowed with a warning. NW.js 0.77.0+ used when building or running on ARM64.
 - **macOS**: ARM64 .app requires macOS 11.0+; launch is blocked if the bundle contains x64 NW.js on Apple Silicon to avoid crashes.

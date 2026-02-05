@@ -1,7 +1,7 @@
 /**
  * NW.js app functionality for visual-page-editor.
  *
- * @version 1.1.0
+ * @version 1.1.3
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * @license MIT License
@@ -21,17 +21,19 @@ $(window).on('load', function () {
   if ( typeof localStorage.relativeFontSize === 'undefined' )
     localStorage.relativeFontSize = 1;
 
-  /// Additional pageCanvas configuration ///
+  /// Additional pageCanvas configuration (setConfig appends onLoad; do not call restoreEditorUIOnLoad here – it is already the first callback) ///
   pageCanvas.setConfig(
-    { importSvgXsltHref: [ '../xslt/page2svg.xslt', '../xslt/page_from_2010-03-19.xslt', '../xslt/page2page.xslt', '../xslt/alto_v2_to_page.xslt', '../xslt/alto_v3_to_page.xslt' ],
-      exportSvgXsltHref: [ '../xslt/svg2page.xslt', '../xslt/sortattr.xslt', '../xslt/page_fix_xsd_sequence.xslt' ],
-      getImageFromXMLPath: findImageFromPath,
+    Object.assign(
+      { getImageFromXMLPath: findImageFromPath,
       relativeFontSize: localStorage.relativeFontSize,
       onFontChange: function (s) { localStorage.relativeFontSize = s; },
       onLoad: finishFileLoad,
       onUnload: function () { $('#saveFile').prop('disabled',true); },
       onFirstChange: function () { $('#saveFile').prop('disabled',false); $('title').text($('title').text()+' *'); }
-    } );
+      },
+      window.EDITOR_XSLT_CONFIG || {}
+    )
+  );
 
   var
   xmlExt = 'xml',
@@ -142,9 +144,7 @@ $(window).on('load', function () {
     if ( fileNum === prevNum )
       return false;
     if ( pageCanvas.hasChanged() )
-      if ( autosave ||
-           confirm('WARNING: Modifications will be saved on document change! Select Cancel to discard them.') )
-        return saveFile( loadFile );
+      return saveFile( loadFile );
     loadFile();
     return false;
   }
@@ -196,8 +196,18 @@ $(window).on('load', function () {
     return false;
   }
 
+  /// Toast for file-expected / file-not-found: auto-dismiss after 3 seconds (no blocking alert) ///
+  function showFileExpectedToast( msg ) {
+    console.log('WARNING: '+msg);
+    var toast = $('<div class="file-expected-toast"></div>').text(msg).appendTo('body');
+    window.setTimeout( function () {
+      toast.addClass('file-expected-toast-hide');
+      window.setTimeout( function () { toast.remove(); }, 300 );
+    }, 3000 );
+  }
+
   /// Parse arguments and load file ///
-  function parseArgs( argv, loaddir ) {
+  function parseArgs( argv, loaddir, initialFileNum ) {
     argv = argv.filter(v => v!=='');
     if ( argv.length === 0 )
       return false;
@@ -252,10 +262,11 @@ $(window).on('load', function () {
       }
     }
 
-    if ( badfiles.length > 0 )
-      pageCanvas.warning( 'File(s) not found: '+badfiles );
+    if ( badfiles.length > 0 ) {
+      showFileExpectedToast( 'File(s) not found: '+badfiles );
+    }
     else if ( files.length === 0 ) {
-      pageCanvas.warning( 'Expected at least one file to load' );
+      showFileExpectedToast( 'Expected at least one file to load' );
       return false;
     }
 
@@ -267,6 +278,8 @@ $(window).on('load', function () {
       files = fs.readdirSync(basedir).filter(f => reExt.test(f) || basefile0 == f).map(f => path.join(basedir, f));
       fileNum = files.indexOf(file0)+1;
     }
+    if ( typeof initialFileNum === 'number' && initialFileNum >= 1 && initialFileNum <= files.length )
+      fileNum = initialFileNum;
 
     fileList = files;
     prevNum = 0;
@@ -339,6 +352,9 @@ $(window).on('load', function () {
         prevFileContents = data;
         window.loadedFile = loadedFile = filepath;
         prevNum = fileNum;
+        try {
+          localStorage.lastOpenFiles = JSON.stringify({ fileList: fileList, fileNum: fileNum });
+        } catch ( e ) { /* ignore storage errors */ }
         pageCanvas.loadXmlPage( data, 'file://'+filepath, function (m) { finishFileLoad(); pageCanvas.closeDocument(); pageCanvas.warning('Problems loading file '+filepath+'\n\n'+m); } );
         $('title').text(newtitle);
       } );
@@ -359,18 +375,27 @@ $(window).on('load', function () {
     chooser.trigger('click');
   }
 
-  /// Button to open file ///
+  /// Button to open file – start in current file dir, or last filepath used ///
   $('#openFile').click( function () {
+      var workingdir = null;
       var fileNum = parseInt($('#pageNum').val());
-      if ( fileNum > 0 )
-        $('#openFileDialog').attr('nwworkingdir',fileList[fileNum-1].replace(/[^/]+$/,''));
-
+      if ( fileNum > 0 && fileList && fileList.length >= fileNum )
+        workingdir = path.dirname( fileList[fileNum - 1] );
+      if ( ! workingdir && typeof localStorage.lastOpenFiles !== 'undefined' ) {
+        try {
+          var lastOpen = JSON.parse( localStorage.lastOpenFiles );
+          if ( lastOpen && lastOpen.fileList && lastOpen.fileList.length > 0 )
+            workingdir = path.dirname( lastOpen.fileList[0] );
+        } catch ( e ) { /* ignore */ }
+      }
+      if ( workingdir )
+        $('#openFileDialog').attr( 'nwworkingdir', workingdir );
       chooseFile( '#openFileDialog', function(files) {
           parseArgs( files.split(';'), true );
         } );
     } );
 
-  /// Open file if provided as argument ///
+  /// Open file if provided as argument, else try last open file ///
   if ( nw.App.argv.length > 0 && window.location.hash === '#1' ) {
     global.pageWindows = [ true ];
     if ( parseArgs(nw.App.argv) )
@@ -379,10 +404,25 @@ $(window).on('load', function () {
             pageCanvas.fitPage();
         }, 300 );
   }
-  else if ( iswin )
-    global.pageWindows = [ true ];
-  else
-    global.pageWindows.push(true);
+  else {
+    var lastOpen = null;
+    try {
+      if ( typeof localStorage.lastOpenFiles !== 'undefined' )
+        lastOpen = JSON.parse(localStorage.lastOpenFiles);
+    } catch ( e ) { /* ignore */ }
+    if ( lastOpen && lastOpen.fileList && lastOpen.fileList.length > 0 && fs.existsSync(lastOpen.fileList[0]) &&
+         $( '#openLastFileOnStartup input' ).prop( 'checked' ) ) {
+      if ( parseArgs(lastOpen.fileList, false, lastOpen.fileNum) )
+        window.setTimeout( function () {
+            if ( typeof pageCanvas.fitPage !== 'undefined' )
+              pageCanvas.fitPage();
+          }, 300 );
+    }
+    if ( iswin )
+      global.pageWindows = [ true ];
+    else
+      global.pageWindows.push(true);
+  }
 
   if ( typeof global.argv !== 'undefined' ) {
     if ( parseArgs(global.argv) )
@@ -492,31 +532,39 @@ $(window).on('load', function () {
         pagexml_xsd = unescape(encodeURIComponent(pagexml_xsd));
         pageCanvas.cfg.pagexmlns = $(data).find('[targetNamespace]').attr('targetNamespace');
       }
-      function onXsdFail( resolvedPath ) {
-        // Fallback: fetch from GitHub when submodule is not initialized
-        $.ajax({ url: pagexml_xsd_fallback_url, async: async, dataType: 'xml' })
+      var xsdTimeout = 12000; // ms; avoid ETIMEDOUT by failing fast
+      function onXsdFail( resolvedPath, textStatus, errorThrown ) {
+        var errStr = (textStatus || '') + ' ' + (errorThrown || '');
+        var hint = /timeout|ETIMEDOUT/i.test(errStr)
+          ? ' Network timed out. For offline use run: scripts/fetch-xsd.sh'
+          : '';
+        pageCanvas.throwError( 'Failed to retrieve '+resolvedPath+' from submodule. Please run "git submodule update --init" or "scripts/fetch-xsd.sh".'+hint );
+      }
+      // Fallback: fetch from GitHub when submodule is not initialized
+      function fetchXsdFromGitHub( resolvedPath ) {
+        $.ajax({ url: pagexml_xsd_fallback_url, async: async, dataType: 'xml', timeout: xsdTimeout })
           .done( function ( data ) { processXsdData( data ); } )
-          .fail( function () {
-            pageCanvas.throwError( 'Failed to retrieve '+resolvedPath+' from submodule. Please run "git submodule update --init" or "scripts/fetch-xsd.sh".' );
+          .fail( function ( _jqXhr, textStatus, errorThrown ) {
+            onXsdFail( resolvedPath, textStatus, errorThrown );
           } );
       }
       // First try to load the file directly (in case it's the actual XSD)
-      $.ajax({ url: pagexml_xsd_file, async: async, dataType: 'xml' })
+      $.ajax({ url: pagexml_xsd_file, async: async, dataType: 'xml', timeout: xsdTimeout })
         .done( function ( data ) {
             processXsdData( data );
           } )
-        .fail( function () {
+        .fail( function ( _jqXhr, textStatus ) {
             // If that fails, try reading it as text to get the path to the actual XSD (submodule layout)
-            $.ajax({ url: pagexml_xsd_file, async: async, dataType: 'text' })
+            $.ajax({ url: pagexml_xsd_file, async: async, dataType: 'text', timeout: xsdTimeout })
               .done( function ( pathText ) {
                   var xsdPath = pathText.trim();
                   var resolvedPath = '../xsd/' + xsdPath;
-                  $.ajax({ url: resolvedPath, async: async, dataType: 'xml' })
+                  $.ajax({ url: resolvedPath, async: async, dataType: 'xml', timeout: xsdTimeout })
                     .done( function ( data ) { processXsdData( data ); } )
-                    .fail( function () { onXsdFail( resolvedPath ); } );
+                    .fail( function () { fetchXsdFromGitHub( resolvedPath ); } );
                 } )
               .fail( function () {
-                  onXsdFail( pagexml_xsd_file );
+                  fetchXsdFromGitHub( pagexml_xsd_file );
                 } );
           } );
     }
@@ -574,9 +622,9 @@ $(window).on('load', function () {
         return;
     }
 
-    $.ajax({ url: 'https://raw.githubusercontent.com/buzzcauldron/visual-page-editor/master/package.json', dataType: 'json' })
+    $.ajax({ url: 'https://raw.githubusercontent.com/buzzcauldron/visual-page-editor/master/package.json', dataType: 'json', timeout: 10000 })
       .fail( function () {
-          console.log('Failed to check the latest version of visual-page-editor in github.');
+          console.log('Failed to check the latest version of visual-page-editor in github (e.g. network timeout or offline).');
         } )
       .done( function ( data ) {
           versionCheck.lastDate = new Date();
@@ -588,6 +636,7 @@ $(window).on('load', function () {
           localStorage.versionCheck = JSON.stringify(versionCheck);
         } );
   }
-  checkForUpdates();
+  /// Defer version check so startup stays fast (run after 3s) ///
+  window.setTimeout( checkForUpdates, 3000 );
 
 } );

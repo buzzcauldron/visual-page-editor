@@ -1,7 +1,7 @@
 /**
  * Javascript library for viewing and interactive editing of SVGs.
  *
- * @version 1.1.0
+ * @version 1.1.3
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -24,7 +24,7 @@
   var
   sns = 'http://www.w3.org/2000/svg',
   xns = 'http://www.w3.org/1999/xlink',
-  version = '1.1.0';
+  version = ( typeof window !== 'undefined' && window.PAGE_EDITOR_VERSION ) || '1.0.0';
 
   /// Set SvgCanvas global object ///
   if ( ! global.SvgCanvas )
@@ -183,6 +183,25 @@
     self.mode.off = editModeOff;
     self.mode.current = self.mode.off;
     self.mode.currentMultisel = null;
+    self.mode.editableClick = null;
+    self.mode.editableDblclick = null;
+
+    /// Event delegation for .editable: one handler on container instead of per-element ///
+    $(svgContainer).on('click', '.editable', function ( e ) {
+      if ( self.mode.editableClick ) {
+        var g = $(e.target).closest('.editable');
+        if ( g.length )
+          self.mode.editableClick(e);
+      }
+    });
+    $(svgContainer).on('dblclick', '.editable', function ( e ) {
+      if ( self.mode.editableDblclick ) {
+        var g = $(e.target).closest('.editable');
+        if ( g.length )
+          self.mode.editableDblclick(e);
+      }
+    });
+
     self.mode.select = editModeSelect;
     self.mode.selectMultiple = editModeSelectMultiple;
     self.mode.selectMultiplePoly = editModeSelectFromPoly;
@@ -339,6 +358,7 @@
       self.util.mouseCoords = svgRoot.createSVGPoint();
       initDragpoint();
       $(svgRoot).click( removeEditings );
+      self.util.invalidateEditablesCache();
 
       if ( delta < 0 && p < changeHistory.length-1 )
         state = changeHistory[p+1];
@@ -613,10 +633,10 @@
       }
       $(svgRoot).on('wheel',wheelPanZoom);
 
-      /// Keyboard shortcuts ///
+      /// Keyboard shortcuts (see KEYBOARD-SHORTCUTS.md) ///
       Mousetrap.bind( ['alt+0','mod+0'], function () { return fitPage(); } );
-      Mousetrap.bind( ['alt+shift w','mod+shift w'], function () { return fitWidth(); } );
-      Mousetrap.bind( ['alt+shift h','mod+shift h'], function () { return fitHeight(); } );
+      Mousetrap.bind( ['alt+shift+w','mod+shift+w'], function () { return fitWidth(); } );
+      Mousetrap.bind( ['alt+shift+h','mod+shift+h'], function () { return fitHeight(); } );
       Mousetrap.bind( ['alt+=','mod+='], function () { return zoom(1,selectedCenter()); } );
       Mousetrap.bind( ['alt+-','mod+-'], function () { return zoom(-1,selectedCenter()); } );
       Mousetrap.bind( ['alt+right','mod+right'], function () { return pan(-0.02,0); } );
@@ -624,9 +644,12 @@
       Mousetrap.bind( ['alt+up',   'mod+up'], function () { return pan(0,0.02); } );
       Mousetrap.bind( ['alt+down', 'mod+down'], function () { return pan(0,-0.02); } );
 
-      /// Pan by dragging ///
+      /// Pan by dragging (smoothing: inertia + pointer tolerance for easier use) ///
+      if ( typeof interact !== 'undefined' && typeof interact.pointerMoveTolerance === 'function' ) {
+        interact.pointerMoveTolerance( 6 );
+      }
       interact(svgRoot)
-        .draggable({})
+        .draggable( { inertia: true } )
         //.ignoreFrom('text')
         .styleCursor(false)
         .on( 'dragstart', function () {
@@ -655,7 +678,7 @@
     };
 
     function viewBoxLimits() {
-      var factW = boxW/width, factH = boxH/height;
+      var factW = width > 0 ? boxW / width : 1, factH = height > 0 ? boxH / height : 1;
       if ( factW > 1.2 && factH > 1.2 ) {
         if ( factW < factH ) {
           boxW = 1.2 * width;
@@ -750,6 +773,7 @@
 
     /**
      * Adjusts the size of the SVG canvas based on its container size.
+     * Guards against first call (prevW/prevH undefined) and zero height to avoid NaN/Infinity.
      */
     function adjustSize() {
       var
@@ -757,12 +781,15 @@
       prevH = canvasH;
       canvasW = $(svgContainer).innerWidth();
       canvasH = $(svgContainer).innerHeight();
+      if ( ! canvasH )
+        canvasH = 1;
       canvasR = canvasW / canvasH;
-      boxW *= canvasW / prevW ;
-      boxH *= canvasH / prevH ;
+      if ( typeof prevW === 'number' && typeof prevH === 'number' && prevW > 0 && prevH > 0 ) {
+        boxW *= canvasW / prevW;
+        boxH *= canvasH / prevH;
+      }
       svgRoot.setAttribute( 'width', canvasW );
       svgRoot.setAttribute( 'height', canvasH );
-      //console.log('called adjustSize: '+canvasW+' '+canvasH);
     }
 
     /**
@@ -800,18 +827,19 @@
     }
 
     /**
-     * Snaps the image to the left side of the viewport.
+     * Snaps the view to the left side of the document (left edge of content at left of viewport).
+     * BUG FIX (1.1.1): The previous implementation caused the document to snap to the RIGHT when zoomed in
+     * (view showed the right edge instead of the left). This is now fixed: we set boxX0 = xmin and re-apply
+     * it after viewBoxLimits() so the left edge stays at the viewport left.
      */
     function snapImageToLeft() {
       if ( ! svgRoot )
         return;
-      // Get canvas bounds - use xmin which is the left edge of the SVG content
       if ( typeof xmin === 'undefined' || isNaN(xmin) )
         return;
-      // Set viewBox to show left side of image
-      boxX0 = xmin + ( boxW <= width ? 0 : width - boxW );
-      // Keep current Y position and zoom level
+      boxX0 = xmin;
       viewBoxLimits();
+      boxX0 = xmin;
       if ( isNaN(boxX0) || isNaN(boxY0) || isNaN(boxW) || isNaN(boxH) )
         return;
       svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
@@ -959,30 +987,22 @@
 
       $(svgRoot).click( removeEditings );
 
+      self.util.invalidateEditablesCache();
       pushChangeHistory('svg load');
 
-      /// On open: convert any baseline type 'main' to 'default' (so only those lines are changed) ///
-      $(svgRoot).find('.TextLine').each(function() {
-        var g = $(this);
-        var attr = g.attr('custom');
-        if ( typeof attr !== 'undefined' && attr.match(/type\s*\{type\s*:\s*main\s*;\s*\}/) ) {
-          attr = attr.replace(/type\s*\{type\s*:\s*main\s*;\s*\}/g, 'type {type:default;}');
-          g.attr('custom', attr);
-        }
-      });
-      /// Add baseline type CSS classes (keep default as default) ///
+      /// Add baseline type CSS classes ///
       $(svgRoot).find('.TextLine').each(function() {
         var g = $(this);
         var attr = g.attr('custom');
         // Add class based on baseline type (if getBaselineType is available, otherwise default to default)
         if ( typeof self.util.getBaselineType === 'function' ) {
           var baselineType = self.util.getBaselineType(g[0]);
-          g.removeClass('baseline-default baseline-main baseline-margin');
+          g.removeClass('baseline-default baseline-margin');
           g.addClass('baseline-' + baselineType);
         } else {
-          var match = attr && attr.match(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/);
+          var match = attr && attr.match(/type\s*\{type\s*:\s*(default|margin)\s*;\s*\}/);
           var baselineType = match ? match[1] : 'default';
-          g.removeClass('baseline-default baseline-main baseline-margin');
+          g.removeClass('baseline-default baseline-margin');
           g.addClass('baseline-' + baselineType);
         }
       });
@@ -1406,6 +1426,9 @@
         if ( typeof this.setEditing !== 'undefined' )
           delete this.setEditing;
       } );
+      self.mode.editableClick = null;
+      self.mode.editableDblclick = null;
+      self.util.invalidateEditablesCache();
 
       if ( self.cfg.textareaId ) {
         var $ta = $('#' + self.cfg.textareaId);
@@ -1544,16 +1567,22 @@
 
     /**
      * Function to get current editables sorted if editablesSortCompare defined.
+     * Cached for speed; invalidated on document load and mode change.
      */
+    var cachedEditables = null;
     function getSortedEditables() {
       if ( ! svgRoot )
         return $();
+      if ( cachedEditables )
+        return cachedEditables;
       var editables = $(svgRoot).find('.editable');
       if ( editables.length > 0 && typeof self.cfg.editablesSortCompare === 'function' )
         editables.sort(self.cfg.editablesSortCompare);
+      cachedEditables = editables;
       return editables;
     }
     self.util.getSortedEditables = getSortedEditables;
+    self.util.invalidateEditablesCache = function () { cachedEditables = null; };
 
     /**
      * Function to cycle through editables using a keyboard shortcut.
@@ -1659,12 +1688,9 @@
       if ( ! svgRoot )
         return true;
 
-      selectFiltered(selector)
-        .addClass('editable')
-        .dblclick(selectedDblclick)
-        .click( function ( event ) {
-            setEditing( event, 'select' );
-          } );
+      selectFiltered(selector).addClass('editable');
+      self.mode.editableClick = function ( event ) { setEditing( event, 'select' ); };
+      self.mode.editableDblclick = selectedDblclick;
 
       if ( noevents )
         $(svgRoot).find(noevents)
@@ -1827,19 +1853,18 @@
           $(this).find(points_selector)
             .each( function () { numrect += isAxisAligned(this) ? 1 : 0 ; } );
           if ( numrect > 0 )
-            $(this)
-              .addClass('editable')
-              .dblclick(selectedDblclick)
-              .click( function ( event ) {
-                  setEditing( event, 'text+points', {
-                      points_selector: points_selector,
-                      points_validator: isvalidrect,
-                      restrict: self.enum.restrict.AxisAlignedRectangle,
-                      text_selector: text_selector,
-                      text_creator: text_creator
-                    } );
-                } );
+            $(this).addClass('editable');
         } );
+      self.mode.editableClick = function ( event ) {
+        setEditing( event, 'text+points', {
+          points_selector: points_selector,
+          points_validator: isvalidrect,
+          restrict: self.enum.restrict.AxisAlignedRectangle,
+          text_selector: text_selector,
+          text_creator: text_creator
+        } );
+      };
+      self.mode.editableDblclick = selectedDblclick;
 
       if ( noevents )
         $(svgRoot).find(noevents)
@@ -1865,17 +1890,16 @@
       if ( ! svgRoot )
         return true;
 
-      selectFiltered(tap_selector)
-        .addClass('editable')
-        .dblclick(selectedDblclick)
-        .click( function ( event ) {
-            setEditing( event, 'text+points', {
-                points_selector: points_selector,
-                points_validator: isvalidpoints,
-                text_selector: text_selector,
-                text_creator: text_creator
-              } );
-          } );
+      selectFiltered(tap_selector).addClass('editable');
+      self.mode.editableClick = function ( event ) {
+        setEditing( event, 'text+points', {
+          points_selector: points_selector,
+          points_validator: isvalidpoints,
+          text_selector: text_selector,
+          text_creator: text_creator
+        } );
+      };
+      self.mode.editableDblclick = selectedDblclick;
 
       if ( noevents )
         $(svgRoot).find(noevents)
@@ -1903,15 +1927,14 @@
 
       setDraggables( drag_selector, drop_selector );
 
-      selectFiltered(drag_selector)
-        .addClass('editable')
-        .dblclick(selectedDblclick)
-        .click( function ( event ) {
-            setEditing( event, 'text', {
-                text_selector: text_selector,
-                text_creator: text_creator
-              } );
-          } );
+      selectFiltered(drag_selector).addClass('editable');
+      self.mode.editableClick = function ( event ) {
+        setEditing( event, 'text', {
+          text_selector: text_selector,
+          text_creator: text_creator
+        } );
+      };
+      self.mode.editableDblclick = selectedDblclick;
 
       if ( noevents )
         $(svgRoot).find(noevents)
@@ -2003,12 +2026,11 @@
       if ( ! svgRoot )
         return true;
 
-      selectFiltered(tap_selector)
-        .addClass('editable')
-        .dblclick(selectedDblclick)
-        .click( function ( event ) {
-            setEditing( event, 'text', { text_selector: text_selector, text_creator: text_creator } );
-          } );
+      selectFiltered(tap_selector).addClass('editable');
+      self.mode.editableClick = function ( event ) {
+        setEditing( event, 'text', { text_selector: text_selector, text_creator: text_creator } );
+      };
+      self.mode.editableDblclick = selectedDblclick;
 
       if ( noevents )
         $(svgRoot).find(noevents)
@@ -2107,9 +2129,6 @@
         textarea
           .prop( 'disabled', false )
           .focus();
-        
-        // Snap image to left when edit toolbar opens
-        snapImageToLeft();
       }
 
       var isinvalid = self.cfg.textValidator(prevText,false,svgElem);
@@ -2185,17 +2204,16 @@
           $(this).find(points_selector)
             .each( function () { numrect += isAxisAligned(this) ? 1 : 0 ; } );
           if ( numrect > 0 )
-            $(this)
-              .addClass('editable')
-              .dblclick(selectedDblclick)
-              .click( function ( event ) {
-                  setEditing( event, 'points', {
-                      points_selector: points_selector,
-                      points_validator: isvalidrect,
-                      restrict: self.enum.restrict.AxisAlignedRectangle
-                    } );
-                } );
+            $(this).addClass('editable');
         } );
+      self.mode.editableClick = function ( event ) {
+        setEditing( event, 'points', {
+          points_selector: points_selector,
+          points_validator: isvalidrect,
+          restrict: self.enum.restrict.AxisAlignedRectangle
+        } );
+      };
+      self.mode.editableDblclick = selectedDblclick;
 
       if ( noevents )
         $(svgRoot).find(noevents)
@@ -2304,16 +2322,15 @@
       if ( ! svgRoot )
         return true;
 
-      selectFiltered(tap_selector)
-        .addClass('editable')
-        .dblclick(selectedDblclick)
-        .click( function ( event ) {
-            setEditing( event, 'points', {
-                points_selector: points_selector,
-                points_validator: isvalidpoints,
-                restrict: typeof restrict === 'undefined' ? false : restrict
-              } );
-          } );
+      selectFiltered(tap_selector).addClass('editable');
+      self.mode.editableClick = function ( event ) {
+        setEditing( event, 'points', {
+          points_selector: points_selector,
+          points_validator: isvalidpoints,
+          restrict: typeof restrict === 'undefined' ? false : restrict
+        } );
+      };
+      self.mode.editableDblclick = selectedDblclick;
 
       if ( noevents )
         $(svgRoot).find(noevents)
@@ -2451,7 +2468,7 @@
       }
       Mousetrap.bind( '+ .', addPolyPoint );
 
-      /// Setup dragpoints for dragging ///
+      /// Setup dragpoints for dragging (no inertia for precise control) ///
       var interactable = interact('#'+svgContainer.id+' .dragpoint')
         .draggable( {
             onstart: function ( event ) {
@@ -2650,12 +2667,9 @@
 
       setDraggables( drag_selector, drop_selector, move_select_func );
 
-      selectFiltered(drag_selector)
-        .addClass('editable')
-        .dblclick(selectedDblclick)
-        .click( function ( event ) {
-            setEditing( event, 'select' );
-          } );
+      selectFiltered(drag_selector).addClass('editable');
+      self.mode.editableClick = function ( event ) { setEditing( event, 'select' ); };
+      self.mode.editableDblclick = selectedDblclick;
 
       if ( noevents )
         $(svgRoot).find(noevents)
@@ -2680,6 +2694,7 @@
       selectFiltered(drag_selector).addClass('draggable');
       var interactable = interact('#'+svgContainer.id+' .draggable')
         .draggable( {
+            inertia: { resistance: 30, endSpeed: 80 },
             onstart: function ( event ) {
                 $(event.target).addClass('dragging');
                 selectElem(event.target);

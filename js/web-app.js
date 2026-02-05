@@ -1,7 +1,7 @@
 /**
  * App functionality for the web edition of visual-page-editor.
  *
- * @version 1.1.0
+ * @version 1.1.3
  * @author Mauricio Villegas <mauricio_ville@yahoo.com>
  * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
  * @license MIT License
@@ -13,19 +13,19 @@ $(window).on('load', function () {
 
   /// Additional pageCanvas configuration ///
   pageCanvas.setConfig(
-    { importSvgXsltHref: [ '../xslt/page2svg.xslt', '../xslt/page_from_2010-03-19.xslt', '../xslt/page2page.xslt', '../xslt/alto_v2_to_page.xslt', '../xslt/alto_v3_to_page.xslt' ],
-      exportSvgXsltHref: [ '../xslt/svg2page.xslt', '../xslt/sortattr.xslt', '../xslt/page_fix_xsd_sequence.xslt' ],
-      onLoad: successfulFileLoad,
+    Object.assign(
+      { onLoad: successfulFileLoad,
       onUnload: function () { $('#saveFile').prop('disabled',true); },
       onChange: function () { autosavetime = 0; },
       onFirstChange: function () { $('#saveFile').prop('disabled',false); /*$('title').text($('title').text()+' *');*/ }
-    } );
+      },
+      window.EDITOR_XSLT_CONFIG || {}
+    )
+  );
 
   /// Keyboard bindings ///
   Mousetrap.bind( 'pagedown', function () { $('#nextPage').click(); return false; } );
   Mousetrap.bind( 'pageup', function () { $('#prevPage').click(); return false; } );
-  Mousetrap.bind( ['left', 'up'], function () { $('#prevPage').click(); return false; } );
-  Mousetrap.bind( ['right', 'down'], function () { $('#nextPage').click(); return false; } );
 
   /// Confirm that changes will be saved ///
   function confirmSave( afterconfirm ) {

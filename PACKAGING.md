@@ -36,7 +36,7 @@ sudo zypper install rpm-build curl tar gzip
 
    Or specify a custom NW.js version:
    ```bash
-   NWJS_VERSION=0.50.0 ./build-rpm.sh
+   NWJS_VERSION=0.77.0 ./build-rpm.sh
    ```
 
 3. **Find the built package:**
@@ -78,7 +78,7 @@ sudo apt-get install build-essential devscripts curl tar gzip
 
    Or specify a custom NW.js version:
    ```bash
-   NWJS_VERSION=0.50.0 ./build-deb.sh
+   NWJS_VERSION=0.77.0 ./build-deb.sh
    ```
 
 3. **Find the built package:**
@@ -174,12 +174,12 @@ To use a different version of NW.js:
 
 **For RPM:**
 ```bash
-NWJS_VERSION=0.50.0 ./rpm/build-rpm.sh
+NWJS_VERSION=0.77.0 ./rpm/build-rpm.sh
 ```
 
 **For DEB:**
 ```bash
-NWJS_VERSION=0.50.0 ./build-deb.sh
+NWJS_VERSION=0.77.0 ./build-deb.sh
 ```
 
 Or edit the spec file (`rpm/nw-page-editor.spec`) or rules file (`debian/rules`) and change the `NWJS_VERSION` variable.
