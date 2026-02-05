@@ -2,7 +2,7 @@
 <!--
   - Main PHP file of visual-page-editor web edition.
   -
-  - @version $Version: 1.1.2$
+  - @version $Version: 1.1.3$
   - @author buzzcauldron
   - @copyright Copyright(c) 2025, buzzcauldron
   - @license MIT License
@@ -111,6 +111,7 @@ if ( getenv('CSS') !== false ) {
   <script type="text/javascript" src="../js/svg-canvas.js<?=$v?>"></script>
   <script type="text/javascript" src="../js/page-canvas.js<?=$v?>"></script>
   <script type="text/javascript" src="../js/page-editor.js<?=$v?>"></script>
+  <script type="text/javascript" src="../js/editor-config.js<?=$v?>"></script>
   <?=$script?>
   <script type="text/javascript" src="../js/web-app.js<?=$v?>"></script>
   <?=$provided_js_files?>

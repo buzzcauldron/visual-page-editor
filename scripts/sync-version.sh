@@ -35,7 +35,7 @@ fi
 for f in \
   html/index.html \
   css/page-editor.css \
-  js/nw-app.js js/web-app.js js/page-editor.js js/svg-canvas.js js/page-canvas.js \
+  js/nw-app.js js/web-app.js js/page-editor.js js/editor-config.js js/svg-canvas.js js/page-canvas.js \
   bin/visual-page-editor bin/visual-page-editor.ps1 bin/visual-page-editor.bat \
   web-app/index.php web-app/common.inc.php web-app/start-server.sh \
   scripts/test-platforms.sh

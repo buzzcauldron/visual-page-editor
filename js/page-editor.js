@@ -1,7 +1,7 @@
 /**
  * Interactive editing of Page XMLs functionality.
  *
- * @version 1.1.2
+ * @version 1.1.3
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -41,46 +41,40 @@ $(window).on('load', function () {
       onSelect: function ( elem ) {
           var
           g = $(elem).closest('g'),
-          editable = pageCanvas.util.getSortedEditables(),
-          text = g.find('> .TextEquiv > .Unicode');
-          // Quick updates first so selection and sidebar feel instant
+          editable = pageCanvas.util.getSortedEditables();
+          // Minimal sync updates so selection and sidebar feel instant
           $('#selectedType').text( g.hasClass('TableCell') ? 'TableCell' : g.attr('class').replace(/ .*/,'') );
           $('#selectedId').text( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') );
           $('#modeElement').text((editable.index(g)+1)+'/'+editable.length);
 
-          // updateSelectedInfo (heavy) deferred to rAF below – avoid running twice
-          // When a TextLine is selected, switch default/margin radio to match that line's type
-          if ( g.is('.TextLine') ) {
-            var lineType = pageCanvas.util.getBaselineType(g[0]);
-            if ( lineType === 'margin' || lineType === 'default' ) {
-              $('input[name="baseline-type"][value="'+lineType+'"]').prop('checked', true);
-              pageCanvas.cfg.baselineType = lineType;
-            }
-          }
-
-          if ( text.length !== 0 ) {
-            text = pageCanvas.cfg.textFormatter(text.html());
-            $('#textedit').val(text);
-          }
-          else
-            $('#textedit').val('');
-
-          $('[class*=selected-parent-]').removeClass( function (index, className) {
-              return (className.match(/(^|\s)selected-parent-\S+/g) || []).join(' ');
-            } );
-          g.closest('.Word').addClass('selected-parent-word');
-          g.closest('.TextLine').addClass('selected-parent-line');
-          g.closest('.TextRegion').addClass('selected-parent-region');
-          g.closest('.Page').addClass('selected-parent-page');
-
-          if ( prop_modal.hasClass('modal-active') )
-            populatePropertyModal(g);
-
-          // Defer heavy panel update so selection and sidebar paint first
-          // Skip if selection changed during rapid clicks (avoids wasted work)
+          // Defer all heavier work so click feels instant; skip if selection changed during rapid clicks
           requestAnimationFrame( function () {
-            if ( $('.selected').closest('g')[0] === g[0] )
-              updateSelectedInfo();
+            if ( $('.selected').closest('g')[0] !== g[0] )
+              return;
+            var text = g.find('> .TextEquiv > .Unicode');
+            if ( g.is('.TextLine') ) {
+              var lineType = pageCanvas.util.getBaselineType(g[0]);
+              if ( lineType === 'margin' || lineType === 'default' ) {
+                $('input[name="baseline-type"][value="'+lineType+'"]').prop('checked', true);
+                pageCanvas.cfg.baselineType = lineType;
+              }
+            }
+            if ( text.length !== 0 ) {
+              text = pageCanvas.cfg.textFormatter(text.html());
+              $('#textedit').val(text);
+            }
+            else
+              $('#textedit').val('');
+            $('[class*=selected-parent-]').removeClass( function (index, className) {
+                return (className.match(/(^|\s)selected-parent-\S+/g) || []).join(' ');
+              } );
+            g.closest('.Word').addClass('selected-parent-word');
+            g.closest('.TextLine').addClass('selected-parent-line');
+            g.closest('.TextRegion').addClass('selected-parent-region');
+            g.closest('.Page').addClass('selected-parent-page');
+            if ( prop_modal.hasClass('modal-active') )
+              populatePropertyModal(g);
+            updateSelectedInfo();
           } );
         },
       onSelectedDblclick: function () { openPropertyModal($('.selected')); },
@@ -814,50 +808,55 @@ $(window).on('load', function () {
   Mousetrap.bind( 'mod+shift+.', function () { return cycleEditMode( 'mode2', -1 ); } );
 
   /// Single-key shortcuts: c=Create, b=Baseline, m=Margin, d=Default (persist mode immediately) ///
-  Mousetrap.bind( 'c', function () {
-    $('#createMode').click();
+  function runAndFlushDrawerState( action ) {
+    if ( typeof action === 'function' ) action();
+    else if ( typeof action === 'string' ) $(action).click();
     if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
     if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
+  }
+  Mousetrap.bind( 'c', function () {
+    runAndFlushDrawerState( function () {
+      $('#createMode input').prop( 'checked', true );
+      handleEditMode();
+    } );
     return false;
   } );
   Mousetrap.bind( 'b', function () {
-    $('#baseMode').click();
-    if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
-    if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
+    runAndFlushDrawerState( function () {
+      $('#baseMode input').prop( 'checked', true );
+      handleEditMode();
+    } );
     return false;
   } );
-  Mousetrap.bind( 'm', function () {
-    applyBaselineTypeToSelected('margin');
-    if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
-    if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
-    return false;
-  } );
-  Mousetrap.bind( 'd', function () {
-    applyBaselineTypeToSelected('default');
-    if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
-    if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
-    return false;
-  } );
+  Mousetrap.bind( 'm', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('margin'); } ); return false; } );
+  Mousetrap.bind( 'd', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('default'); } ); return false; } );
 
   /// Save state of drawer in local storage (debounced to reduce writes) ///
+  function serializeDrawerInput( $label ) {
+    var input = $label.children('input').first();
+    var type = input.attr('type');
+    if ( type === 'checkbox' ) return { key: $label[0].id, val: input.prop('checked') };
+    if ( type === 'radio' ) return input.prop('checked') ? { key: input.attr('name'), val: $label[0].id } : null;
+    if ( type === 'text' ) return { key: $label[0].id, val: input.val() };
+    return null;
+  }
+  function deserializeDrawerInput( $label, drawerState ) {
+    var input = $label.children('input').first();
+    var type = input.attr('type');
+    if ( type === 'checkbox' && typeof drawerState[$label[0].id] !== 'undefined' )
+      input.prop('checked', drawerState[$label[0].id]);
+    else if ( type === 'radio' && typeof drawerState[input.attr('name')] !== 'undefined' && drawerState[input.attr('name')] === $label[0].id )
+      input.prop('checked', true);
+    else if ( type === 'text' && typeof drawerState[$label[0].id] !== 'undefined' )
+      input.val(drawerState[$label[0].id]);
+  }
   var saveDrawerStateTimer;
   function saveDrawerStateNow() {
     var $drawer = $('#drawer');
     var drawerState = {};
     $drawer.find('label').each( function () {
-        var input = $(this).children('input').first();
-        switch( input.attr('type') ) {
-          case 'checkbox':
-            drawerState[this.id] = input.prop('checked');
-            break;
-          case 'radio':
-            if ( input.prop('checked') )
-              drawerState[input.attr('name')] = this.id;
-            break;
-          case 'text':
-            drawerState[this.id] = input.val();
-            break;
-        }
+        var entry = serializeDrawerInput( $(this) );
+        if ( entry ) drawerState[entry.key] = entry.val;
       } );
     $drawer.find('select').each( function () {
         drawerState[$(this).attr('name')] = $(this).val();
@@ -890,22 +889,7 @@ $(window).on('load', function () {
     }
     var $drawer = $('#drawer');
     $drawer.find('label').each( function () {
-        var input = $(this).children('input').first();
-        switch( input.attr('type') ) {
-          case 'checkbox':
-            if ( typeof drawerState[this.id] !== 'undefined' )
-              input.prop('checked',drawerState[this.id]);
-            break;
-          case 'radio':
-            if ( typeof drawerState[input.attr('name')] !== 'undefined' &&
-                 drawerState[input.attr('name')] === this.id )
-              input.prop('checked',true);
-            break;
-          case 'text':
-            if ( typeof drawerState[this.id] !== 'undefined' )
-              input.val(drawerState[this.id]);
-            break;
-        }
+        deserializeDrawerInput( $(this), drawerState );
       } );
     $drawer.find('select').each( function () {
         if ( typeof drawerState[$(this).attr('name')] !== 'undefined' )
@@ -936,8 +920,8 @@ $(window).on('load', function () {
     }
   } );
 
-  /// Save drawer state on non-mode drawer changes ///
-  $('#generalFieldset input, #newPropsFieldset input, #visibilityFieldset input')
+  /// Save drawer state on drawer changes (including edit mode so Create etc. persist across loads) ///
+  $('#generalFieldset input, #newPropsFieldset input, #visibilityFieldset input, #editModesFieldset input')
     .change(saveDrawerState);
 
   /// Setup page rotations ///
