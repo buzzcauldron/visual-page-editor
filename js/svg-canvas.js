@@ -58,7 +58,8 @@
     boxX0,
     boxY0,
     boxW,
-    boxH;
+    boxH,
+    panToSelectedRafId = 0;
 
     /// Check container element ///
     svgContainer = document.getElementById(svgContainer);
@@ -204,10 +205,10 @@
       if ( ! config )
         return;
       for ( var op in config )
-        if ( config.hasOwnProperty(op) ) {
-          if ( self.cfg.hasOwnProperty(op) ) {
-            if ( $.isArray(self.cfg[op]) ) {
-              if ( $.isArray(config[op]) )
+        if ( Object.prototype.hasOwnProperty.call(config, op) ) {
+          if ( Object.prototype.hasOwnProperty.call(self.cfg, op) ) {
+            if ( Array.isArray(self.cfg[op]) ) {
+              if ( Array.isArray(config[op]) )
                 self.cfg[op] = config[op];
               else
                 self.cfg[op].push(config[op]);
@@ -220,8 +221,11 @@
             return self.throwError( 'No configuration option: "'+op+'"' );
         }
 
-      for ( var k=0; k<self.cfg.onSetConfig.length; k++ )
-        self.cfg.onSetConfig[k](config);
+      var onSetConfig = self.cfg.onSetConfig;
+      if ( Array.isArray(onSetConfig) )
+        for ( var k = 0; k < onSetConfig.length; k++ )
+          if ( typeof onSetConfig[k] === 'function' )
+            onSetConfig[k](config);
     };
     /// Apply input configuration ///
     self.setConfig( config );
@@ -273,11 +277,18 @@
       if ( ! self.cfg.registerChangeEnabled )
         return;
       pushChangeHistory(changeType);
-      if ( ! hasChanged )
-        for ( var n=0; n<self.cfg.onFirstChange.length; n++ )
-          self.cfg.onFirstChange[n]();
-      for ( var m=0; m<self.cfg.onChange.length; m++ )
-        self.cfg.onChange[m]();
+      if ( ! hasChanged ) {
+        var onFirst = self.cfg.onFirstChange;
+        if ( Array.isArray(onFirst) )
+          for ( var n = 0; n < onFirst.length; n++ )
+            if ( typeof onFirst[n] === 'function' )
+              onFirst[n]();
+      }
+      var onChange = self.cfg.onChange;
+      if ( Array.isArray(onChange) )
+        for ( var m = 0; m < onChange.length; m++ )
+          if ( typeof onChange[m] === 'function' )
+            onChange[m]();
       hasChanged = true;
     }
     self.registerChange = registerChange;
@@ -368,7 +379,7 @@
           svg: self.getSvgClone(true),
           panzoom: panzoom ? [ xmin, ymin, width, height, boxX0, boxY0, boxW, boxH ] : false ,
           mode: self.mode.current,
-          selected: getElementPath( $(svgRoot).find('.selected') )
+          selected: svgRoot ? getElementPath( $(svgRoot).find('.selected') ) : ''
         };
 
       if ( changeHistory.length && changeHistory[changeHistory.length-1].type === changeType )
@@ -421,8 +432,10 @@
 
     ///////////////////////////////////////////
     /// Keep track of mouse cursor position ///
+    /// Throttled with rAF so at most one update per frame.
     ///////////////////////////////////////////
-
+    var mouseMoveRafId = 0;
+    var pendingMousePoint = null;
     $(svgContainer).mousemove( function ( event ) {
         if ( ! svgRoot )
           return;
@@ -432,8 +445,21 @@
         point = self.util.toViewboxCoords(point);
         self.util.mouseCoords.x = point.x;
         self.util.mouseCoords.y = point.y;
-        for ( var k=0; k<self.cfg.onMouseMove.length; k++ )
-          self.cfg.onMouseMove[k](point);
+        pendingMousePoint = point;
+        if ( mouseMoveRafId )
+          return;
+        mouseMoveRafId = requestAnimationFrame( function () {
+          mouseMoveRafId = 0;
+          var p = pendingMousePoint;
+          pendingMousePoint = null;
+          if ( p ) {
+            var onMouseMove = self.cfg.onMouseMove;
+            if ( Array.isArray(onMouseMove) )
+              for ( var k = 0; k < onMouseMove.length; k++ )
+                if ( typeof onMouseMove[k] === 'function' )
+                  onMouseMove[k](p);
+          }
+        } );
       } );
 
 
@@ -759,13 +785,17 @@
 
     /**
      * Centers the viewbox on the selected element.
+     * Uses a horizontal bias so the selection stays in the visible canvas (left of the side menu).
      */
     function panToSelected() {
       var point = selectedCenter();
       if ( ! point )
         return;
-      boxX0 = point.x - 0.5*boxW;
-      boxY0 = point.y - 0.5*boxH;
+      // Position selection at ~35% from left so it stays visible when the drawer is open
+      var centerBiasX = 0.35;
+      var centerBiasY = 0.5;
+      boxX0 = point.x - centerBiasX * boxW;
+      boxY0 = point.y - centerBiasY * boxH;
       viewBoxLimits();
       if ( isNaN(boxX0) || isNaN(boxY0) || isNaN(boxW) || isNaN(boxH) )
         return;
@@ -793,6 +823,7 @@
 
     /**
      * Centers and zooms the viewbox on the selected element.
+     * Uses same horizontal bias as panToSelected so element stays visible (not under drawer).
      */
     function panZoomTo( fact, limits, sel ) {
       if ( typeof sel === 'undefined' )
@@ -814,8 +845,10 @@
         boxW = boxH * canvasR;
       }
 
-      boxX0 = (rect.x + 0.5*rect.width) - 0.5*boxW;
-      boxY0 = (rect.y + 0.5*rect.height) - 0.5*boxH;
+      var centerBiasX = 0.35;
+      var centerBiasY = 0.5;
+      boxX0 = (rect.x + 0.5*rect.width) - centerBiasX * boxW;
+      boxY0 = (rect.y + 0.5*rect.height) - centerBiasY * boxH;
 
       if ( typeof limits === 'undefined' || limits )
         viewBoxLimits();
@@ -1047,11 +1080,23 @@
       if ( $(document.activeElement).filter('input[type=text], textarea').length > 0 )
         $(document.activeElement).blur();
       $(svgElem).addClass('selected');
-      if ( self.cfg.centerOnSelection &&
-           ( typeof nocenter === 'undefined' || ! nocenter ) )
-        panToSelected();
-      for ( var n=0; n<self.cfg.onSelect.length; n++ )
-        self.cfg.onSelect[n](svgElem);
+      // Defer pan and onSelect to next frame so first click feels instant (selection paints immediately)
+      var doCenter = self.cfg.centerOnSelection && ( typeof nocenter === 'undefined' || ! nocenter );
+      var onSelect = self.cfg.onSelect;
+      var runAfterPaint = doCenter || ( Array.isArray(onSelect) && onSelect.length > 0 );
+      if ( runAfterPaint ) {
+        if ( panToSelectedRafId )
+          cancelAnimationFrame( panToSelectedRafId );
+        panToSelectedRafId = requestAnimationFrame( function () {
+          panToSelectedRafId = 0;
+          if ( doCenter )
+            panToSelected();
+          if ( Array.isArray(onSelect) )
+            for ( var n = 0; n < onSelect.length; n++ )
+              if ( typeof onSelect[n] === 'function' )
+                onSelect[n](svgElem);
+        } );
+      }
     }
 
     /**
@@ -1066,15 +1111,19 @@
 
     /**
      * Handles the deletion of SVG elements.
+     * @param {boolean} [forceDelete=false] - If true, delete even when focus is in a text field (e.g. Ctrl/Cmd+Backspace).
      */
-    function handleDeletion () {
+    function handleDeletion ( forceDelete ) {
       try {
-        if ( ! self.cfg.delSelector )
+        if ( ! svgRoot || ! self.cfg.delSelector )
           return true;
-        //if ( $('#'+self.cfg.textareaId).is(':focus') )
-        //  return true;
-        var
-        selElem = $(svgRoot).find('.selected').first();
+        // Never delete when focus is in a text field so Backspace/Del edit text, not the element (unless forceDelete)
+        if ( ! forceDelete ) {
+          var active = document.activeElement;
+          if ( active && ( active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable ) )
+            return true;
+        }
+        var selElem = $(svgRoot).find('.selected').first();
         if ( selElem.length === 0 || isReadOnly(selElem) )
           return true;
         var delElem = self.cfg.delSelector( selElem[0] );
@@ -1107,14 +1156,23 @@
             }
           }
           
-          var editables = $('.editable');
+          var editables = $(svgRoot).find('.editable');
           var delIndex = editables.index(delElem);
-          if ( delIndex >= 0 && delIndex < editables.length - 1 ) {
+          if ( delIndex >= 0 && delIndex < editables.length - 1 )
             editables.eq(delIndex + 1).addClass('prev-editing');
-          }
-          
+
           if ( selElem.closest('.editing').length !== 0 )
             removeEditings();
+          var fn = self.util.finishDrawing;
+          if ( typeof fn === 'function' ) {
+            var $del = $(delElem);
+            if ( $del.hasClass('drawing') || $del.find('.drawing').length ) {
+              fn();
+              // Remove any orphaned dragpoints (e.g. from point-edit before delete)
+              if ( svgRoot )
+                $(svgRoot).find('.dragpoint').remove();
+            }
+          }
           unselectElem(selElem);
           
           var elemPath = '';
@@ -1172,38 +1230,26 @@
       }
     } );
     
-    // Mac support: Backspace key (Mac Delete key sends backspace)
-    // On Mac, the Delete key is actually Backspace, so we need to handle it
-    // Only bind if we're in NW.js (has process.platform) or detect Mac via navigator
-    var isMac = false;
-    if ( typeof process !== 'undefined' && process.platform === 'darwin' ) {
-      isMac = true;
-    } else if ( typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform) ) {
-      isMac = true;
-    }
-    
-    if ( isMac ) {
-      // Cmd+Backspace deletes element (Mousetrap stopCallback handles text fields)
-      Mousetrap.bind( 'mod+backspace', function () { 
-        try {
-          return handleDeletion(); 
-        } catch (e) {
-          console.error('Error in handleDeletion:', e);
-          return false;
-        }
-      } );
-      
-      // Backspace alone deletes element when not in text field
-      // Mousetrap's stopCallback will prevent this from firing in text fields automatically
-      Mousetrap.bind( 'backspace', function () {
-        try {
-          return handleDeletion(); 
-        } catch (e) {
-          console.error('Error in handleDeletion:', e);
-          return false;
-        }
-      } );
-    }
+    // Cmd/Ctrl+Backspace always deletes the selected line/element (even when editing text)
+    Mousetrap.bind( 'mod+backspace', function () {
+      try {
+        return handleDeletion( true );
+      } catch (e) {
+        console.error('Error in handleDeletion:', e);
+        return false;
+      }
+    } );
+
+    // Backspace alone deletes element when not in a text field (all platforms)
+    // handleDeletion returns true when focus is in INPUT/TEXTAREA so key is not eaten
+    Mousetrap.bind( 'backspace', function () {
+      try {
+        return handleDeletion();
+      } catch (e) {
+        console.error('Error in handleDeletion:', e);
+        return false;
+      }
+    } );
 
     /**
      * Toggles protection of the selected element's group.
@@ -1243,7 +1289,7 @@
         sel = '.selected';
       if ( typeof sel === 'string' )
         sel = $(svgRoot).find(sel);
-      sel = $(sel).closest('g, svg');
+      sel = ( sel && typeof sel.closest === 'function' ) ? sel.closest('g, svg') : $(sel).closest('g, svg');
       if ( sel.length === 0 )
         return false;
 
@@ -1333,59 +1379,43 @@
      * Turns off all edit modes.
      */
     function editModeOff() {
-      if ( self.util.finishDrawing && $(svgRoot).find('.drawing').length > 0 )
-        self.util.finishDrawing();
+      var fn = self.util.finishDrawing;
+      if ( typeof fn === 'function' && svgRoot && $(svgRoot).find('.drawing').length > 0 )
+        fn();
       self.util.finishDrawing = null;
       removeEditings();
 
-      for ( var n=0; n<self.mode.interactables.length; n++ )
-        self.mode.interactables[n].unset();
+      var interactables = self.mode.interactables;
+      for ( var n = 0; n < interactables.length; n++ )
+        interactables[n].unset();
       self.mode.interactables = [];
 
-      $(svgRoot)
-        .find('.dragpoint')
-        .remove();
+      var $root = svgRoot ? $(svgRoot) : $();
+      $root.find('.dragpoint').remove();
+      $root.find('.draggable').removeClass('draggable');
+      $root.find('.dropzone').removeClass('dropzone');
+      $root.find('.no-pointer-events').removeClass('no-pointer-events');
+      $root.find('.selectable').removeClass('selectable').off('click');
+      $root.find('.editable').removeClass('editable').off('dblclick').off('click').each( function () {
+        if ( typeof this.setEditing !== 'undefined' )
+          delete this.setEditing;
+      } );
 
-      //interact('#'+svgContainer.id+' .draggable').unset();
-      $(svgRoot)
-        .find('.draggable')
-        .removeClass('draggable');
-      //interact('#'+svgContainer.id+' .dropzone').unset();
-      $(svgRoot)
-        .find('.dropzone')
-        .removeClass('dropzone');
+      if ( self.cfg.textareaId ) {
+        var $ta = $('#' + self.cfg.textareaId);
+        if ( $ta.length )
+          $ta.off('input').val('').prop('disabled', true);
+      }
 
-      $(svgRoot)
-        .find('.no-pointer-events')
-        .removeClass('no-pointer-events');
-
-      $(svgRoot)
-        .find('.selectable')
-        .removeClass('selectable')
-        .off('click');
-
-      $(svgRoot)
-        .find('.editable')
-        .removeClass('editable')
-        .off('dblclick')
-        .off('click')
-        .each( function () {
-            if ( typeof this.setEditing !== 'undefined' )
-              delete this.setEditing;
-          } );
-
-      $('#'+self.cfg.textareaId)
-        //.off('keyup change')
-        .off('input')
-        .val('')
-        .prop( 'disabled', true );
-
-      for ( n=0; n<self.mode.disablers.length; n++ )
-        self.mode.disablers[n]();
+      var disablers = self.mode.disablers;
+      for ( n = 0; n < disablers.length; n++ )
+        disablers[n]();
       self.mode.disablers = [];
 
-      for ( n=0; n<self.cfg.onModeOff.length; n++ )
-        self.cfg.onModeOff[n]();
+      var onModeOff = self.cfg.onModeOff;
+      if ( Array.isArray(onModeOff) )
+        for ( n = 0; n < onModeOff.length; n++ )
+          onModeOff[n]();
 
       return false;
     }
@@ -1394,17 +1424,21 @@
      * Removes all current editings.
      */
     function removeEditings( event ) {
-      if ( ! self.util.dragging ) {
-        $(svgRoot).find('.editing').each( function () {
-            if ( typeof this.removeEditing !== 'undefined' )
-              this.removeEditing(true);
-            //else
-            //  $(this).removeClass('editing');
-            $(this).removeClass('editing').addClass('prev-editing');
-
-            for ( var k=0; k<self.cfg.onRemoveEditing.length; k++ )
-              self.cfg.onRemoveEditing[k](this);
-          } );
+      if ( ! self.util.dragging && svgRoot ) {
+        var editing = $(svgRoot).find('.editing');
+        if ( editing.length === 0 )
+          return;
+        var onRemove = self.cfg.onRemoveEditing;
+        var hasCallbacks = Array.isArray(onRemove) && onRemove.length > 0;
+        editing.each( function () {
+          var el = this;
+          if ( typeof el.removeEditing !== 'undefined' )
+            el.removeEditing(true);
+          $(el).removeClass('editing').addClass('prev-editing');
+          if ( hasCallbacks )
+            for ( var k = 0; k < onRemove.length; k++ )
+              onRemove[k](el);
+        } );
       }
       if ( event ) {
         event.preventDefault();
@@ -1414,23 +1448,32 @@
     function handleEscape(e) {
       if ( ! self.cfg.captureEscape )
         return true;
-      for ( var n=0; n<self.cfg.onEscOverride.length; n++ )
-        if ( ! self.cfg.onEscOverride[n](e) )
-          return true;
-      if ( $(svgRoot).find('.editing').length > 0 )
+      var onEscOverride = self.cfg.onEscOverride;
+      if ( Array.isArray(onEscOverride) )
+        for ( var n = 0; n < onEscOverride.length; n++ )
+          if ( typeof onEscOverride[n] === 'function' && ! onEscOverride[n](e) )
+            return true;
+      var $root = svgRoot ? $(svgRoot) : $();
+      if ( $root.find('.editing').length > 0 )
         removeEditings();
-      else if ( $(svgRoot).find('.drawing').length > 0 )
-        self.util.finishDrawing();
+      else if ( $root.find('.drawing').length > 0 ) {
+        var fn = self.util.finishDrawing;
+        if ( typeof fn === 'function' )
+          fn();
+      }
       else if ( self.mode.currentMultisel ) {
-        $(svgRoot).find('.selected').removeClass('selected');
+        $root.find('.selected').removeClass('selected');
         var currentMultisel = self.mode.currentMultisel;
         self.mode.currentMultisel = null;
         currentMultisel();
       }
       else {
-        $(svgRoot).find('.prev-editing').removeClass('prev-editing');
-        for ( var k=0; k<self.cfg.onNoEditEsc.length; k++ )
-          self.cfg.onNoEditEsc[k]();
+        $root.find('.prev-editing').removeClass('prev-editing');
+        var onNoEditEsc = self.cfg.onNoEditEsc;
+        if ( Array.isArray(onNoEditEsc) )
+          for ( var k = 0; k < onNoEditEsc.length; k++ )
+            if ( typeof onNoEditEsc[k] === 'function' )
+              onNoEditEsc[k]();
       }
       return false;
     }
@@ -1463,10 +1506,13 @@
               break;
           }
 
-          $(svgRoot).find('.prev-editing').removeClass('prev-editing');
-
-          for ( var k=0; k<self.cfg.onSetEditing.length; k++ )
-            self.cfg.onSetEditing[k](svgElem);
+          if ( svgRoot )
+            $(svgRoot).find('.prev-editing').removeClass('prev-editing');
+          var onSetEditing = self.cfg.onSetEditing;
+          if ( Array.isArray(onSetEditing) )
+            for ( var k = 0; k < onSetEditing.length; k++ )
+              if ( typeof onSetEditing[k] === 'function' )
+                onSetEditing[k](svgElem);
         }
       }
 
@@ -1480,20 +1526,24 @@
      * Function to enable editing to the element that was previously being edited.
      */
     function prevEditing() {
-      //$(svgRoot).find('.prev-editing').removeClass('prev-editing').click();
-      var prev = $(svgRoot).find('.prev-editing');
+      if ( ! svgRoot )
+        return;
+      var $root = $(svgRoot);
+      var prev = $root.find('.prev-editing');
       if ( prev.length > 0 )
         prev.removeClass('prev-editing').click();
       else
-        $(svgRoot).find('.editable').first().click();
+        $root.find('.editable').first().click();
     }
 
     /**
      * Function to get current editables sorted if editablesSortCompare defined.
      */
     function getSortedEditables() {
+      if ( ! svgRoot )
+        return $();
       var editables = $(svgRoot).find('.editable');
-      if ( editables.length > 0 && self.cfg.editablesSortCompare )
+      if ( editables.length > 0 && typeof self.cfg.editablesSortCompare === 'function' )
         editables.sort(self.cfg.editablesSortCompare);
       return editables;
     }
@@ -1503,11 +1553,13 @@
      * Function to cycle through editables using a keyboard shortcut.
      */
     function cycleEditables( offset, e ) {
-      if ( document.activeElement != $('#'+self.cfg.textareaId)[0] && 
+      var tid = self.cfg.textareaId;
+      if ( tid && document.activeElement !== $('#' + tid)[0] &&
            $(document.activeElement).filter('input[type=text], textarea').length > 0 )
         return true;
-      var
-      editables = getSortedEditables(),
+      if ( ! svgRoot )
+        return;
+      var editables = getSortedEditables(),
       currEditing = $(svgRoot).find('.editing'),
       newEditing;
       if ( editables.length === 0 )
@@ -2872,8 +2924,9 @@
         .mousemove(updatePoint)
         .click(handleClick);
 
-      var eventList = $._data(svgRoot,'events');
-      eventList.click.unshift(eventList.click.pop()); // Make this click event first in queue
+      var eventList = $._data(svgRoot, 'events');
+      if ( eventList && eventList.click && eventList.click.length > 0 )
+        eventList.click.unshift(eventList.click.pop()); // Make draw click handler first in queue
 
       self.mode.disablers.push( function () {
           $(svgRoot)
@@ -3050,9 +3103,11 @@
 
         $(elem).removeClass('drawing');
 
-        if ( ! isvalidpoly(pointListToArray(elem.points),elem,true) )
+        if ( ! isvalidpoly(pointListToArray(elem.points),elem,true) ) {
+          if ( svgRoot )
+            $(svgRoot).find('.dragpoint').remove();
           delpoly(elem);
-
+        }
         else if ( typeof onfinish === 'function' )
           onfinish(elem);
 
@@ -3065,8 +3120,9 @@
         .mousemove(updatePoint)
         .click(addPoint);
 
-      var eventList = $._data(svgRoot,'events');
-      eventList.click.unshift(eventList.click.pop()); // Make this click event first in queue
+      var eventList = $._data(svgRoot, 'events');
+      if ( eventList && eventList.click && eventList.click.length > 0 )
+        eventList.click.unshift(eventList.click.pop()); // Make draw click handler first in queue
 
       self.mode.disablers.push( function () {
           $(svgRoot)
