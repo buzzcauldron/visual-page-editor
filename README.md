@@ -4,7 +4,7 @@ A modern visual editor for Page XML files, based on [nw-page-editor](https://git
 
 **GitHub Repository:** [https://github.com/buzzcauldron/visual-page-editor](https://github.com/buzzcauldron/visual-page-editor)
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 
 ## Description
 

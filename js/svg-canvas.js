@@ -587,10 +587,10 @@
       }
       $(svgRoot).on('wheel',wheelPanZoom);
 
-      /// Keyboard shortcuts ///
+      /// Keyboard shortcuts (see KEYBOARD-SHORTCUTS.md) ///
       Mousetrap.bind( ['alt+0','mod+0'], function () { return fitPage(); } );
-      Mousetrap.bind( ['alt+shift w','mod+shift w'], function () { return fitWidth(); } );
-      Mousetrap.bind( ['alt+shift h','mod+shift h'], function () { return fitHeight(); } );
+      Mousetrap.bind( ['alt+shift+w','mod+shift+w'], function () { return fitWidth(); } );
+      Mousetrap.bind( ['alt+shift+h','mod+shift+h'], function () { return fitHeight(); } );
       Mousetrap.bind( ['alt+=','mod+='], function () { return zoom(1,selectedCenter()); } );
       Mousetrap.bind( ['alt+-','mod+-'], function () { return zoom(-1,selectedCenter()); } );
       Mousetrap.bind( ['alt+right','mod+right'], function () { return pan(-0.02,0); } );
@@ -598,9 +598,12 @@
       Mousetrap.bind( ['alt+up',   'mod+up'], function () { return pan(0,0.02); } );
       Mousetrap.bind( ['alt+down', 'mod+down'], function () { return pan(0,-0.02); } );
 
-      /// Pan by dragging ///
+      /// Pan by dragging (smoothing: inertia + pointer tolerance for easier use) ///
+      if ( typeof interact !== 'undefined' && typeof interact.pointerMoveTolerance === 'function' ) {
+        interact.pointerMoveTolerance( 6 );
+      }
       interact(svgRoot)
-        .draggable({})
+        .draggable( { inertia: true } )
         //.ignoreFrom('text')
         .styleCursor(false)
         .on( 'dragstart', function () {
@@ -928,28 +931,19 @@
 
       pushChangeHistory('svg load');
 
-      /// Revise any 'main' labels to 'default' upon opening ///
-      $(svgRoot).find('.TextLine').each(function() {
-        var g = $(this);
-        var attr = g.attr('custom');
-        if ( typeof attr !== 'undefined' && attr.match(/type\s*\{type\s*:\s*main\s*;\s*\}/) ) {
-          attr = attr.replace(/type\s*\{type\s*:\s*main\s*;\s*\}/g, 'type {type:default;}');
-          g.attr('custom', attr);
-        }
-      });
-      /// Add baseline type CSS classes (keep default as default) ///
+      /// Add baseline type CSS classes ///
       $(svgRoot).find('.TextLine').each(function() {
         var g = $(this);
         var attr = g.attr('custom');
         // Add class based on baseline type (if getBaselineType is available, otherwise default to default)
         if ( typeof self.util.getBaselineType === 'function' ) {
           var baselineType = self.util.getBaselineType(g[0]);
-          g.removeClass('baseline-default baseline-main baseline-margin');
+          g.removeClass('baseline-default baseline-margin');
           g.addClass('baseline-' + baselineType);
         } else {
-          var match = attr && attr.match(/type\s*\{type\s*:\s*(main|margin|default)\s*;\s*\}/);
+          var match = attr && attr.match(/type\s*\{type\s*:\s*(default|margin)\s*;\s*\}/);
           var baselineType = match ? match[1] : 'default';
-          g.removeClass('baseline-default baseline-main baseline-margin');
+          g.removeClass('baseline-default baseline-margin');
           g.addClass('baseline-' + baselineType);
         }
       });
@@ -2399,7 +2393,7 @@
       }
       Mousetrap.bind( '+ .', addPolyPoint );
 
-      /// Setup dragpoints for dragging ///
+      /// Setup dragpoints for dragging (no inertia for precise control) ///
       var interactable = interact('#'+svgContainer.id+' .dragpoint')
         .draggable( {
             onstart: function ( event ) {
@@ -2628,6 +2622,7 @@
       selectFiltered(drag_selector).addClass('draggable');
       var interactable = interact('#'+svgContainer.id+' .draggable')
         .draggable( {
+            inertia: { resistance: 30, endSpeed: 80 },
             onstart: function ( event ) {
                 $(event.target).addClass('dragging');
                 selectElem(event.target);

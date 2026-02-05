@@ -59,6 +59,9 @@
   </div>
 
   <div id="drawer">
+    <div class="drawer-header">
+      <button type="button" id="drawerClose" class="drawer-close" title="Close menu (Mod+Enter)" aria-label="Close menu">&#215;</button>
+    </div>
     <fieldset id="generalFieldset">
       <input style="display:none;" id="openFileDialog" type="file" accept=".xml,image/*" multiple=""/>
       <input style="display:none;" id="saveFileAsDialog" type="file" accept=".xml" nwsaveas=""/>
@@ -68,6 +71,7 @@
       <button id="print">Print</button>
       <button id="quit">Quit</button>
       <button id="openReadme">Readme</button>
+      <button id="openShortcuts" class="tooltip-down" data-tooltip="Mod+?">Shortcuts</button>
       <button id="pageXmlValidate">Validate against Page XML schema</button>
       <label id="autoSave"><input class="mousetrap" type="checkbox"/> Auto-save</label>
       <label id="centerSelected"><input class="mousetrap" type="checkbox"/> Center on selection</label>
@@ -75,6 +79,10 @@
     </fieldset>
     <fieldset id="editModesFieldset">
       <legend class="tooltip-down" data-tooltip="Cycle via keyboard:&#xa;Mod+, / Mod+. (element type / tool)&#xa;Mod+Shift+, / Mod+Shift+. (reverse)&#xa;Mod = Ctrl (Win/Linux) or Cmd (macOS)">Edit modes</legend>
+      <div class="edit-keyboard-shortcuts-hint">
+        <button type="button" id="openEditShortcuts" class="link-style">Edit keyboard shortcuts</button>
+        <span class="hint-text"> Mod+, Mod+. cycle · Mod+E properties · Tab next · Mod+? all</span>
+      </div>
       <div class="radio-set">
         <label id="selMode"><input class="mousetrap" type="radio" name="mode2" value="select" checked=""/> Select</label>
         <label id="baseMode"><input class="mousetrap" type="radio" name="mode2" value="baseline"/> Baseline</label>
@@ -83,7 +91,7 @@
         <label id="modifyMode"><input class="mousetrap" type="radio" name="mode2" value="modify"/> Modify</label>
         <label id="createMode"><input class="mousetrap" type="radio" name="mode2" value="create"/> Create</label>
         <label id="textMode"><input class="mousetrap" type="checkbox"/> Text editable</label>
-        <label id="editAfterCreate"><input class="mousetrap" type="checkbox" checked=""/> Edit mode after create</label>
+        <label id="editAfterCreate"><input class="mousetrap" type="checkbox"/> Edit mode after create</label>
       </div>
       <div class="radio-set">
         <label id="pageMode"><input class="mousetrap" type="radio" name="mode1" value="page"/> Page</label>
@@ -142,7 +150,6 @@
       <div>
         Baseline type:
         <label id="baseline-type-default"><input class="mousetrap" type="radio" name="baseline-type" value="default" checked=""/> Default</label>
-        <label id="baseline-type-main"><input class="mousetrap" type="radio" name="baseline-type" value="main"/> Main</label>
         <label id="baseline-type-margin"><input class="mousetrap" type="radio" name="baseline-type" value="margin"/> Margin</label>
       </div>
       <div>

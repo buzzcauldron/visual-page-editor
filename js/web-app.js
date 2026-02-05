@@ -24,8 +24,6 @@ $(window).on('load', function () {
   /// Keyboard bindings ///
   Mousetrap.bind( 'pagedown', function () { $('#nextPage').click(); return false; } );
   Mousetrap.bind( 'pageup', function () { $('#prevPage').click(); return false; } );
-  Mousetrap.bind( ['left', 'up'], function () { $('#prevPage').click(); return false; } );
-  Mousetrap.bind( ['right', 'down'], function () { $('#nextPage').click(); return false; } );
 
   /// Confirm that changes will be saved ///
   function confirmSave( afterconfirm ) {
