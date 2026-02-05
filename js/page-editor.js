@@ -793,13 +793,16 @@ $(window).on('load', function () {
     }
   } );
 
-  /// Keyboard shortcuts to cycle through edit modes ///
+  /// Keyboard shortcuts to cycle through edit modes (persist same as radio click) ///
   function cycleEditMode( name, offset ) {
     var
     opts = $('#editModesFieldset input[name='+name+']:not([disabled])'),
     optsel = opts.index(opts.filter(':checked'));
-    if ( opts.length > 1 )
+    if ( opts.length > 1 ) {
       opts.eq( (optsel+offset)%opts.length ).parent().click();
+      if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
+      if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
+    }
     return false;
   }
   Mousetrap.bind( 'mod+,', function () { return cycleEditMode( 'mode1', 1 ); } );
@@ -820,8 +823,18 @@ $(window).on('load', function () {
     if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
     return false;
   } );
-  Mousetrap.bind( 'm', function () { applyBaselineTypeToSelected('margin'); return false; } );
-  Mousetrap.bind( 'd', function () { applyBaselineTypeToSelected('default'); return false; } );
+  Mousetrap.bind( 'm', function () {
+    applyBaselineTypeToSelected('margin');
+    if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
+    if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
+    return false;
+  } );
+  Mousetrap.bind( 'd', function () {
+    applyBaselineTypeToSelected('default');
+    if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
+    if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
+    return false;
+  } );
 
   /// Save state of drawer in local storage (debounced to reduce writes) ///
   var saveDrawerStateTimer;

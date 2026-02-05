@@ -2446,12 +2446,18 @@ console.log(reg[0]);
       var editAfterCreate = self.cfg.editAfterCreate !== false;
       if ( editAfterCreate ) {
         window.setTimeout( function () {
+            if ( typeof self.snapImageToLeft === 'function' )
+              self.snapImageToLeft();
             if ( typeof $(baseline).parent()[0].setEditing !== 'undefined' )
               $(baseline).parent()[0].setEditing();
-            self.util.selectElem(baseline, true);
+            self.util.selectElem(baseline, true, true);
           }, 50 );
       } else {
-        requestAnimationFrame( function () { self.util.selectElem(baseline, true); } );
+        requestAnimationFrame( function () {
+            if ( typeof self.snapImageToLeft === 'function' )
+              self.snapImageToLeft();
+            self.util.selectElem(baseline, true, true);
+          } );
       }
 
       for ( var n=0; n<self.cfg.onFinishBaseline.length; n++ )
@@ -2703,7 +2709,12 @@ console.log(reg[0]);
                 self.util.setEditing( event, 'points', { points_selector: '> polygon', restrict: restrict } );
               };
           } );
-      window.setTimeout( function () { $(coords).parent()[0].setEditing(); self.util.selectElem(coords,true); }, 50 );
+      window.setTimeout( function () {
+        if ( typeof self.snapImageToLeft === 'function' )
+          self.snapImageToLeft();
+        $(coords).parent()[0].setEditing();
+        self.util.selectElem(coords, true, true);
+      }, 50 );
 
       for ( var n=0; n<self.cfg.onFinishCoords.length; n++ )
         self.cfg.onFinishCoords[n](coords,elem_type,restrict);
@@ -3223,9 +3234,11 @@ console.log(reg[0]);
               };
           } );
       window.setTimeout( function () {
+          if ( typeof self.snapImageToLeft === 'function' )
+            self.snapImageToLeft();
           var elem = $(self.util.svgRoot).find('.TextRegion[id^='+id+']')[0];
           elem.setEditing();
-          self.util.selectElem(elem,true);
+          self.util.selectElem(elem, true, true);
         }, 50 );
 
       for ( var n=0; n<self.cfg.onFinishTable.length; n++ )
