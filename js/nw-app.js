@@ -205,7 +205,7 @@ $(window).on('load', function () {
   }
 
   /// Parse arguments and load file ///
-  function parseArgs( argv, loaddir ) {
+  function parseArgs( argv, loaddir, initialFileNum ) {
     argv = argv.filter(v => v!=='');
     if ( argv.length === 0 )
       return false;
@@ -276,6 +276,8 @@ $(window).on('load', function () {
       files = fs.readdirSync(basedir).filter(f => reExt.test(f) || basefile0 == f).map(f => path.join(basedir, f));
       fileNum = files.indexOf(file0)+1;
     }
+    if ( typeof initialFileNum === 'number' && initialFileNum >= 1 && initialFileNum <= files.length )
+      fileNum = initialFileNum;
 
     fileList = files;
     prevNum = 0;
@@ -348,6 +350,9 @@ $(window).on('load', function () {
         prevFileContents = data;
         window.loadedFile = loadedFile = filepath;
         prevNum = fileNum;
+        try {
+          localStorage.lastOpenFiles = JSON.stringify({ fileList: fileList, fileNum: fileNum });
+        } catch ( e ) { /* ignore storage errors */ }
         pageCanvas.loadXmlPage( data, 'file://'+filepath, function (m) { finishFileLoad(); pageCanvas.closeDocument(); pageCanvas.warning('Problems loading file '+filepath+'\n\n'+m); } );
         $('title').text(newtitle);
       } );
@@ -379,7 +384,7 @@ $(window).on('load', function () {
         } );
     } );
 
-  /// Open file if provided as argument ///
+  /// Open file if provided as argument, else try last open file ///
   if ( nw.App.argv.length > 0 && window.location.hash === '#1' ) {
     global.pageWindows = [ true ];
     if ( parseArgs(nw.App.argv) )
@@ -388,10 +393,24 @@ $(window).on('load', function () {
             pageCanvas.fitPage();
         }, 300 );
   }
-  else if ( iswin )
-    global.pageWindows = [ true ];
-  else
-    global.pageWindows.push(true);
+  else {
+    var lastOpen = null;
+    try {
+      if ( typeof localStorage.lastOpenFiles !== 'undefined' )
+        lastOpen = JSON.parse(localStorage.lastOpenFiles);
+    } catch ( e ) { /* ignore */ }
+    if ( lastOpen && lastOpen.fileList && lastOpen.fileList.length > 0 && fs.existsSync(lastOpen.fileList[0]) ) {
+      if ( parseArgs(lastOpen.fileList, false, lastOpen.fileNum) )
+        window.setTimeout( function () {
+            if ( typeof pageCanvas.fitPage !== 'undefined' )
+              pageCanvas.fitPage();
+          }, 300 );
+    }
+    if ( iswin )
+      global.pageWindows = [ true ];
+    else
+      global.pageWindows.push(true);
+  }
 
   if ( typeof global.argv !== 'undefined' ) {
     if ( parseArgs(global.argv) )
