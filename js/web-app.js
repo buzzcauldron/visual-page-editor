@@ -1,7 +1,7 @@
 /**
  * App functionality for the web edition of visual-page-editor.
  *
- * @version 1.1.3
+ * @version 1.2.0
  * @author Mauricio Villegas <mauricio_ville@yahoo.com>
  * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
  * @license MIT License

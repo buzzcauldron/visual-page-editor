@@ -1,7 +1,7 @@
 /**
  * Javascript library for viewing and interactive editing of Page XMLs.
  *
- * @version 1.1.3
+ * @version 1.2.0
  * @author Mauricio Villegas <mauricio_ville@yahoo.com>
  * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
  * @license MIT License
@@ -23,7 +23,7 @@
   'use strict';
 
   var
-  version = ( typeof window !== 'undefined' && window.PAGE_EDITOR_VERSION ) || '1.0.0';
+  version = ( typeof window !== 'undefined' && window.PAGE_EDITOR_VERSION ) || '1.2.0';
 
   /// Set PageCanvas global object ///
   if ( ! global.PageCanvas )

@@ -2,7 +2,7 @@
 REM
 REM Command line launcher for visual-page-editor (Windows).
 REM
-REM @version 1.1.3
+REM @version 1.2.0
 REM @author buzzcauldron
 REM @copyright Copyright(c) 2025, buzzcauldron
 REM @license MIT License

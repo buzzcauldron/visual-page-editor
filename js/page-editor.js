@@ -1,7 +1,7 @@
 /**
  * Interactive editing of Page XMLs functionality.
  *
- * @version 1.1.3
+ * @version 1.2.0
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -187,10 +187,9 @@ $(window).on('load', function () {
   }
 
   function scaleFont( fact ) {
-    var
-    currSize = parseFloat( $('#textinfo').css('font-size') ),
-    cssrule = '#'+pageCanvas.cfg.stylesId+'{ #textedit, #textinfo }';
-    $.stylesheet(cssrule).css( 'font-size', (fact*currSize)+'px' );
+    var currSize = parseFloat( $('#textinfo').css('font-size') ),
+        cssrule = '#' + pageCanvas.cfg.stylesId + '{ #textedit, #textinfo }';
+    safeStylesheet(cssrule, 'font-size', (fact * currSize) + 'px');
     saveDrawerState();
   }
   Mousetrap.bind( 'mod+shift+pagedown', function () { scaleFont(0.9); return false; } );
@@ -588,14 +587,31 @@ $(window).on('load', function () {
     return true;
   }
 
+  /// Apply a stylesheet rule; on failure (e.g. CSS not loaded yet) fall back to inline style so layout still works.
+  function safeStylesheet( selector, prop, value ) {
+    try {
+      $.stylesheet(selector).css(prop, value);
+    } catch ( e ) {
+      console.warn('[page-editor] stylesheet update failed, using inline fallback', e.message || e);
+      var fallback = selector.indexOf('page_container') !== -1 ? '#xpg' :
+        selector.indexOf('#cursor') !== -1 ? '#cursor' :
+        selector.indexOf('#textedit') !== -1 && selector.indexOf('#textinfo') !== -1 ? '#textedit, #textinfo' :
+        selector.indexOf('#textinfo') !== -1 ? '#textinfo' :
+        selector.indexOf('#textedit') !== -1 ? '#textedit' : null;
+      if ( fallback )
+        $(fallback).css(prop, value);
+    }
+  }
+
   /// Resize container when window size changes ///
   function adjustSize() {
     var height = $(window).innerHeight() - $('#statusBar').outerHeight();
     if ( $('#hide-text-edit input').prop('checked') )
       height -= $('#textedit').outerHeight();
-    $.stylesheet('#page_styles { .page_container }').css( 'height', height+'px' );
-    $.stylesheet('#page_styles { #cursor }').css( 'bottom', $('#hide-text-edit input').prop('checked') ? $('#textedit').outerHeight()+'px' : 0 );
-    pageCanvas.adjustViewBox();
+    safeStylesheet('#page_styles { .page_container }', 'height', height + 'px');
+    safeStylesheet('#page_styles { #cursor }', 'bottom', $('#hide-text-edit input').prop('checked') ? $('#textedit').outerHeight() + 'px' : '0');
+    if ( typeof pageCanvas.adjustViewBox === 'function' )
+      pageCanvas.adjustViewBox();
   }
   adjustSize();
   $(window).resize(adjustSize);
@@ -605,7 +621,7 @@ $(window).on('load', function () {
   interact('#textedit')
     .resizable( { edges: { left: false, right: false, bottom: false, top: true } } )
     .on( 'resizemove', function ( event ) {
-        $.stylesheet('#page_styles { #textedit, #textinfo }').css( 'height', event.rect.height+'px' );
+        safeStylesheet('#page_styles { #textedit, #textinfo }', 'height', event.rect.height + 'px');
         saveDrawerState();
         adjustSize();
       } );
@@ -614,8 +630,8 @@ $(window).on('load', function () {
   interact('#textinfo')
     .resizable( { edges: { left: true, right: false, bottom: false, top: false } } )
     .on( 'resizemove', function ( event ) {
-        $.stylesheet('#page_styles { #textinfo }').css( 'width', event.rect.width+'px' );
-        $.stylesheet('#page_styles { #textedit }').css( 'padding-right', event.rect.width+'px' );
+        safeStylesheet('#page_styles { #textinfo }', 'width', event.rect.width + 'px');
+        safeStylesheet('#page_styles { #textedit }', 'padding-right', event.rect.width + 'px');
         saveDrawerState();
       } );
 
@@ -897,14 +913,14 @@ $(window).on('load', function () {
           $(this).val(drawerState[$(this).attr('name')]);
       } );
     if ( 'bottom_pane_font_size' in drawerState )
-      $.stylesheet('#page_styles { #textedit, #textinfo }').css( 'font-size', drawerState.bottom_pane_font_size+'px' );
+      safeStylesheet('#page_styles { #textedit, #textinfo }', 'font-size', drawerState.bottom_pane_font_size + 'px');
     if ( 'bottom_pane_height' in drawerState ) {
-      $.stylesheet('#page_styles { #textedit, #textinfo }').css( 'height', drawerState.bottom_pane_height );
+      safeStylesheet('#page_styles { #textedit, #textinfo }', 'height', drawerState.bottom_pane_height);
       adjustSize();
     }
     if ( 'bottom_info_width' in drawerState ) {
-      $.stylesheet('#page_styles { #textinfo }').css( 'width', drawerState.bottom_info_width );
-      $.stylesheet('#page_styles { #textedit }').css( 'padding-right', drawerState.bottom_info_width );
+      safeStylesheet('#page_styles { #textinfo }', 'width', drawerState.bottom_info_width);
+      safeStylesheet('#page_styles { #textedit }', 'padding-right', drawerState.bottom_info_width);
     }
     handleEditMode();
   }
