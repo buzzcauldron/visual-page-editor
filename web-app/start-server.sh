@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##
-## @version $Version: 1.1.3$
+## @version $Version: 1.2.0$
 ## @author buzzcauldron
 ## @copyright Copyright(c) 2025, buzzcauldron
 ## @license MIT License

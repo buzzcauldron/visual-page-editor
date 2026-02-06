@@ -1,7 +1,7 @@
 /**
  * Javascript library for viewing and interactive editing of SVGs.
  *
- * @version 1.1.3
+ * @version 1.2.0
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -24,7 +24,7 @@
   var
   sns = 'http://www.w3.org/2000/svg',
   xns = 'http://www.w3.org/1999/xlink',
-  version = ( typeof window !== 'undefined' && window.PAGE_EDITOR_VERSION ) || '1.0.0';
+  version = ( typeof window !== 'undefined' && window.PAGE_EDITOR_VERSION ) || '1.2.0';
 
   /// Set SvgCanvas global object ///
   if ( ! global.SvgCanvas )
@@ -1411,9 +1411,8 @@
      * Turns off all edit modes.
      */
     function editModeOff() {
-      var fn = self.util.finishDrawing;
-      if ( typeof fn === 'function' && svgRoot && $(svgRoot).find('.drawing').length > 0 )
-        fn();
+      // Do not call finishDrawing on mode switch: any in-progress poly (e.g. create-line) is
+      // cancelled by the mode's disabler (remove element) rather than committed.
       self.util.finishDrawing = null;
       removeEditings();
 
@@ -1443,8 +1442,13 @@
       }
 
       var disablers = self.mode.disablers;
-      for ( n = 0; n < disablers.length; n++ )
-        disablers[n]();
+      for ( n = 0; n < disablers.length; n++ ) {
+        try {
+          disablers[n]();
+        } catch ( err ) {
+          console.warn( '[svg-canvas] mode disabler threw', err );
+        }
+      }
       self.mode.disablers = [];
 
       var onModeOff = self.cfg.onModeOff;
@@ -2955,6 +2959,15 @@
         eventList.click.unshift(eventList.click.pop()); // Make draw click handler first in queue
 
       self.mode.disablers.push( function () {
+          try {
+            if ( elem ) {
+              delrect( elem );
+              elem = false;
+            }
+          } catch ( err ) {
+            console.warn( '[svg-canvas] cancel in-progress rect failed', err );
+            elem = false;
+          }
           $(svgRoot)
             .off( 'mousemove', updatePoint )
             .off( 'click', handleClick );
@@ -3151,6 +3164,15 @@
         eventList.click.unshift(eventList.click.pop()); // Make draw click handler first in queue
 
       self.mode.disablers.push( function () {
+          try {
+            if ( elem ) {
+              delpoly( elem );
+              elem = false;
+            }
+          } catch ( err ) {
+            console.warn( '[svg-canvas] cancel in-progress draw failed', err );
+            elem = false;
+          }
           $(svgRoot)
             .off( 'mousemove', updatePoint )
             .off( 'click', addPoint );
