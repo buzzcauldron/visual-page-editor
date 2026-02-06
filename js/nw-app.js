@@ -347,6 +347,11 @@ $(window).on('load', function () {
     require('fs').readFile( filepath, 'utf8', function ( err, data ) {
         if ( err ) {
           finishFileLoad();
+          if ( err.code === 'ENOENT' ) {
+            showFileExpectedToast( 'File not found: ' + filepath );
+            console.warn( 'ENOENT opening file:', filepath );
+            return;
+          }
           return pageCanvas.cfg.handleError( err );
         }
         prevFileContents = data;
@@ -410,9 +415,11 @@ $(window).on('load', function () {
       if ( typeof localStorage.lastOpenFiles !== 'undefined' )
         lastOpen = JSON.parse(localStorage.lastOpenFiles);
     } catch ( e ) { /* ignore */ }
-    if ( lastOpen && lastOpen.fileList && lastOpen.fileList.length > 0 && fs.existsSync(lastOpen.fileList[0]) &&
+    if ( lastOpen && lastOpen.fileList && lastOpen.fileList.length > 0 &&
          $( '#openLastFileOnStartup input' ).prop( 'checked' ) ) {
-      if ( parseArgs(lastOpen.fileList, false, lastOpen.fileNum) )
+      var idx = (typeof lastOpen.fileNum === 'number' && lastOpen.fileNum >= 1 && lastOpen.fileNum <= lastOpen.fileList.length)
+        ? lastOpen.fileNum - 1 : 0;
+      if ( fs.existsSync(lastOpen.fileList[idx]) && parseArgs(lastOpen.fileList, false, lastOpen.fileNum) )
         window.setTimeout( function () {
             if ( typeof pageCanvas.fitPage !== 'undefined' )
               pageCanvas.fitPage();
