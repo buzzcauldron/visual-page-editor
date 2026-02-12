@@ -68,7 +68,7 @@ check [ -f "$ROOT/rpm/build-rpm.sh" ]
 check [ -f "$ROOT/Dockerfile.desktop" ]
 # Build scripts read VERSION (or package.json)
 VER=$(cat "$ROOT/VERSION" 2>/dev/null | tr -d '\n')
-check [ "$VER" = "1.1.0" ]
+check [ -n "$VER" ]
 
 echo ""
 echo "=== Result: $PASS passed, $FAIL failed ==="

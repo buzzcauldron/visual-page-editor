@@ -48,7 +48,9 @@ build_rpm() {
     
     echo -e "${YELLOW}Building RPM package using Docker...${NC}"
     
-    docker run --rm -it \
+    DOCKER_TTY=""
+    [ -t 0 ] && DOCKER_TTY="-t"
+    docker run --rm -i $DOCKER_TTY \
         -v "$PROJECT_ROOT:/workspace" \
         -w /workspace \
         -e NWJS_VERSION="$NWJS_VERSION" \
@@ -76,14 +78,21 @@ build_rpm() {
 build_deb() {
     echo -e "${YELLOW}Building DEB package using Docker...${NC}"
     
-    docker run --rm -it \
+    DOCKER_TTY=""
+    [ -t 0 ] && DOCKER_TTY="-t"
+    docker run --rm -i $DOCKER_TTY \
         -v "$PROJECT_ROOT:/workspace" \
         -w /workspace \
         -e NWJS_VERSION="$NWJS_VERSION" \
         debian:latest bash -c "
         apt-get update &&
-        apt-get install -y build-essential devscripts curl tar gzip git perl &&
-        ./build-deb.sh
+        apt-get install -y build-essential devscripts curl tar gzip git perl \
+          libx11-xcb1 libxcomposite1 libxdamage1 libxfixes3 libxi6 libxrender1 libxtst6 \
+          libcups2 libdbus-1-3 libxss1 libxrandr2 libasound2 libatk1.0-0 \
+          libpangocairo-1.0-0 libpango-1.0-0 libcairo2 libatspi2.0-0 libgtk-3-0 libgdk-pixbuf-2.0-0 \
+          libnss3 libnspr4 &&
+        ./build-deb.sh &&
+        cp -v ../visual-page-editor_*.deb /workspace/ 2>/dev/null || true
     "
     
     echo -e "${GREEN}DEB build completed!${NC}"
