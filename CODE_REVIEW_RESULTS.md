@@ -51,6 +51,49 @@
 
 ---
 
+## Session review (recent changes)
+
+**Scope:** nw-app.js (file open, XSD), page-editor.js (safeStylesheet), svg-canvas.js (mode off / disablers).
+
+### nw-app.js
+
+| Change | Review |
+|--------|--------|
+| **Last-open file at startup** | We now check existence of the file we actually load (`fileList[fileNum-1]`), not just the first. Bounds on `fileNum` are correct; `idx` defaults to 0 if `fileNum` missing or out of range. ✓ |
+| **ENOENT in loadFile** | On `err.code === 'ENOENT'` we call `finishFileLoad()`, show toast, `console.warn`, and return without calling `handleError`. Other errors still go to `handleError`. ✓ |
+| **XSD load failure** | `onXsdFail` no longer calls `pageCanvas.throwError`. Uses `showFileExpectedToast` + `console.warn` so startup is not blocked when submodule is missing. ✓ |
+| **validatePageXml** | After `loadPageXmlXsd(false)` we check `if ( ! pagexml_xsd )` and show toast and return. With `async: false`, the sync load completes before we read `pagexml_xsd`. ✓ |
+
+**Minor:** If the user clicks "Validate" very soon after startup, the initial async XSD load may still be in flight; we then run a second sync load in `validatePageXml`. Acceptable; worst case we show the same toast. Optional improvement: expose a small “XSD ready” promise and have Validate wait for it with a short timeout.
+
+### page-editor.js
+
+| Change | Review |
+|--------|--------|
+| **safeStylesheet(selector, prop, value)** | try/catch around `$.stylesheet(selector).css(prop, value)`; on failure we infer a fallback selector from the string (e.g. `page_container` → `#xpg`) and apply the same prop with `$(fallback).css(prop, value)`. ✓ |
+| **Fallback mapping** | Heuristic (indexOf on selector string) is brittle if selector format changes but matches current usage. Only used for `#page_styles { ... }`-style selectors. ✓ |
+| **adjustSize** | Uses `safeStylesheet` for `.page_container` and `#cursor`; calls `pageCanvas.adjustViewBox` only if `typeof pageCanvas.adjustViewBox === 'function'`. ✓ |
+
+**Suggestion:** If more selectors are added, consider a small map (selector fragment → fallback) instead of repeated indexOf.
+
+### svg-canvas.js
+
+| Change | Review |
+|--------|--------|
+| **editModeOff** | No longer calls `finishDrawing()` on teardown. In-progress draw is cancelled by the mode’s disabler (delpoly/delrect). ✓ |
+| **setDrawPoly / setDrawRect disablers** | Each disabler: try { if (elem) delpoly/delrect(elem); elem = false } catch { console.warn; elem = false }; then unbind and clear finishDrawing. Ensures in-progress element is removed on mode switch and errors don’t leave state half-cleaned. ✓ |
+| **editModeOff disabler loop** | Each disabler run in try/catch; on throw we log and continue, then clear `disablers`. Prevents one bad disabler from blocking teardown. ✓ |
+
+**Note:** `elem` in the disabler is the closure variable from setDrawPoly/setDrawRect; it’s the correct reference for the in-progress shape. No leak after remove.
+
+### Summary
+
+- **Correctness:** Last-open check, ENOENT path, XSD non-fatal, and create-line cancel behavior are consistent and correct.
+- **Robustness:** Stylesheet fallback and disabler try/catch improve resilience to missing CSS and mode-teardown errors.
+- **UX:** Missing file and missing XSD no longer block with alerts; toasts and console messages are used instead.
+
+---
+
 ## How to Run Review Again
 
 ```bash
