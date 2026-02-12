@@ -1453,8 +1453,13 @@
 
       var onModeOff = self.cfg.onModeOff;
       if ( Array.isArray(onModeOff) )
-        for ( n = 0; n < onModeOff.length; n++ )
-          onModeOff[n]();
+        for ( n = 0; n < onModeOff.length; n++ ) {
+          try {
+            onModeOff[n]();
+          } catch ( err ) {
+            console.warn( '[svg-canvas] onModeOff callback threw', err );
+          }
+        }
 
       return false;
     }

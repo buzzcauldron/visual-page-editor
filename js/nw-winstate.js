@@ -105,29 +105,75 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 
-    //Make sure that the window is displayed somewhere on a screen that is connected to the PC. 
-    //Imagine you run the program on a secondary screen connected to a laptop - and then the next time you start the 
-    //program the screen is not connected...
+    // Make sure that the window is displayed somewhere on a screen that is connected to the PC.
     if (gui.Screen && typeof gui.Screen.Init === 'function') { gui.Screen.Init(); }
     var screens = (gui.Screen && gui.Screen.screens) ? gui.Screen.screens : [{ bounds: { x: 0, y: 0, width: 9999, height: 9999 } }];
+
+    // Primary screen: one containing (0,0) or first screen. Use work_area when available (excludes taskbar).
+    function getPrimaryArea() {
+      var area = { x: 0, y: 0, width: 800, height: 600 };
+      if (screens.length === 0) return area;
+      var primary = screens[0];
+      for (var p = 0; p < screens.length; p++) {
+        var b = screens[p].bounds;
+        if (b.x <= 0 && b.x + b.width > 0 && b.y <= 0 && b.y + b.height > 0) {
+          primary = screens[p];
+          break;
+        }
+      }
+      var b = primary.bounds;
+      if (primary.work_area && primary.work_area.width > 0 && primary.work_area.height > 0) {
+        area = primary.work_area;
+      } else {
+        area = { x: b.x, y: b.y, width: b.width, height: b.height };
+      }
+      return area;
+    }
+
     var locationIsOnAScreen = false;
     for (var i = 0; i < screens.length; i++) {
       var screen = screens[i];
-      if (winState.x > screen.bounds.x && winState.x < screen.bounds.x + screen.bounds.width) {
-        if (winState.y > screen.bounds.y && winState.y < screen.bounds.y + screen.bounds.height) {
-          console.debug("Location of window (" + winState.x + "," + winState.y + ") is on screen " + JSON.stringify(screen));
-          locationIsOnAScreen = true;
-        }
+      var b = screen.bounds;
+      if (winState.x >= b.x && winState.x < b.x + b.width && winState.y >= b.y && winState.y < b.y + b.height) {
+        locationIsOnAScreen = true;
+        break;
       }
     }
 
+    var w = Math.max(1, Number(winState.width) || 800);
+    var h = Math.max(1, Number(winState.height) || 600);
+
     if (!locationIsOnAScreen) {
-      console.debug("Last saved position of windows is not usable on current monitor setup. Moving window to center!");
-      win.setPosition("center");
+      // Center on primary screen explicitly (setPosition('center') can misbehave on scaled/multi-monitor)
+      var primary = getPrimaryArea();
+      var centerX = primary.x + Math.floor((primary.width - w) / 2);
+      var centerY = primary.y + Math.floor((primary.height - h) / 2);
+      win.resizeTo(w, h);
+      win.moveTo(centerX, centerY);
     }
     else {
-      win.resizeTo(winState.width, winState.height);
-      win.moveTo(winState.x, winState.y);
+      // Clamp to union of all screens so window stays visible (e.g. not above the screen)
+      var union = { x: 0, y: 0, width: 0, height: 0 };
+      if (screens.length > 0) {
+        var b0 = screens[0].bounds;
+        union.x = b0.x;
+        union.y = b0.y;
+        union.width = b0.width;
+        union.height = b0.height;
+        for (var j = 1; j < screens.length; j++) {
+          var b = screens[j].bounds;
+          var uRight = union.x + union.width, uBottom = union.y + union.height;
+          var bRight = b.x + b.width, bBottom = b.y + b.height;
+          union.x = Math.min(union.x, b.x);
+          union.y = Math.min(union.y, b.y);
+          union.width = Math.max(uRight, bRight) - union.x;
+          union.height = Math.max(uBottom, bBottom) - union.y;
+        }
+      }
+      var clampX = Math.max(union.x, Math.min(winState.x, union.x + union.width - w));
+      var clampY = Math.max(union.y, Math.min(winState.y, union.y + union.height - h));
+      win.resizeTo(w, h);
+      win.moveTo(clampX, clampY);
     }
   }
 
