@@ -19,7 +19,7 @@ Should show: `Mach-O 64-bit executable arm64`
 
 ### Step 3: Rebuild the .app Bundle
 ```bash
-cd /path/to/visual-page-editor-master
+cd /path/to/visual-page-editor
 ./build-macos.sh
 ```
 

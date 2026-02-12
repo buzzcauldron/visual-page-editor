@@ -6,10 +6,10 @@ The "significant changes around 1/22 and just before" are in **this same repo** 
 
 | Location | Repo | Latest commits |
 |----------|------|------------------|
-| **Documents/visual-page-editor-master** | buzzcauldron/visual-page-editor (this workspace) | main @ 2026-01-08 |
+| **Documents/visual-page-editor** | buzzcauldron/visual-page-editor (this workspace) | main @ 2026-01-08 |
 | **~/nw-page-editor** | nw-page-editor (original upstream?) | main @ 2026-01-02 (RPM/DEB), then 2025-09-23 |
 | **~/nw-page-editor-1** | same as above | same history |
-| **Documents - Seth's MacBook Pro/visual-page-editor-master** | (path not accessible from here) | — |
+| **Documents - Seth's MacBook Pro/visual-page-editor** | (path not accessible from here) | — |
 
 None of these have commits dated exactly **2026-01-22**. The work you remember is the **2026-01-16** and **2026-01-24** work on the **remote** of this repo.
 
@@ -46,7 +46,7 @@ All from **origin** of this repo (`git@github.com:buzzcauldron/visual-page-edito
 **Option A – use the branch that has the editor + ARM64/1/16 work**
 
 ```bash
-cd /Users/halxiii/Documents/visual-page-editor-master
+cd /Users/halxiii/Documents/visual-page-editor
 git checkout -b from-arm64 origin/arm64-support
 # You’re now on the 1/16 state with baseline types, drawer fix, XSD, etc.
 ```

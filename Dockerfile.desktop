@@ -61,11 +61,11 @@ COPY bin /app/bin
 RUN mkdir -p /app/xsd/pageformat/old && \
     if [ ! -s /app/xsd/pageformat/pagecontent_omnius.xsd ]; then \
       curl -fLSs -o /app/xsd/pageformat/pagecontent_omnius.xsd \
-        "https://raw.githubusercontent.com/omni-us/pageformat/master/pagecontent_omnius.xsd"; \
+        "https://raw.githubusercontent.com/omni-us/pageformat/main/pagecontent_omnius.xsd"; \
     fi && \
     if [ ! -s /app/xsd/pageformat/old/pagecontent_searchink.xsd ]; then \
       curl -fLSs -o /app/xsd/pageformat/old/pagecontent_searchink.xsd \
-        "https://raw.githubusercontent.com/omni-us/pageformat/master/old/pagecontent_searchink.xsd"; \
+        "https://raw.githubusercontent.com/omni-us/pageformat/main/old/pagecontent_searchink.xsd"; \
     fi
 
 # Create entrypoint script (avoid $(...) in heredoc to prevent shell syntax errors)

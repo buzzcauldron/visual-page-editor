@@ -1,6 +1,6 @@
 # Features from upstream (nw-page-editor) – review and proposed updates
 
-Comparison of **visual-page-editor** with **nw-page-editor-master** and **nw-page-editor-packaged-master** to identify any worthwhile upstream features to adopt.
+Comparison of **visual-page-editor** with **nw-page-editor-main** and **nw-page-editor-packaged-main** to identify any worthwhile upstream features to adopt.
 
 ---
 

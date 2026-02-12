@@ -530,7 +530,7 @@ $(window).on('load', function () {
   /// Setup Page XML schema validation ///
   var
   pagexml_xsd_file = '../xsd/pagecontent_omnius.xsd',
-  pagexml_xsd_fallback_url = 'https://raw.githubusercontent.com/omni-us/pageformat/master/pagecontent_omnius.xsd',
+  pagexml_xsd_fallback_url = 'https://raw.githubusercontent.com/omni-us/pageformat/main/pagecontent_omnius.xsd',
   pagexml_xsd = false;
   function loadPageXmlXsd( async ) {
     if ( ! pagexml_xsd ) {
@@ -636,7 +636,7 @@ $(window).on('load', function () {
         return;
     }
 
-    $.ajax({ url: 'https://raw.githubusercontent.com/buzzcauldron/visual-page-editor/master/package.json', dataType: 'json', timeout: 10000 })
+    $.ajax({ url: 'https://raw.githubusercontent.com/buzzcauldron/visual-page-editor/main/package.json', dataType: 'json', timeout: 10000 })
       .fail( function () {
           console.log('Failed to check the latest version of visual-page-editor in github (e.g. network timeout or offline).');
         } )
@@ -644,7 +644,7 @@ $(window).on('load', function () {
           versionCheck.lastDate = new Date();
           if ( versionCheck.lastVersion < data.version && data.version > nw.App.manifest.version ) {
             versionCheck.lastVersion = data.version;
-            alert( 'There is a new version of visual-page-editor available. The github master branch version is '+data.version+' and your running version is '+nw.App.manifest.version+'.' );
+            alert( 'There is a new version of visual-page-editor available. The github main branch version is '+data.version+' and your running version is '+nw.App.manifest.version+'.' );
           }
           versionCheck.lastVersion = data.version;
           localStorage.versionCheck = JSON.stringify(versionCheck);
