@@ -94,6 +94,55 @@
 
 ---
 
+## Careful code review
+
+**Scope:** nw-winstate.js (window clamp), nw-app.js, page-editor.js, svg-canvas.js. Edge cases, robustness, and consistency.
+
+### nw-winstate.js — Window position clamping
+
+| Item | Finding | Action |
+|------|--------|--------|
+| **Union bounds** | Union of screen bounds is computed correctly; clamp keeps window inside union so it can’t open “above” the screen. | ✓ |
+| **Window larger than union** | When `w > union.width` or `h > union.height`, `clampX`/`clampY` become `union.x`/`union.y` (Math.min with value &lt; union edge forces Math.max to union edge). Window then extends off right/bottom but top-left is on-screen. | ✓ Acceptable |
+| **Invalid winState dimensions** | If `winState.width`/`height` are missing, NaN, or ≤ 0 (e.g. corrupted localStorage), `resizeTo(w, h)` could misbehave. | **Fixed:** `w`/`h` now use `Math.max(1, Number(winState.width) \|\| 800)` and same for height so we always pass sane values. |
+| **screens.length === 0** | Union stays `{x:0,y:0,width:0,height:0}`; clamp yields (0,0); resize still uses w,h. | ✓ Safe |
+
+### svg-canvas.js — editModeOff and callbacks
+
+| Item | Finding | Action |
+|------|--------|--------|
+| **onModeOff callbacks** | Loop `for (n = 0; n < onModeOff.length; n++) onModeOff[n]();` had no try/catch. A throwing callback could leave mode half-torn-down (disablers already run, interactables cleared). | **Fixed:** Each `onModeOff[n]()` is now inside try/catch; errors are logged and the loop continues. |
+| **Variable `n` reuse** | `n` is used in interactables loop, then disablers loop, then onModeOff loop. Correct as long as each loop sets `n`; no leak. | ✓ |
+
+### nw-app.js — File and XSD
+
+| Item | Finding | Action |
+|------|--------|--------|
+| **lastOpen.fileList[idx]** | `idx` is 0 when `fileNum` is missing or out of range; we then check `existsSync(lastOpen.fileList[0])`. If `fileList` is empty we already required `lastOpen.fileList.length > 0`, so idx is always valid. | ✓ |
+| **loadFile ENOENT** | Only `err.code === 'ENOENT'` gets toast path; other codes (EACCES, EISDIR, etc.) still go to `handleError`. Intentional. | ✓ |
+| **validatePageXml sync load** | `loadPageXmlXsd(false)` runs the full chain synchronously; when it returns, `pagexml_xsd` is set or all paths failed. So the `if (! pagexml_xsd)` check is correct. | ✓ |
+| **XSD message in toast** | User-visible string includes path and “Run git submodule update --init…”. No user input; safe to show. | ✓ |
+
+### page-editor.js — safeStylesheet
+
+| Item | Finding | Action |
+|------|--------|--------|
+| **Fallback order** | Checks: page_container → #cursor → (#textedit && #textinfo) → #textinfo → #textedit. Selectors like `#textedit, #textinfo` match the third branch; single #textinfo/#textedit match the right branch. | ✓ |
+| **Unknown selector** | If selector doesn’t match any branch, `fallback` is null and we only log; no inline style applied. Preferable to guessing. | ✓ |
+
+### Summary of fixes applied in this review
+
+1. **nw-winstate.js:** Guard `winState.width`/`height` with `Math.max(1, Number(winState.width) || 800)` (and same for height) before clamp and `resizeTo`, so corrupted or missing dimensions don’t cause bad resize.
+2. **svg-canvas.js:** Wrap each `onModeOff[n]()` in try/catch so a throwing callback doesn’t abort mode teardown.
+
+### Remaining suggestions (non-blocking)
+
+- **nw-winstate:** Consider falling back to `win.setPosition('center')` when union width/height is 0 (e.g. no screens or API quirk).
+- **safeStylesheet:** If more selectors are added, replace indexOf heuristics with a small map (selector fragment → fallback selector).
+- **Validate + XSD:** Optional: when XSD is loading asynchronously at startup, have Validate wait briefly for that load before starting a sync load, to avoid duplicate work.
+
+---
+
 ## How to Run Review Again
 
 ```bash
