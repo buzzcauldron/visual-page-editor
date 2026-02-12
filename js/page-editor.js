@@ -763,9 +763,8 @@ $(window).on('load', function () {
           }
         }
         else if ( e.keyCode === 13 /*enter*/ ) {
-          handleEditMode();
-          $(e.target).focus();
           addToFilterHistory();
+          $(e.target).focus();
         }
       } );
   Mousetrap.bind( 'mod+f', function () {
@@ -845,29 +844,40 @@ $(window).on('load', function () {
   Mousetrap.bind( 'mod+.', function () { return cycleEditMode( 'mode2', 1 ); } );
   Mousetrap.bind( 'mod+shift+.', function () { return cycleEditMode( 'mode2', -1 ); } );
 
-  /// Single-key shortcuts: c=Create, b=Baseline, m=Margin, d=Default (persist mode immediately) ///
+  /// Single-key shortcuts: c=Create, b=Baseline, m=Margin, d=Default. Only when focus is on canvas/body (not drawer, not inputs). ///
+  function focusAllowsPageShortcut() {
+    var el = document.activeElement;
+    if ( ! el || el === document.body ) return true;
+    if ( el.id === 'xpg' || el === document.getElementById('xpg') ) return true;
+    if ( $(el).closest('#xpg').length ) return true;
+    return false;
+  }
+  function focusInTextField() {
+    var el = document.activeElement;
+    return el && ( el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable );
+  }
   function runAndFlushDrawerState( action ) {
     if ( typeof action === 'function' ) action();
     else if ( typeof action === 'string' ) $(action).click();
     if ( saveDrawerStateTimer ) { clearTimeout(saveDrawerStateTimer); saveDrawerStateTimer = null; }
     if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
   }
-  Mousetrap.bind( 'c', function () {
-    runAndFlushDrawerState( function () {
-      $( '#createMode input' ).prop( 'checked', true );
-      handleEditMode();
+  function setMode2AndFlush( inputSelector ) {
+    $( inputSelector ).prop( 'checked', true );
+    handleEditMode();
+    runAndFlushDrawerState();
+  }
+  function bindPageShortcut( key, handler ) {
+    Mousetrap.bind( key, function () {
+      if ( ! focusAllowsPageShortcut() || focusInTextField() ) return true;
+      handler();
+      return false;
     } );
-    return false;
-  } );
-  Mousetrap.bind( 'b', function () {
-    runAndFlushDrawerState( function () {
-      $( '#baseMode input' ).prop( 'checked', true );
-      handleEditMode();
-    } );
-    return false;
-  } );
-  Mousetrap.bind( 'm', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('margin'); } ); return false; } );
-  Mousetrap.bind( 'd', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('default'); } ); return false; } );
+  }
+  bindPageShortcut( 'c', function () { setMode2AndFlush( '#createMode input' ); } );
+  bindPageShortcut( 'b', function () { setMode2AndFlush( '#baseMode input' ); } );
+  bindPageShortcut( 'm', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('margin'); } ); } );
+  bindPageShortcut( 'd', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('default'); } ); } );
 
   /// Save state of drawer in local storage (debounced to reduce writes) ///
   function serializeDrawerInput( $label ) {

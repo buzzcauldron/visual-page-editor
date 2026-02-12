@@ -1340,9 +1340,13 @@
         self.mode.textPoints( '.TextRegion', '.Baseline', '> .TextEquiv > .Unicode', createSvgText, ':not(.TextRegion) > .Coords', isValidBaseline ):
         self.mode.points( '.TextRegion', '.Baseline', ':not(.TextRegion) > .Coords', isValidBaseline ); };
     self.mode.lineBaseline    = function ( textedit, restrict ) {
-      return textedit ?
-        self.mode.textPoints( '.TextLine:hasBaseline', '> .Baseline', '> .TextEquiv > .Unicode', createSvgText, ':not(.TextLine) > .Coords', isValidBaseline, restrict ):
-        self.mode.points( '.TextLine:hasBaseline', '> .Baseline', ':not(.TextLine) > .Coords', isValidBaseline, restrict ); };
+      var r;
+      if ( textedit )
+        return self.mode.textPoints( '.TextLine:hasBaseline', '> .Baseline', '> .TextEquiv > .Unicode', createSvgText, ':not(.TextLine) > .Coords', isValidBaseline, restrict );
+      r = self.mode.points( '.TextLine:hasBaseline', '> .Baseline', ':not(.TextLine) > .Coords', isValidBaseline, restrict );
+      $(self.util.svgRoot).find('.TextLine:hasBaseline > .Baseline').addClass('editable');
+      return r;
+    };
     self.mode.regionCoords    = function ( textedit, restrict ) {
       return restrict ?
         ( textedit ?
@@ -2209,7 +2213,7 @@
 
       /// Setup dragpoint for dragging ///
       var interactable = interact('#'+pageContainer.id+' .dragheight')
-        .draggable( {
+        .draggable( { inertia: false,
             onstart: function ( event ) {
               rootMatrix = self.util.svgRoot.getScreenCTM();
               isprotected = self.util.isReadOnly(svgElem);
@@ -2424,14 +2428,9 @@
         // @todo Check all points
         // @todo Not working when modifying points
         pt = self.util.toScreenCoords(points[points.length-1]);
-console.log(points);
-console.log(pt);
         var
         textreg = $(elem).closest('.TextRegion'),
         reg = self.util.elementsFromPoint(pt,'.TextRegion > .Coords').parent();
-console.log(elem);
-console.log(textreg[0]);
-console.log(reg[0]);
         if ( reg.length === 0 || $.inArray(textreg[0],reg) < 0 ) {
           console.log('error: baselines have to be inside a single TextRegion');
           return false;

@@ -2390,6 +2390,8 @@
 
       if ( points_selector )
         editElems = editElems.find(points_selector);
+      if ( editElems.length === 0 && svgElem.points )
+        editElems = $(svgElem);
 
       if ( resetedit )
         removeEditings();
@@ -2399,7 +2401,6 @@
       /// Create a dragpoint for each editable point ///
       editElems.each( function () {
           if ( restrict_axis && ! isAxisAligned(this) ) {
-            console.log('skipping non-axis-aligned for '+$(this).closest('g').attr('id'));
             return;
           }
 
@@ -2495,7 +2496,7 @@
 
       /// Setup dragpoints for dragging (no inertia for precise control) ///
       var interactable = interact('#'+svgContainer.id+' .dragpoint')
-        .draggable( {
+        .draggable( { inertia: false,
             onstart: function ( event ) {
               var
               k = event.target.getAttribute('data-index')|0,
@@ -2535,7 +2536,9 @@
                 p = origpoint,
                 pp = svgElem.points.getItem((i+N-1)%N),
                 pn = svgElem.points.getItem((i+1)%N),
-                dragpoints = $(svgRoot).find('.dragpoint');
+                iPrev = (i+N-1)%N,
+                iNext = (i+1)%N,
+                kPrev, kNext, dp;
                 if ( ispolyline ) {
                   if ( i === 0 ) {
                     if ( p.y === pn.y )
@@ -2554,15 +2557,20 @@
                   if ( p.x === pp.x ) {
                     pp.x = point.x;
                     pn.y = point.y;
-                    dragpoints[(i+N-1)%N].x.baseVal.value = point.x;
-                    dragpoints[(i+1)%N].y.baseVal.value = point.y;
                   }
                   else {
                     pn.x = point.x;
                     pp.y = point.y;
-                    dragpoints[(i+1)%N].x.baseVal.value = point.x;
-                    dragpoints[(i+N-1)%N].y.baseVal.value = point.y;
                   }
+                  roundPoint(pp);
+                  roundPoint(pn);
+                  for ( kPrev = 0; kPrev < editElem.length; kPrev++ )
+                    if ( editElem[kPrev] === svgElem && pointIdx[kPrev] === iPrev ) break;
+                  for ( kNext = 0; kNext < editElem.length; kNext++ )
+                    if ( editElem[kNext] === svgElem && pointIdx[kNext] === iNext ) break;
+                  dp = $(svgRoot).find('.dragpoint');
+                  if ( dp[kPrev] ) { dp[kPrev].x.baseVal.value = pp.x; dp[kPrev].y.baseVal.value = pp.y; }
+                  if ( dp[kNext] ) { dp[kNext].x.baseVal.value = pn.x; dp[kNext].y.baseVal.value = pn.y; }
                 }
               }
 
