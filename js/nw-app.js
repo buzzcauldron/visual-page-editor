@@ -545,7 +545,9 @@ $(window).on('load', function () {
         var hint = /timeout|ETIMEDOUT/i.test(errStr)
           ? ' Network timed out. For offline use run: scripts/fetch-xsd.sh'
           : '';
-        pageCanvas.throwError( 'Failed to retrieve '+resolvedPath+' from submodule. Please run "git submodule update --init" or "scripts/fetch-xsd.sh".'+hint );
+        var msg = 'Page XML schema not loaded: ' + resolvedPath + '. Run "git submodule update --init" or "scripts/fetch-xsd.sh" to enable validation.' + hint;
+        console.warn( msg );
+        showFileExpectedToast( msg );
       }
       // Fallback: fetch from GitHub when submodule is not initialized
       function fetchXsdFromGitHub( resolvedPath ) {
@@ -584,9 +586,13 @@ $(window).on('load', function () {
     pageXml = pageCanvas.getXmlPage();
     if ( ! pageXml )
       return;
+    loadPageXmlXsd(false);
+    if ( ! pagexml_xsd ) {
+      showFileExpectedToast( 'Page XML schema not loaded. Run "git submodule update --init" or "scripts/fetch-xsd.sh" to enable validation.' );
+      return;
+    }
     pageXml = pageXml.replace(/ xmlns="[^"]+"/, ' xmlns="'+pageCanvas.cfg.pagexmlns+'"');
     pageXml = unescape(encodeURIComponent(pageXml));
-    loadPageXmlXsd(false);
     try {
       var
       intercept = null,
