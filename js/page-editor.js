@@ -844,17 +844,13 @@ $(window).on('load', function () {
   Mousetrap.bind( 'mod+.', function () { return cycleEditMode( 'mode2', 1 ); } );
   Mousetrap.bind( 'mod+shift+.', function () { return cycleEditMode( 'mode2', -1 ); } );
 
-  /// Single-key shortcuts: c=Create, b=Baseline, m=Margin, d=Default. Only when focus is on canvas/body (not drawer, not inputs). ///
+  /// Single-key shortcuts: c=Create, b=Baseline, m=Margin, d=Default. Run when focus is not in drawer and not in a text field. ///
   function focusAllowsPageShortcut() {
     var el = document.activeElement;
-    if ( ! el || el === document.body ) return true;
-    if ( el.id === 'xpg' || el === document.getElementById('xpg') ) return true;
-    if ( $(el).closest('#xpg').length ) return true;
-    return false;
-  }
-  function focusInTextField() {
-    var el = document.activeElement;
-    return el && ( el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable );
+    if ( ! el ) return true;
+    if ( $(el).closest('#drawer').length ) return false;
+    if ( el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable ) return false;
+    return true;
   }
   function runAndFlushDrawerState( action ) {
     if ( typeof action === 'function' ) action();
@@ -869,7 +865,7 @@ $(window).on('load', function () {
   }
   function bindPageShortcut( key, handler ) {
     Mousetrap.bind( key, function () {
-      if ( ! focusAllowsPageShortcut() || focusInTextField() ) return true;
+      if ( ! focusAllowsPageShortcut() ) return true;
       handler();
       return false;
     } );

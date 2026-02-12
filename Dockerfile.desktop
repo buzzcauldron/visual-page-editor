@@ -68,13 +68,12 @@ RUN mkdir -p /app/xsd/pageformat/old && \
         "https://raw.githubusercontent.com/omni-us/pageformat/master/old/pagecontent_searchink.xsd"; \
     fi
 
-# Create entrypoint script
+# Create entrypoint script (avoid $(...) in heredoc to prevent shell syntax errors)
 RUN cat > /app/entrypoint.sh << 'EOF' && chmod +x /app/entrypoint.sh
 #!/bin/bash
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
   echo "Visual Page Editor - Desktop Application"
-  echo "Usage: docker run --rm -it -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix \\"
-  echo "  -v \$(pwd):/workspace visual-page-editor [files...]"
+  echo "Usage: docker run --rm -it -e DISPLAY=... -v /tmp/.X11-unix:/tmp/.X11-unix -v YOUR_DIR:/workspace visual-page-editor [files...]"
   exit 0
 fi
 
