@@ -1496,6 +1496,9 @@
       }
     }
     function canvasClick( e ) {
+      // Only close editings when clicking empty canvas; clicks on .editable are handled by delegated handler
+      if ( $(e.target).closest('.editable').length > 0 )
+        return;
       svgContainer.focus();
       removeEditings( e );
     }
@@ -2425,6 +2428,12 @@
             svgRoot.appendChild(dragpoint);
           }
         } );
+
+      if ( numElems === 0 ) {
+        var toSelect = $(svgElem).closest('.TextLine')[0] || ( svgElem && svgElem.nodeType ? svgElem : null );
+        if ( toSelect ) selectElem( toSelect );
+        return;
+      }
 
       /// Active drag point ///
       $(svgRoot).find('.dragpoint').click( function ( event ) {

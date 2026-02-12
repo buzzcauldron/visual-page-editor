@@ -63,12 +63,13 @@ $(window).on('load', function () {
 
           // Defer all heavier work so click feels instant; skip if selection changed during rapid clicks
           requestAnimationFrame( function () {
-            if ( $('.selected').closest('g')[0] !== g[0] )
+            if ( $('.selected')[0] !== g[0] )
               return;
-            var text = g.find('> .TextEquiv > .Unicode');
-            // When a TextLine is selected, switch default/margin radio to match that line's type
-            if ( g.is('.TextLine') ) {
-              var lineType = pageCanvas.util.getBaselineType(g[0]);
+            var lineG = g.is('.TextLine') ? $(g) : $(g).closest('.TextLine');
+            var text = lineG.length ? lineG.find('> .TextEquiv > .Unicode') : g.find('> .TextEquiv > .Unicode');
+            // When a TextLine (or its Baseline) is selected, switch default/margin radio to match that line's type
+            if ( lineG.length ) {
+              var lineType = pageCanvas.util.getBaselineType(lineG[0]);
               if ( lineType === 'margin' || lineType === 'default' ) {
                 $('input[name="baseline-type"][value="'+lineType+'"]').prop('checked', true);
                 pageCanvas.cfg.baselineType = lineType;
@@ -859,7 +860,9 @@ $(window).on('load', function () {
     if ( typeof saveDrawerStateNow === 'function' ) saveDrawerStateNow();
   }
   function setMode2AndFlush( inputSelector ) {
-    $( inputSelector ).prop( 'checked', true );
+    var $input = $( inputSelector );
+    if ( $input.prop( 'checked' ) ) return; // already selected: confirm only, do not re-apply (avoids toggle)
+    $input.prop( 'checked', true );
     handleEditMode();
     runAndFlushDrawerState();
   }
