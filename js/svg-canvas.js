@@ -65,6 +65,8 @@
     svgContainer = document.getElementById(svgContainer);
     if ( ! svgContainer || ! svgContainer.nodeName )
       return self.throwError( 'Container must be a DOM element' );
+    // Focusable so Backspace/Delete work when user clicks canvas (Mousetrap skips bindings when focus is in INPUT/TEXTAREA)
+    svgContainer.setAttribute( 'tabindex', '-1' );
 
     /// Configurable options ///
     self.cfg = {};
@@ -357,7 +359,7 @@
       self.util.svgRoot = svgRoot = svgContainer.firstChild;
       self.util.mouseCoords = svgRoot.createSVGPoint();
       initDragpoint();
-      $(svgRoot).click( removeEditings );
+      $(svgRoot).click( canvasClick );
       self.util.invalidateEditablesCache();
 
       if ( delta < 0 && p < changeHistory.length-1 )
@@ -991,7 +993,7 @@
       adjustSize();
       initDragpoint();
 
-      $(svgRoot).click( removeEditings );
+      $(svgRoot).click( canvasClick );
 
       self.util.invalidateEditablesCache();
       pushChangeHistory('svg load');
@@ -1111,6 +1113,9 @@
       unselectElem();
       if ( $(document.activeElement).filter('input[type=text], textarea').length > 0 )
         $(document.activeElement).blur();
+      // Focus canvas so Backspace/Delete hit our handler (Mousetrap skips when focus is in INPUT/TEXTAREA)
+      if ( svgRoot && svgRoot.parentNode )
+        svgRoot.parentNode.focus();
       $(svgElem).addClass('selected');
       // Defer pan and onSelect to next frame so first click feels instant (selection paints immediately)
       var doCenter = self.cfg.centerOnSelection && ( typeof nocenter === 'undefined' || ! nocenter );
@@ -1157,7 +1162,7 @@
         }
         var selElem = $(svgRoot).find('.selected').first();
         if ( selElem.length === 0 || isReadOnly(selElem) )
-          return true;
+          return false; // consume key (do nothing); avoid browser back/navigation
         var delElem = self.cfg.delSelector( selElem[0] );
         if ( typeof delElem === 'boolean' )
           return delElem;
@@ -1232,6 +1237,7 @@
           } catch (e) {
             console.error('Error registering change:', e);
           }
+          self.util.invalidateEditablesCache();
         }
         return false;
       } catch (e) {
@@ -1488,6 +1494,10 @@
         event.preventDefault();
         event.stopPropagation();
       }
+    }
+    function canvasClick( e ) {
+      svgContainer.focus();
+      removeEditings( e );
     }
     function handleEscape(e) {
       if ( ! self.cfg.captureEscape )

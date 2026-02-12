@@ -138,8 +138,36 @@
 ### Remaining suggestions (non-blocking)
 
 - **nw-winstate:** Consider falling back to `win.setPosition('center')` when union width/height is 0 (e.g. no screens or API quirk).
-- **safeStylesheet:** If more selectors are added, replace indexOf heuristics with a small map (selector fragment → fallback selector).
 - **Validate + XSD:** Optional: when XSD is loading asynchronously at startup, have Validate wait briefly for that load before starting a sync load, to avoid duplicate work.
+
+---
+
+## Optimization and functionality review
+
+**Date:** 2026-01-24  
+**Scope:** svg-canvas.js (delete/canvas focus), page-editor.js (safeStylesheet, adjustSize), editables cache correctness.
+
+### Optimizations applied
+
+| File | Change | Rationale |
+|------|--------|-----------|
+| **svg-canvas.js** | `invalidateEditablesCache()` after successful delete | Cache was stale after deleting an element; Tab cycle and `getSortedEditables()` could reference removed nodes. |
+| **svg-canvas.js** | `canvasClick(e)` helper; `$(svgRoot).click(canvasClick)` in both restoreState and setCanvas | Single place for “focus container + removeEditings”; avoids duplicated logic. |
+| **page-editor.js** | `stylesheetFallbacks` as ordered array of [fragment, fallback] | Deterministic fallback (e.g. `#textedit, #textinfo` matched before `#textedit`); easier to add selectors. |
+| **page-editor.js** | `adjustSize()`: cache `hideTextEdit` and `texteditHeight` in one pass | Fewer DOM/jQuery queries per resize; same behavior. |
+
+### Functionality verified
+
+| Area | Check |
+|------|--------|
+| **Backspace/Delete** | Canvas is focusable (`tabindex="-1"`); focused on SVG click and on select; handleDeletion consumes key when no selection (no browser back). |
+| **Editables cache** | Invalidated on: SVG load, history restore, mode change, and **after delete**. Tab cycle and sorted editables stay correct. |
+| **safeStylesheet fallback** | Order of entries ensures combined selectors (e.g. `#textedit, #textinfo`) get the correct fallback before single-id matches. |
+
+### Summary
+
+- **Correctness:** Delete path invalidates editables cache; canvas focus ensures Backspace/Delete are handled when working on the page.
+- **Maintainability:** Canvas click and stylesheet fallbacks are centralized; resize avoids redundant lookups.
 
 ---
 
