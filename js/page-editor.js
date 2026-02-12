@@ -33,8 +33,22 @@ $(window).on('load', function () {
   var pageCanvas = window.pageCanvas = new window.PageCanvas( 'xpg',
     { stylesId: 'page_styles',
       textareaId: 'textedit',
-      handleError: function ( err ) { alert(err.message+"\n"+err.stack); throw err; },
-      handleWarning: function ( msg ) { console.log('WARNING: '+msg); alert('WARNING: '+msg); },
+      handleError: function ( err ) {
+        var msg = (err && err.message) ? err.message : String(err);
+        console.error(msg, err && err.stack);
+        if ( typeof window.showFileExpectedToast === 'function' )
+          window.showFileExpectedToast( msg );
+        else
+          alert( msg );
+        throw err;
+      },
+      handleWarning: function ( msg ) {
+        console.warn( msg );
+        if ( typeof window.showFileExpectedToast === 'function' )
+          window.showFileExpectedToast( msg );
+        else
+          alert( 'WARNING: ' + msg );
+      },
       onLoad: restoreEditorUIOnLoad,
       onMouseMove: updateCursor,
       onUnload: function () { $('#stateInfo span').text('-'); },
@@ -588,16 +602,21 @@ $(window).on('load', function () {
   }
 
   /// Apply a stylesheet rule; on failure (e.g. CSS not loaded yet) fall back to inline style so layout still works.
+  var stylesheetFallbacks = [
+    ['page_container', '#xpg'],
+    ['#textedit, #textinfo', '#textedit, #textinfo'],
+    ['#textinfo', '#textinfo'],
+    ['#textedit', '#textedit'],
+    ['#cursor', '#cursor']
+  ];
   function safeStylesheet( selector, prop, value ) {
     try {
       $.stylesheet(selector).css(prop, value);
     } catch ( e ) {
       console.warn('[page-editor] stylesheet update failed, using inline fallback', e.message || e);
-      var fallback = selector.indexOf('page_container') !== -1 ? '#xpg' :
-        selector.indexOf('#cursor') !== -1 ? '#cursor' :
-        selector.indexOf('#textedit') !== -1 && selector.indexOf('#textinfo') !== -1 ? '#textedit, #textinfo' :
-        selector.indexOf('#textinfo') !== -1 ? '#textinfo' :
-        selector.indexOf('#textedit') !== -1 ? '#textedit' : null;
+      var i, fallback = null;
+      for ( i = 0; i < stylesheetFallbacks.length; i++ )
+        if ( selector.indexOf(stylesheetFallbacks[i][0]) !== -1 ) { fallback = stylesheetFallbacks[i][1]; break; }
       if ( fallback )
         $(fallback).css(prop, value);
     }
@@ -605,11 +624,13 @@ $(window).on('load', function () {
 
   /// Resize container when window size changes ///
   function adjustSize() {
+    var hideTextEdit = $('#hide-text-edit input').prop('checked');
+    var texteditHeight = $('#textedit').outerHeight();
     var height = $(window).innerHeight() - $('#statusBar').outerHeight();
-    if ( $('#hide-text-edit input').prop('checked') )
-      height -= $('#textedit').outerHeight();
+    if ( hideTextEdit )
+      height -= texteditHeight;
     safeStylesheet('#page_styles { .page_container }', 'height', height + 'px');
-    safeStylesheet('#page_styles { #cursor }', 'bottom', $('#hide-text-edit input').prop('checked') ? $('#textedit').outerHeight() + 'px' : '0');
+    safeStylesheet('#page_styles { #cursor }', 'bottom', hideTextEdit ? texteditHeight + 'px' : '0');
     if ( typeof pageCanvas.adjustViewBox === 'function' )
       pageCanvas.adjustViewBox();
   }

@@ -196,15 +196,16 @@ $(window).on('load', function () {
     return false;
   }
 
-  /// Toast for file-expected / file-not-found: auto-dismiss after 3 seconds (no blocking alert) ///
+  /// Toast for file-expected / file-not-found / warnings: auto-dismiss after 3 seconds (no blocking alert) ///
   function showFileExpectedToast( msg ) {
-    console.log('WARNING: '+msg);
+    console.warn(msg);
     var toast = $('<div class="file-expected-toast"></div>').text(msg).appendTo('body');
     window.setTimeout( function () {
       toast.addClass('file-expected-toast-hide');
       window.setTimeout( function () { toast.remove(); }, 300 );
     }, 3000 );
   }
+  window.showFileExpectedToast = showFileExpectedToast;
 
   /// Parse arguments and load file ///
   function parseArgs( argv, loaddir, initialFileNum ) {
@@ -347,12 +348,9 @@ $(window).on('load', function () {
     require('fs').readFile( filepath, 'utf8', function ( err, data ) {
         if ( err ) {
           finishFileLoad();
-          if ( err.code === 'ENOENT' ) {
-            showFileExpectedToast( 'File not found: ' + filepath );
-            console.warn( 'ENOENT opening file:', filepath );
-            return;
-          }
-          return pageCanvas.cfg.handleError( err );
+          showFileExpectedToast( err.code === 'ENOENT' ? 'File not found: ' + filepath : (err.message || err.code || String(err)) );
+          console.warn( 'Error opening file:', filepath, err );
+          return;
         }
         prevFileContents = data;
         window.loadedFile = loadedFile = filepath;
@@ -419,7 +417,7 @@ $(window).on('load', function () {
          $( '#openLastFileOnStartup input' ).prop( 'checked' ) ) {
       var idx = (typeof lastOpen.fileNum === 'number' && lastOpen.fileNum >= 1 && lastOpen.fileNum <= lastOpen.fileList.length)
         ? lastOpen.fileNum - 1 : 0;
-      if ( fs.existsSync(lastOpen.fileList[idx]) && parseArgs(lastOpen.fileList, false, lastOpen.fileNum) )
+      if ( parseArgs(lastOpen.fileList, false, lastOpen.fileNum) )
         window.setTimeout( function () {
             if ( typeof pageCanvas.fitPage !== 'undefined' )
               pageCanvas.fitPage();
@@ -477,8 +475,10 @@ $(window).on('load', function () {
 
     if ( prevFileContents )
       fs.writeFile( loadedFile+'~', prevFileContents, function ( err ) {
-          if ( err )
-            pageCanvas.cfg.handleError( err );
+          if ( err ) {
+            showFileExpectedToast( (err.message || err.code || String(err)) );
+            console.error( err );
+          }
           prevFileContents = null;
         } );
 
@@ -486,9 +486,10 @@ $(window).on('load', function () {
     fs.writeFile( loadedFile, pageXml, function ( err ) {
         savingFile = false;
         $('#spinner').removeClass('spinner-active');
-        if ( err )
-          pageCanvas.cfg.handleError( err );
-        else {
+        if ( err ) {
+          showFileExpectedToast( (err.message || err.code || String(err)) );
+          console.error( err );
+        } else {
           $('#saveFile').prop('disabled',true);
           $('title').text($('title').text().replace(/ \*$/,''));
           pageCanvas.setUnchanged();
