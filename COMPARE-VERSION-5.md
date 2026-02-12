@@ -1,6 +1,6 @@
 # Comparison: Current (1.1.0) vs Version 5 in Downloads
 
-**Version 5** = contents of `~/Downloads/visual-page-editor-master 5.zip` (extracted as `visual-page-editor-master`).  
+**Version 5** = contents of a Version 5 archive (e.g. `visual-page-editor-5.zip`, extracted as `visual-page-editor`).  
 **Current** = this repo at version 1.1.0 (with your recent edits).
 
 ---

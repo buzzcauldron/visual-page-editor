@@ -6,7 +6,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 XSD_DIR="$ROOT/xsd/pageformat"
-BASE_URL="https://raw.githubusercontent.com/omni-us/pageformat/master"
+BASE_URL="https://raw.githubusercontent.com/omni-us/pageformat/main"
 
 mkdir -p "$XSD_DIR/old"
 

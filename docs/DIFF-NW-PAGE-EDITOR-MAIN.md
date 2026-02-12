@@ -1,12 +1,12 @@
-# Differences: visual-page-editor (here) vs nw-page-editor-master
+# Differences: visual-page-editor (here) vs nw-page-editor-main
 
-Comparison of **this repo** (`/home/sethj/visual-page-editor`) with **`/home/sethj/Documents/nw-page-editor-master`**.
+Comparison of **this repo** (`/home/sethj/visual-page-editor`) with **`/home/sethj/Documents/nw-page-editor-main`**.
 
 ---
 
 ## 1. Project identity
 
-| | visual-page-editor (here) | nw-page-editor-master |
+| | visual-page-editor (here) | nw-page-editor-main |
 |---|---------------------------|------------------------|
 | **package.json name** | `visual-page-editor` | `nw-page-editor` |
 | **Version** | 1.1.0 | 2025.09.23 |
@@ -33,7 +33,7 @@ Comparison of **this repo** (`/home/sethj/visual-page-editor`) with **`/home/set
 
 ---
 
-## 3. Only in nw-page-editor-master
+## 3. Only in nw-page-editor-main
 
 - **.github:** `FUNDING.yaml` (no code-review workflow).
 - **Debian:** `debian/source/`.
@@ -44,7 +44,7 @@ Comparison of **this repo** (`/home/sethj/visual-page-editor`) with **`/home/set
 
 ## 4. Files that differ
 
-Same set as vs nw-page-editor-packaged-master:
+Same set as vs nw-page-editor-packaged-main:
 
 | Area | Files |
 |------|--------|
@@ -57,10 +57,10 @@ Same set as vs nw-page-editor-packaged-master:
 | **web-app/** | apache2_http.conf, common.inc.php, git-commit-daemon.sh, index.php, saveFile.php, start-server.sh |
 | **xslt/** | svg2page.xslt |
 
-**Behavior (here vs nw-page-editor-master):** Same as in [DIFF-NW-PAGE-EDITOR-PACKAGED-MASTER.md](DIFF-NW-PAGE-EDITOR-PACKAGED-MASTER.md): baseline types (default/margin), “Edit mode after create”, rAF throttling, mode panel cache, backspace/Mod+Backspace, launcher ARM64 + Windows scripts, VERSION, and visual-page-editor naming everywhere.
+**Behavior (here vs nw-page-editor-main):** Same as in [DIFF-NW-PAGE-EDITOR-PACKAGED-MAIN.md](DIFF-NW-PAGE-EDITOR-PACKAGED-MAIN.md): baseline types (default/margin), “Edit mode after create”, rAF throttling, mode panel cache, backspace/Mod+Backspace, launcher ARM64 + Windows scripts, VERSION, and visual-page-editor naming everywhere.
 
 ---
 
 ## 5. Note
 
-**nw-page-editor-master** and **nw-page-editor-packaged-master** are effectively the same upstream layout (same package.json, same `bin/nw-page-editor`, same rpm/debian naming). This comparison matches that layout; the only difference between the two directories may be minor file-level or version details.
+**nw-page-editor-main** and **nw-page-editor-packaged-main** are effectively the same upstream layout (same package.json, same `bin/nw-page-editor`, same rpm/debian naming). This comparison matches that layout; the only difference between the two directories may be minor file-level or version details.

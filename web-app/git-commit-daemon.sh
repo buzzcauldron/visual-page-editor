@@ -89,7 +89,7 @@ gitCommitDaemon () {
   [[ "$UNAME" == *"@"* ]] && NAME="${UNAME%%@*}" && EMAIL="$UNAME";
   [ $(git log -n 1 --pretty=format:%H) = $(git log -n 1 --pretty=format:%H "$BXML") ] &&
     [ "$(git log --format=%B -n 1)" = "autocommit by $UNAME ($BRHASH $VERCLI) file ${XML/..\/data\//}" ] &&
-    [ $(git log origin/master..master | wc -l) -gt 0 ] &&
+    [ $(git log origin/main..main | wc -l) -gt 0 ] &&
       GIT_COMMIT+=( --amend );
   GIT_COMMIT+=( "--author=$NAME <$EMAIL>" );
   "${GIT_COMMIT[@]}" -m "autocommit by $UNAME ($BRHASH $VERCLI) file ${XML/..\/data\//}" "$BXML";
