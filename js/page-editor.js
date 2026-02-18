@@ -63,7 +63,7 @@ $(window).on('load', function () {
 
           // Defer all heavier work so click feels instant; skip if selection changed during rapid clicks
           requestAnimationFrame( function () {
-            if ( $('.selected')[0] !== g[0] )
+            if ( $('.selected').closest('g')[0] !== g[0] )
               return;
             var lineG = g.is('.TextLine') ? $(g) : $(g).closest('.TextLine');
             var text = lineG.length ? lineG.find('> .TextEquiv > .Unicode') : g.find('> .TextEquiv > .Unicode');
@@ -862,6 +862,10 @@ $(window).on('load', function () {
   function setMode2AndFlush( inputSelector ) {
     var $input = $( inputSelector );
     if ( $input.prop( 'checked' ) ) return; // already selected: confirm only, do not re-apply (avoids toggle)
+    // Page mode forces Select and disables Create/Baseline; switch to Line so Create/Baseline can persist
+    if ( ( inputSelector === '#createMode input' || inputSelector === '#baseMode input' ) &&
+         $( '#pageMode input' ).prop( 'checked' ) )
+      $( '#lineMode input' ).prop( 'checked', true );
     $input.prop( 'checked', true );
     handleEditMode();
     runAndFlushDrawerState();
