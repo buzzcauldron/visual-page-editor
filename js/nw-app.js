@@ -290,6 +290,12 @@ $(window).on('load', function () {
     return loadFile();
   }
 
+  /// Base window title including version (so user can confirm which build is running) ///
+  var baseWindowTitle = (typeof nw !== 'undefined' && nw.App && nw.App.manifest && nw.App.manifest.window)
+    ? ((nw.App.manifest.window.title || 'Visual Page Editor') + ' ' + (nw.App.manifest.version || ''))
+    : ('Visual Page Editor ' + (window.PAGE_EDITOR_VERSION || ''));
+  $('title').text(baseWindowTitle);
+
   /// Function for preparing new title for app ///
   function appTitle( filepath ) {
     var
@@ -300,7 +306,7 @@ $(window).on('load', function () {
       prevtitle = title;
       title = title.replace( new RegExp('^[^'+osBar+']+'+osBar), '...' );
     }
-    return nw.App.manifest.window.title + ' - ' + title;
+    return baseWindowTitle + ' - ' + title;
   }
 
   /// Function for loading the selected file into the page canvas ///
