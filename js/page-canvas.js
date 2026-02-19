@@ -728,15 +728,23 @@
           else if ( ! polystripe && self.cfg.standardizeCoords )
             self.util.standardizeQuad(this,true);
         } );
+      /// Ensure polygon height is never below 1% of page so margin/default baselines stay selectable ///
+      var minPolyHeight = Math.max( 10, 0.01 * minDim );
+      self.cfg.polyrectHeightMin = minPolyHeight;
       if ( numpolyrect > 0 ) {
-        self.cfg.polyrectHeight = height / numpolyrect;
+        self.cfg.polyrectHeight = Math.max( height / numpolyrect, minPolyHeight );
         //self.cfg.polyrectOffset = offset / numpolyrect;
         self.cfg.polyrectOffset = 0.25;
       }
       else {
-        self.cfg.polyrectHeight = 0.025 * minDim;
+        self.cfg.polyrectHeight = Math.max( 0.025 * minDim, minPolyHeight );
         self.cfg.polyrectOffset = 0.25;
       }
+      $(pageSvg).find('.TextLine[polystripe]').each( function () {
+        var g = $(this), attr = (g.attr('polystripe') || '').split(' ').map(parseFloat);
+        if ( attr[0] < minPolyHeight && g.children('.Baseline').length )
+          self.util.setPolystripe( g.children('.Baseline')[0], minPolyHeight, self.cfg.polyrectOffset );
+      } );
 
       /// Mark table cells ///
       $(pageSvg).find('.TableRegion').each( function () {
@@ -1775,7 +1783,7 @@
       }
       if ( offset < 0 || offset > 0.5 )
         return;
-      height = Math.max(height, 5);
+      height = Math.max( height, self.cfg.polyrectHeightMin || 5 );
       var n,
       coords = $(baseline).siblings('.Coords'),
       offup = height - offset*height,
