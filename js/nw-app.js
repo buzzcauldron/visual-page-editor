@@ -52,8 +52,7 @@ $(window).on('load', function () {
   Mousetrap.bind( 'mod+n', newWindow );
   Mousetrap.bind( ['pagedown','shift+pagedown'], function ( event ) { return changePage( event.shiftKey ? 10 : 1 ); } );
   Mousetrap.bind( ['pageup','shift+pageup'], function ( event ) { return changePage( event.shiftKey ? -10 : -1 ); } );
-  Mousetrap.bind( ['left', 'up'], function () { return changePage( -1 ); } );
-  Mousetrap.bind( ['right', 'down'], function () { return changePage( 1 ); } );
+  // Arrow keys (left/right/up/down) are handled by svg-canvas: pan when zoomed, prev/next page when fit-to-page
   Mousetrap.bind( 'mod+shift+r', function () {
       if ( typeof pageCanvas !== 'undefined' && pageCanvas.hasChanged() )
         if ( confirm('WARNING: Modifications will be lost on reload! Select Cancel to abort.') )
