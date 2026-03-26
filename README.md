@@ -35,7 +35,9 @@ npm install
 .\bin\visual-page-editor.ps1 examples\lorem.xml
 ```
 
-The launcher looks for NW.js in common locations and can offer to download it if missing. For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher instead.
+Running `npm install` installs the [nw](https://www.npmjs.com/package/nw) devDependency; its postinstall downloads the **NW.js SDK** for your OS/arch into `node_modules/` (ignored by git). The launcher prefers `node_modules/.bin/nw` when present, then falls back to `~/.nwjs`, PATH, or (when `AUTO_DOWNLOAD_NWJS` is set) a download. For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher instead.
+
+On **Linux ARM64**, the bash launcher’s auto-download still targets x64; use `npm install` so the npm `nw` package supplies the correct binary, or install NW.js manually.
 
 **Open multiple files:**
 ```bash
@@ -94,9 +96,12 @@ The `web-app` directory provides a web-based variant for remote use. See that di
 ```bash
 git clone https://github.com/buzzcauldron/visual-page-editor.git
 cd visual-page-editor
-npm install
+npm install   # installs JS deps and downloads NW.js SDK via the `nw` package
 ./bin/visual-page-editor
+# or: npm start   # runs NW.js from node_modules (.bin/nw)
 ```
+
+The launcher uses `NWJS_VERSION` (default **0.94.0**, aligned with `nw@0.94.0-sdk` in `package.json`). Set `AUTO_DOWNLOAD_NWJS=1` if you rely on the launcher downloading NW.js to `~/.nwjs` when `node_modules` is not present.
 
 Code review: `npm run review` or `./scripts/code-review.sh`. See [CODE_REVIEW.md](CODE_REVIEW.md).
 
