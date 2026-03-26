@@ -482,9 +482,11 @@ if [ -n "$APP_PATH" ]; then
   done
 fi
 
-# On macOS, binary inside .app bundle often ignores first arg and looks for bundle's app.nw; use --nwapp to force our app
+# On macOS, NW.js must get --nwapp <dir> (not bare <dir>) or it looks for app.nw inside the SDK bundle.
+# This applies when $nw is node_modules/.bin/nw as well as .../nwjs.app/Contents/MacOS/nwjs — the former
+# path does not match *.app/Contents/MacOS/*, so we always pass --nwapp on macOS.
 NW_LAUNCH_ARGS=("$APP_PATH" "${argv[@]}")
-if [ "$PLATFORM" = "macos" ] && case "$nw" in *".app/Contents/MacOS/"*) true;; *) false;; esac; then
+if [ "$PLATFORM" = "macos" ]; then
   NW_LAUNCH_ARGS=(--nwapp "$APP_PATH" "${argv[@]}")
 fi
 

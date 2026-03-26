@@ -30,7 +30,7 @@ Run every check, then relaunch the desktop app:
      `./bin/visual-page-editor`  
    - If it crashes, see **Project crashed** below and **CRASH_FIX_MAC.md**.
 
-**Launcher logic branches (bin/visual-page-editor):** Platform and **hardware architecture** (MAC_ARCH, WIN_ARCH, MACHINE_ARCH) detected first → cache hit only if path + version + **arch match this machine** (attune version to hardware) → NW.js lookup (version, arch) → ARM64 preference on Apple Silicon → validate app path → help / download prompt → launch with `--nwapp` on macOS .app → on non-zero exit (macOS arm64) clear cache and print troubleshooting. Cache file stores path, version, and binary arch so the next run reuses only when hardware matches.
+**Launcher logic branches (bin/visual-page-editor):** Platform and **hardware architecture** (MAC_ARCH, WIN_ARCH, MACHINE_ARCH) detected first → cache hit only if path + version + **arch match this machine** (attune version to hardware) → NW.js lookup (version, arch) → ARM64 preference on Apple Silicon → validate app path → help / download prompt → launch with `--nwapp` on **all** macOS runs (including when `nw` is `node_modules/.bin/nw`) → on non-zero exit (macOS arm64) clear cache and print troubleshooting. Cache file stores path, version, and binary arch so the next run reuses only when hardware matches.
 
 ## Current status (after last debug run)
 
