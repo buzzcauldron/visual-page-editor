@@ -36,6 +36,7 @@
     "nw": "nw .",
     "verify:nw": "./scripts/verify-local-nw-install.sh",
     "test:install-docker": "./scripts/test-install-docker.sh",
+    "test:install-mac": "./scripts/test-fresh-install-mac.sh",
     "install-desktop": "./scripts/install-desktop.sh",
     "docker:run": "./docker-run.sh"
   },

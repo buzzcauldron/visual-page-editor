@@ -24,6 +24,9 @@ node_modules/
 # Portable Node.js from scripts/bootstrap-node.{sh,ps1}
 .tools/
 
+# Local fresh-install test copies (scripts/test-fresh-install-mac.sh)
+.vpe-fresh-install-runs/
+
 # Editor and OS files
 .DS_Store
 *.swp

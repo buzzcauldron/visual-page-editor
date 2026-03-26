@@ -49,6 +49,8 @@ cd visual-page-editor
 ./bin/visual-page-editor examples/lorem.xml
 ```
 
+**macOS only:** use a **native Apple Silicon** terminal on M-series Macs when possible; portable Node and NW.js target **arm64**. Troubleshooting, Rosetta notes, and a **numbered fresh-install test** (`./scripts/test-fresh-install-mac.sh 1`): **[INSTALL-MAC.md](INSTALL-MAC.md)**.
+
 **Windows (PowerShell), install then sample:**
 ```powershell
 cd visual-page-editor
