@@ -59,6 +59,30 @@ Keep using the **same terminal** after install so `PATH` still includes `.tools/
 
 - **Conda `(base)` / mixed Node**: A conda environment can put a different `node`/`npm` on your `PATH` than the one used when `node_modules` was built. Prefer **`conda deactivate`** before `./scripts/install-desktop.sh`, or run **`./scripts/test-fresh-install-mac.sh 1`** (uses a minimal `PATH` like a clean Mac).
 
+### Full reinstall (copy-paste safe)
+
+Run **one block at a time**. Do **not** put `#` comments on the **same line** as a command—some paste targets or tools pass the `#` text into `conda` or `npm`, which causes errors like `deactivate does not accept arguments` or `Invalid tag name "#"`.
+
+If you use conda, deactivate first (line must contain only this):
+
+```bash
+conda deactivate
+```
+
+Then from your clone directory (change the path if yours differs):
+
+```bash
+cd ~/visual-page-editor
+```
+
+```bash
+rm -rf node_modules .tools
+```
+
+```bash
+./scripts/install-desktop.sh
+```
+
 - **Wrong or cached NW.js path**:  
   `rm -f ~/.cache/visual-page-editor/nw-path`  
   then run `./bin/visual-page-editor` again.
