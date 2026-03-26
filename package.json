@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/jquery": "^3.3.47",
     "jshint": "^2.13.6",
+    "nw": "0.94.0-sdk",
     "typescript": "^5.3.3"
   },
   "scripts": {
@@ -27,7 +28,9 @@
     "lint": "jshint js/*.js --exclude js/*.min.js",
     "test": "npm run review",
     "typecheck": "tsc --noEmit",
-    "ts": "tsc"
+    "ts": "tsc",
+    "start": "nw .",
+    "nw": "nw ."
   },
   "repository": {
     "type": "git",

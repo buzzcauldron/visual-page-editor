@@ -74,6 +74,15 @@ fi
 # NW.js version configuration (can be overridden via environment variable)
 NWJS_VERSION="${NWJS_VERSION:-0.94.0}"
 
+# Prefer npm-installed NW.js (devDependency `nw` postinstall downloads SDK for this host)
+nw_from_npm=""
+if [ -n "$nw_page_editor" ] && [ -f "$nw_page_editor/node_modules/.bin/nw" ] && [ -x "$nw_page_editor/node_modules/.bin/nw" ]; then
+  case "$nw_page_editor" in
+    /*) nw_from_npm="$nw_page_editor/node_modules/.bin/nw" ;;
+    *) _npm_root="$(cd "$nw_page_editor" 2>/dev/null && pwd)" && [ -n "$_npm_root" ] && nw_from_npm="$_npm_root/node_modules/.bin/nw" ;;
+  esac
+fi
+
 # Cache dir for resolved NW.js path (speeds up subsequent startups)
 CACHE_DIR="${HOME}/.cache/visual-page-editor"
 CACHE_FILE="${CACHE_DIR}/nw-path"
@@ -223,9 +232,12 @@ download_nwjs() {
   return 0
 }
 
-# Find NW.js binary: try cache first (only use if path + version + architecture match this machine)
+# Find NW.js binary: prefer npm install, then cache (only use if path + version + architecture match this machine)
 nw=""
-if [ -f "$CACHE_FILE" ]; then
+if [ -n "$nw_from_npm" ] && [ -f "$nw_from_npm" ]; then
+  nw="$nw_from_npm"
+fi
+if [ -z "$nw" ] && [ -f "$CACHE_FILE" ]; then
   cached_path=$(head -n 1 "$CACHE_FILE" 2>/dev/null)
   cached_ver=$(sed -n '2p' "$CACHE_FILE" 2>/dev/null)
   cached_arch=$(sed -n '3p' "$CACHE_FILE" 2>/dev/null)
@@ -375,7 +387,8 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   echo "  NWJS_VERSION       - NW.js version to download (default: ${NWJS_VERSION})"
   echo "  AUTO_DOWNLOAD_NWJS - Set to '1', 'yes', or 'true' to enable automatic download"
   echo ""
-  echo "If NW.js is not found, the script will download it automatically."
+  echo "After 'npm install', the NW.js SDK is available via node_modules/.bin/nw (preferred)."
+  echo "If NW.js is not found, the script can download it automatically when enabled."
   echo "Downloaded NW.js is stored in: ~/.nwjs (Linux/macOS) or ~/nwjs (Windows)"
   exit 0
 fi

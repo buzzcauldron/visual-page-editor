@@ -745,6 +745,13 @@
         if ( attr[0] < minPolyHeight && g.children('.Baseline').length )
           self.util.setPolystripe( g.children('.Baseline')[0], minPolyHeight, self.cfg.polyrectOffset );
       } );
+      $(pageSvg).find('.TextLine[polyrect]').each( function () {
+        var g = $(this), attr = (g.attr('polyrect') || '').split(' ').map(parseFloat);
+        if ( attr.length >= 2 && !isNaN(attr[0]) && attr[0] < minPolyHeight && g.children('.Baseline').length ) {
+          var off = !isNaN(attr[1]) ? attr[1] : self.cfg.polyrectOffset;
+          self.util.setPolyrect( g.children('.Baseline')[0], minPolyHeight, off );
+        }
+      } );
 
       /// Mark table cells ///
       $(pageSvg).find('.TableRegion').each( function () {
