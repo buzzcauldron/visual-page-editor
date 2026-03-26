@@ -37,8 +37,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 # Set working directory
 WORKDIR /app
 
-# Download and extract NW.js
-ARG NWJS_VERSION=0.44.4
+# Download and extract NW.js (default matches package.json "nw" and bin/visual-page-editor NWJS_VERSION)
+ARG NWJS_VERSION=0.94.0
 RUN curl -fLSs -o /tmp/nwjs.tar.gz "https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz" && \
     tar -xzf /tmp/nwjs.tar.gz -C /tmp && \
     mv /tmp/nwjs-sdk-v${NWJS_VERSION}-linux-x64 /app/nwjs && \

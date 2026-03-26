@@ -4,7 +4,7 @@ This document explains how to build RPM and DEB packages that automatically incl
 
 ## Features
 
-- **Bundled NW.js**: Both packages include NW.js runtime (v0.44.4 by default)
+- **Bundled NW.js**: Both packages include NW.js runtime (v0.94.0 by default; align with `package.json` / launcher)
 - **No External Dependencies**: Users don't need to install NW.js separately
 - **Automatic Download**: Build scripts automatically download NW.js during build
 - **Self-Contained**: Packages work out of the box after installation
