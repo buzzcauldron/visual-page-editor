@@ -8,6 +8,8 @@ This guide explains how to run Visual Page Editor as a Docker container.
 - X11 server running (for GUI display)
 - X11 forwarding enabled
 
+The image bundles NW.js under `/app/nwjs`; the entrypoint calls it by full path. You do **not** need NW.js or Node on the **host** `PATH` for the container to run (only Docker and, for GUI, X11 as below).
+
 ## Quick Start
 
 ### Option 1: Using the convenience script

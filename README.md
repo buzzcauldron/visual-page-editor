@@ -42,6 +42,10 @@ npm install
 .\bin\visual-page-editor.ps1 examples\lorem.xml
 ```
 
+**GitHub ZIP (no Git):** Download the repository as a ZIP, extract it, open a terminal in that folder, then run `npm install` and `npm start` (or `./bin/visual-page-editor …`) exactly as above. You need **Node.js** (which provides `npm`) on the machine or in your environment; you do **not** need to install NW.js separately or add anything to your system `PATH`—the `nw` package installs locally under `node_modules/`.
+
+**Docker:** The desktop image runs NW.js from a fixed path inside the container (`/app/nwjs/nw`); nothing is added to `PATH` on the host. See [README-DOCKER.md](README-DOCKER.md).
+
 The [nw](https://www.npmjs.com/package/nw) package is a **regular dependency**; its postinstall downloads the **NW.js SDK** for your OS/arch into `node_modules/` (ignored by git). The launcher prefers `node_modules/.bin/nw` when present, then falls back to `~/.nwjs`, PATH, or (when `AUTO_DOWNLOAD_NWJS` is set) a download. To confirm a clean machine needs no global `nw`, run `npm run verify:nw`. For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher instead.
 
 On **Linux ARM64**, `uname -m` sets the architecture so auto-download and `~/.nwjs` lookups use **linux-arm64**; `npm install` does the same via the `nw` package. If only an x64 binary is found, the launcher warns and you can run `npm install` or set `AUTO_DOWNLOAD_NWJS=1` to fetch the matching SDK.
