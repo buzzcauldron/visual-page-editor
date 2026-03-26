@@ -21,16 +21,43 @@ if not exist "%APP_DIR%\js\nw-app.js" (
   set "APP_DIR=%SCRIPT_DIR%"
 )
 
+if not exist "%APP_DIR%\js\nw-app.js" (
+  echo %~nx0: error: unable to resolve the visual-page-editor app location
+  echo   Tried: %APP_DIR%
+  exit /b 1
+)
+
+REM Portable Node from install-desktop / bootstrap (so npm's nw.cmd can find node if needed)
+for /d %%D in ("%APP_DIR%\.tools\node-v*") do (
+  if exist "%%D\node.exe" (
+    set "PATH=%%D;!PATH!"
+    goto :tools_path_done
+  )
+  if exist "%%D\bin\node.exe" (
+    set "PATH=%%D\bin;!PATH!"
+    goto :tools_path_done
+  )
+)
+:tools_path_done
+
+REM Prefer npm dependency nw: extracted SDK contains nw.exe (matches Unix launcher)
+set "NWJS_EXE="
+for /d %%D in ("%APP_DIR%\node_modules\nw\nwjs-sdk-*") do (
+  if exist "%%D\nw.exe" (
+    set "NWJS_EXE=%%D\nw.exe"
+    goto :have_npm_nw
+  )
+)
+:have_npm_nw
+
 REM Detect Windows architecture
 set "WIN_ARCH=x64"
 if "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "WIN_ARCH=ARM64"
 if "%PROCESSOR_ARCHITEW6432%"=="ARM64" set "WIN_ARCH=ARM64"
 
-REM Try to find NW.js in common locations
-set "NWJS_EXE="
-
+REM Try to find NW.js in common locations (if not from npm)
 REM Check Program Files (architecture-specific first for ARM64)
-if "%WIN_ARCH%"=="ARM64" (
+if "%NWJS_EXE%"=="" if "%WIN_ARCH%"=="ARM64" (
   if exist "C:\Program Files\nwjs-arm64\nw.exe" (
     set "NWJS_EXE=C:\Program Files\nwjs-arm64\nw.exe"
   ) else if exist "%LOCALAPPDATA%\nwjs-arm64\nw.exe" (
@@ -64,13 +91,6 @@ if "%NWJS_EXE%"=="" (
   )
 )
 
-REM Validate paths
-if not exist "%APP_DIR%\js\nw-app.js" (
-  echo %~nx0: error: unable to resolve the visual-page-editor app location
-  echo   Tried: %APP_DIR%
-  exit /b 1
-)
-
 if "%NWJS_EXE%"=="" (
   echo %~nx0: error: unable to find the NW.js binary
   echo   Architecture detected: %WIN_ARCH%
@@ -80,6 +100,7 @@ if "%NWJS_EXE%"=="" (
   ) else (
     echo   Please install NW.js from https://nwjs.io/downloads/
   )
+  echo   Or run: npm install   or: .\scripts\install-desktop.ps1   (installs NW.js under node_modules^)
   echo   Or add NW.js to your PATH
   exit /b 1
 )
@@ -128,4 +149,5 @@ exit /b %errorlevel%
 :help
 echo Description: Simple app for visual editing of Page XML files
 echo Usage: %~nx0 [page.xml]+ [pages_dir]+ [--list pages_list]+ [--css file.css]+ [--js file.js]+
+echo NW.js: npm install or .\scripts\install-desktop.ps1 (SDK under node_modules; portable Node in .tools if bootstrapped^)
 exit /b 0

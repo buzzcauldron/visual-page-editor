@@ -19,7 +19,7 @@ Visual Page Editor is an application for viewing and editing ground truth or pre
 
 ## Quick start (desktop)
 
-You do **not** need NW.js installed globally or on your `PATH`. The **`nw` npm package** downloads the NW.js SDK into `node_modules/` during install. The launcher prefers `node_modules/.bin/nw` automatically.
+You do **not** need NW.js installed globally or on your `PATH`. The **`nw` npm package** downloads the NW.js SDK into `node_modules/` during install. Launchers prefer the npm-installed SDK (`node_modules/.bin/nw` on Unix, `node_modules/nw/nwjs-sdk-*/nw.exe` on Windows) and prepend portable Node from `.tools/` to `PATH` when `install-desktop` has bootstrapped it.
 
 **Automatic install (Node optional):** one block installs dependencies, verifies NW.js, and optionally starts the app.
 

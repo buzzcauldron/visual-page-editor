@@ -21,6 +21,42 @@ if (-not (Test-Path "$AppDir\js\nw-app.js")) {
     $AppDir = $ScriptDir
 }
 
+if (-not (Test-Path "$AppDir\js\nw-app.js")) {
+    Write-Host "$($MyInvocation.MyCommand.Name): error: unable to resolve the visual-page-editor app location" -ForegroundColor Red
+    Write-Host "  Tried: $AppDir" -ForegroundColor Red
+    exit 1
+}
+
+# Portable Node from scripts/install-desktop.ps1 / bootstrap-node.ps1 (npm's nw.cmd needs node on PATH)
+$ToolsDir = Join-Path $AppDir ".tools"
+if (Test-Path $ToolsDir) {
+    foreach ($d in (Get-ChildItem -Path $ToolsDir -Directory -Filter "node-v*" -ErrorAction SilentlyContinue)) {
+        $nodeExe = Join-Path $d.FullName "node.exe"
+        $nodeExeBin = Join-Path $d.FullName "bin\node.exe"
+        if (Test-Path -LiteralPath $nodeExe) {
+            $env:PATH = $d.FullName + ";" + $env:PATH
+            break
+        }
+        if (Test-Path -LiteralPath $nodeExeBin) {
+            $env:PATH = (Join-Path $d.FullName "bin") + ";" + $env:PATH
+            break
+        }
+    }
+}
+
+# Prefer npm dependency nw: extracted SDK contains nw.exe (matches Unix launcher's node_modules/.bin/nw preference)
+$NwjsExe = $null
+$NwNpmRoot = Join-Path $AppDir "node_modules\nw"
+if (Test-Path $NwNpmRoot) {
+    foreach ($d in (Get-ChildItem -Path $NwNpmRoot -Directory -Filter "nwjs-sdk-*" -ErrorAction SilentlyContinue)) {
+        $candidate = Join-Path $d.FullName "nw.exe"
+        if (Test-Path $candidate) {
+            $NwjsExe = $candidate
+            break
+        }
+    }
+}
+
 # Detect Windows architecture (PROCESSOR_ARCHITEW6432 = native arch when running 32-bit process on 64-bit OS)
 $WindowsArch = $env:PROCESSOR_ARCHITEW6432
 if ([string]::IsNullOrEmpty($WindowsArch)) {
@@ -34,60 +70,50 @@ if ($WindowsArch -eq "ARM64") {
     $WindowsArch = "x64"  # Default to x64
 }
 
-# Try to find NW.js in common locations
-# On ARM64, prefer ARM64 builds, but allow x64 via emulation
-$NwjsExe = $null
-
-$PossiblePaths = @()
-if ($WindowsArch -eq "ARM64") {
-    # ARM64: Try ARM64 first, then x64 locations
-    $PossiblePaths += @(
-        "C:\Program Files\nwjs-arm64\nw.exe",
-        "$env:LOCALAPPDATA\nwjs-arm64\nw.exe",
-        "$env:USERPROFILE\nwjs-arm64\nw.exe",
-        "C:\Program Files\nwjs\nw.exe",
-        "C:\Program Files (x86)\nwjs\nw.exe",
-        "$env:LOCALAPPDATA\nwjs\nw.exe",
-        "$env:USERPROFILE\nwjs\nw.exe"
-    )
-} else {
-    # x64: Standard locations
-    $PossiblePaths += @(
-        "C:\Program Files\nwjs\nw.exe",
-        "C:\Program Files (x86)\nwjs\nw.exe",
-        "$env:LOCALAPPDATA\nwjs\nw.exe",
-        "$env:USERPROFILE\nwjs\nw.exe"
-    )
-}
-
-foreach ($Path in $PossiblePaths) {
-    if (Test-Path $Path) {
-        $NwjsExe = $Path
-        break
-    }
-}
-
-# Try to find in PATH
+# Try to find NW.js in common locations (skip if npm SDK already resolved)
 if ($null -eq $NwjsExe) {
-    $NwjsInPath = Get-Command nw.exe -ErrorAction SilentlyContinue
-    if ($null -ne $NwjsInPath) {
-        $NwjsExe = $NwjsInPath.Path
+    # On ARM64, prefer ARM64 builds, but allow x64 via emulation
+    $PossiblePaths = @()
+    if ($WindowsArch -eq "ARM64") {
+        $PossiblePaths += @(
+            "C:\Program Files\nwjs-arm64\nw.exe",
+            "$env:LOCALAPPDATA\nwjs-arm64\nw.exe",
+            "$env:USERPROFILE\nwjs-arm64\nw.exe",
+            "C:\Program Files\nwjs\nw.exe",
+            "C:\Program Files (x86)\nwjs\nw.exe",
+            "$env:LOCALAPPDATA\nwjs\nw.exe",
+            "$env:USERPROFILE\nwjs\nw.exe"
+        )
     } else {
-        $NwjsInPath = Get-Command nw -ErrorAction SilentlyContinue
+        $PossiblePaths += @(
+            "C:\Program Files\nwjs\nw.exe",
+            "C:\Program Files (x86)\nwjs\nw.exe",
+            "$env:LOCALAPPDATA\nwjs\nw.exe",
+            "$env:USERPROFILE\nwjs\nw.exe"
+        )
+    }
+
+    foreach ($Path in $PossiblePaths) {
+        if (Test-Path $Path) {
+            $NwjsExe = $Path
+            break
+        }
+    }
+
+    if ($null -eq $NwjsExe) {
+        $NwjsInPath = Get-Command nw.exe -ErrorAction SilentlyContinue
         if ($null -ne $NwjsInPath) {
             $NwjsExe = $NwjsInPath.Path
+        } else {
+            $NwjsInPath = Get-Command nw -ErrorAction SilentlyContinue
+            if ($null -ne $NwjsInPath) {
+                $NwjsExe = $NwjsInPath.Path
+            }
         }
     }
 }
 
-# Validate paths
-if (-not (Test-Path "$AppDir\js\nw-app.js")) {
-    Write-Host "$($MyInvocation.MyCommand.Name): error: unable to resolve the visual-page-editor app location" -ForegroundColor Red
-    Write-Host "  Tried: $AppDir" -ForegroundColor Red
-    exit 1
-}
-
-if ($null -eq $NwjsExe -or -not (Test-Path $NwjsExe)) {
+if ($null -eq $NwjsExe -or -not (Test-Path -LiteralPath $NwjsExe)) {
     Write-Host "$($MyInvocation.MyCommand.Name): error: unable to find the NW.js binary" -ForegroundColor Red
     Write-Host "  Architecture detected: $WindowsArch" -ForegroundColor Yellow
     if ($WindowsArch -eq "ARM64") {
@@ -96,6 +122,7 @@ if ($null -eq $NwjsExe -or -not (Test-Path $NwjsExe)) {
     } else {
         Write-Host "  Please install NW.js from https://nwjs.io/downloads/" -ForegroundColor Yellow
     }
+    Write-Host "  Or run: npm install   or: .\scripts\install-desktop.ps1   (installs NW.js under node_modules)" -ForegroundColor Yellow
     Write-Host "  Or add NW.js to your PATH" -ForegroundColor Yellow
     exit 1
 }
@@ -110,6 +137,7 @@ if ($WindowsArch -eq "ARM64" -and $NwjsExe -notlike "*arm64*") {
 if ($Arguments.Count -gt 0 -and ($Arguments[0] -eq "-h" -or $Arguments[0] -eq "--help")) {
     Write-Host "Description: Simple app for visual editing of Page XML files"
     Write-Host "Usage: $($MyInvocation.MyCommand.Name) [page.xml]+ [pages_dir]+ [--list pages_list]+ [--css file.css]+ [--js file.js]+"
+    Write-Host "NW.js: npm install or .\scripts\install-desktop.ps1 (SDK under node_modules; portable Node in .tools if bootstrapped)"
     exit 0
 }
 
