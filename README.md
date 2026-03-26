@@ -70,7 +70,7 @@ On **Linux ARM64**, `uname -m` sets the architecture so auto-download and `~/.nw
 
 ## Container (Docker)
 
-Run the editor in a container (no local NW.js needed).
+Run the editor in a container (no local NW.js needed on the host). The desktop image ([`Dockerfile.desktop`](Dockerfile.desktop)) bundles NW.js **0.94.0** by default—the same runtime family as `package.json` / `./bin/visual-page-editor`. Override at build time: `--build-arg NWJS_VERSION=…`.
 
 **Build:**
 ```bash

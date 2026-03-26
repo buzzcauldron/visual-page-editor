@@ -2,6 +2,8 @@
 
 This guide explains how to run Visual Page Editor as a Docker container.
 
+**NW.js version:** The desktop image default matches the app (`package.json` / `nw`, and `NWJS_VERSION` in `./bin/visual-page-editor`), currently **0.94.0**, unless you pass `--build-arg NWJS_VERSION=…` or set `NWJS_VERSION` for `docker-compose`.
+
 ## Prerequisites
 
 - Docker installed and running
@@ -48,11 +50,11 @@ docker run --rm -it \
 docker build -f Dockerfile.desktop -t visual-page-editor:latest .
 ```
 
-To specify a different NW.js version:
+To specify a different NW.js version (default **0.94.0**, aligned with `package.json` and the desktop launcher):
 
 ```bash
 docker build -f Dockerfile.desktop \
-    --build-arg NWJS_VERSION=0.44.4 \
+    --build-arg NWJS_VERSION=0.94.0 \
     -t visual-page-editor:latest .
 ```
 
@@ -98,7 +100,7 @@ If you encounter display issues:
 ## Container Details
 
 - **Base Image:** Ubuntu 22.04
-- **NW.js Version:** 0.44.4 (configurable via build arg)
+- **NW.js Version:** 0.94.0 by default (same as app + `npm` dependency `nw`; override with build arg `NWJS_VERSION`)
 - **Working Directory:** `/app`
 - **Data Mount:** `/workspace` (maps to current directory)
 
