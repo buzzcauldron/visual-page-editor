@@ -279,26 +279,26 @@ if [ "$PLATFORM" = "macos" ]; then
   else
     nw="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs"
   fi
-  # 2) Fixed /Applications paths (no find)
+  # 2) Fixed /Applications paths — versioned SDK only (generic /Applications/nwjs.app ignores --nwapp and looks for bundle app.nw)
   if [ ! -f "$nw" ]; then
     if [ "$MAC_ARCH" = "arm64" ]; then
       nw="/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app/Contents/MacOS/nwjs"
-      [ ! -f "$nw" ] && nw="/Applications/nwjs.app/Contents/MacOS/nwjs"
+      [ ! -f "$nw" ] && nw="/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs"
     else
-      nw="/Applications/nwjs.app/Contents/MacOS/nwjs"
+      nw="/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs"
     fi
   fi
-  # 3) find/mdfind only if still not found (slow)
+  # 3) find only under ~/.nwjs and /Applications for versioned nwjs-sdk-* (no generic nwjs.app)
   if [ ! -f "$nw" ]; then
     if [ "$MAC_ARCH" = "arm64" ]; then
       nw=$(find "$HOME/.nwjs" -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
       [ ! -f "$nw" ] && nw=$(find "$HOME/.nwjs" -path "*nwjs-sdk*x64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
       [ ! -f "$nw" ] && nw=$(find /Applications -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+      [ ! -f "$nw" ] && nw=$(find /Applications -path "*nwjs-sdk*x64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
     else
       nw=$(find "$HOME/.nwjs" -path "*nwjs-sdk*x64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+      [ ! -f "$nw" ] && nw=$(find /Applications -path "*nwjs-sdk*x64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
     fi
-    [ ! -f "$nw" ] && nw=$(mdfind "kMDItemKind == 'Application' && kMDItemFSName == 'nwjs.app'" 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
-    [ ! -f "$nw" ] && nw=$(find /Applications -name "nwjs.app" -type d 2>/dev/null | head -n 1)"/Contents/MacOS/nwjs"
   fi
   # 4) PATH
   [ ! -f "$nw" ] && nw=$(which nwjs 2>/dev/null)
@@ -471,10 +471,10 @@ if [ -d "$APP_PATH" ]; then
   esac
 fi
 
-# On macOS, binary inside .app bundle often ignores first arg and looks for bundle's app.nw; use --nwapp= to force our app
+# On macOS, binary inside .app bundle often ignores first arg and looks for bundle's app.nw; use --nwapp to force our app
 NW_LAUNCH_ARGS=("$APP_PATH" "${argv[@]}")
 if [ "$PLATFORM" = "macos" ] && case "$nw" in *".app/Contents/MacOS/"*) true;; *) false;; esac; then
-  NW_LAUNCH_ARGS=("--nwapp=$APP_PATH" "${argv[@]}")
+  NW_LAUNCH_ARGS=(--nwapp "$APP_PATH" "${argv[@]}")
 fi
 
 # Launch with error trapping
@@ -492,15 +492,22 @@ if [ $EXIT_CODE -ne 0 ]; then
     echo "Last 10 lines of log:" >&2
     tail -10 "$LOG_FILE" >&2
   fi
-  if [ "$PLATFORM" = "macos" ] && [ "$MAC_ARCH" = "arm64" ]; then
-    echo "" >&2
-    echo "Troubleshooting for Apple Silicon:" >&2
-    echo "1. Ensure you're using ARM64 NW.js (not x64)" >&2
-    echo "2. Download: nwjs-sdk-v*-osx-arm64.zip from https://nwjs.io/downloads/" >&2
-    echo "3. Extract and move nwjs.app to /Applications/" >&2
-    echo "4. Clear path cache and retry: rm -f $CACHE_FILE" >&2
-    # Clear path cache so next run re-detects (may find ARM64 instead of cached x64)
-    rm -f "$CACHE_FILE" 2>/dev/null || true
+  if [ "$PLATFORM" = "macos" ]; then
+    if [ $EXIT_CODE -eq 33 ] || { [ -f "$LOG_FILE" ] && grep -q "app\.nw" "$LOG_FILE" 2>/dev/null; }; then
+      echo "" >&2
+      echo "If the log mentions app.nw or Resources/app.nw: do not use a generic /Applications/nwjs.app." >&2
+      echo "Use the SDK under ~/.nwjs (e.g. AUTO_DOWNLOAD_NWJS=1 $0) or install nwjs-sdk-v*-osx-* in /Applications." >&2
+      rm -f "$CACHE_FILE" 2>/dev/null || true
+    fi
+    if [ "$MAC_ARCH" = "arm64" ]; then
+      echo "" >&2
+      echo "Troubleshooting for Apple Silicon:" >&2
+      echo "1. Ensure you're using ARM64 NW.js (not x64)" >&2
+      echo "2. Download: nwjs-sdk-v*-osx-arm64.zip from https://nwjs.io/downloads/" >&2
+      echo "3. Extract to ~/.nwjs or /Applications/nwjs-sdk-v*-osx-arm64/" >&2
+      echo "4. Clear path cache: rm -f $CACHE_FILE" >&2
+      rm -f "$CACHE_FILE" 2>/dev/null || true
+    fi
   fi
   echo "" >&2
   echo "See DEBUG.md section 'Project crashed' for more." >&2

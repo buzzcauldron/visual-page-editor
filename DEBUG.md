@@ -70,7 +70,7 @@ If the desktop app crashes on launch or soon after:
    `tail -50 /tmp/visual-page-editor.log` — look for `ERROR`, `Rosetta`, `x64`, `GPU process exited`, `app.nw`.
 
 2. **Apple Silicon (M1/M2/M3): use ARM64 NW.js**  
-   See **CRASH_FIX_MAC.md**. Do **not** use x64 NW.js (e.g. from `/Applications/nwjs.app` if it’s x64); use `nwjs-sdk-v*-osx-arm64.zip` and put `nwjs.app` in `/Applications/` or let the launcher download it to `~/.nwjs`.
+   See **CRASH_FIX_MAC.md**. Do **not** use x64 NW.js on Apple Silicon; use `nwjs-sdk-v*-osx-arm64.zip`, extract to `~/.nwjs/` or `/Applications/nwjs-sdk-v*-osx-arm64/`, or let the launcher download to `~/.nwjs`. Avoid a generic `/Applications/nwjs.app` alone — it can break `--nwapp` (see **Common issues** below).
 
 3. **Clear the launcher path cache**  
    If the launcher is reusing the wrong NW.js (e.g. x64), clear the cache and run again:  
@@ -83,7 +83,8 @@ If the desktop app crashes on launch or soon after:
 ## Common issues
 
 - **ETIMEDOUT: connection timed out, read:** The app fetches the Page XML schema (XSD) from the local `xsd/` folder first; if missing it falls back to GitHub. A slow or blocked network can cause the request to time out. **Fix:** Run `./scripts/fetch-xsd.sh` to download the XSD into `xsd/pageformat/` so the app works offline and no network call is needed. XSD and version-check requests now use a 12s/10s timeout so the app fails fast with a clear message instead of hanging.
-- **Program didn't start / "Cannot open app.nw":** NW.js inside an `.app` bundle (e.g. `/Applications/nwjs.app`) often ignores the first argument and looks for `app.nw` in its bundle. The launcher uses `--nwapp=/absolute/path` on macOS when the binary is inside an `.app` so your app path is used. Ensure the app path is absolute (the script resolves it). If it still fails, use the SDK from `~/.nwjs` (run the launcher once and choose to download NW.js) instead of a packaged `/Applications/nwjs.app`.
+- **Program didn't start / "Cannot open app.nw" / exit 33:** NW.js from a **generic** `/Applications/nwjs.app` often ignores `--nwapp` and looks for `app.nw` inside that bundle. The launcher **does not** use that path anymore; prefer `~/.nwjs/nwjs-sdk-v*-osx-*` or a versioned folder under `/Applications`. The launcher passes `--nwapp` with your project path. Clear the cache and re-run: `rm -f ~/.cache/visual-page-editor/nw-path`, then `AUTO_DOWNLOAD_NWJS=1 ./bin/visual-page-editor` or install Node and run `npm install` so `node_modules/.bin/nw` is used.
+- **`npm: command not found`:** Install Node.js from [nodejs.org](https://nodejs.org/) or, from the repo root, run `./scripts/bootstrap-node.sh` (downloads a portable Node into `.tools/` and runs `npm install`). Then `./bin/visual-page-editor` or `npm start`.
 - **XSD not found:** Run `./scripts/fetch-xsd.sh` or `git submodule update --init`
 - **Launcher not executable:** `chmod +x bin/visual-page-editor scripts/*.sh`
 - **Document snaps to the right (FIXED in 1.1.1+):** Previously, in certain edit/zoom conditions, the canvas view would snap so the right side of the document was visible instead of the left (e.g. with TextLine + Baseline mode, horizontal baseline, ltr, baselines visible). **Fixed** in `snapImageToLeft()` in `js/svg-canvas.js`. An additional fix ensures that when a line, coords, or table is created (zoom in + create), the view no longer snaps right: we call `snapImageToLeft()` and pass `nocenter` to `selectElem` so pan-to-selection does not override. If the view still jumps, ensure "Center on selection" is unchecked and use Mod+0 (Fit page) to reset.

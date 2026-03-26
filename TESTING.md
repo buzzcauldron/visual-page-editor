@@ -23,7 +23,7 @@ From the repo root:
 
 | Platform | How to run | Notes |
 |----------|------------|--------|
-| **macOS** | `./bin/visual-page-editor [files...]` | Uses NW.js from `/Applications/nwjs.app` or `~/.nwjs`; ARM64 via `build-macos.sh` or `NWJS_VERSION=0.77.0`. |
+| **macOS** | `./bin/visual-page-editor [files...]` | Prefers `node_modules/.bin/nw`, then `~/.nwjs/nwjs-sdk-v*-osx-*`, then versioned SDK under `/Applications` (not generic `nwjs.app`). |
 | **Linux (native)** | `./bin/visual-page-editor [files...]` | Same launcher; needs `nw` in PATH or auto-download. |
 | **Docker (Linux)** | `./docker-run.sh [files...]` | Uses `Dockerfile.desktop` (Xvfb when no DISPLAY). On macOS host: XQuartz + “Allow connections from network clients” for GUI. |
 
