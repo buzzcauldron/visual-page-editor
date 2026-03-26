@@ -14,13 +14,13 @@
     "min_height": 600
   },
   "dependencies": {
+    "github-markdown-css": "^5.6.0",
     "image-size": "^0.6.2",
-    "github-markdown-css": "^5.6.0"
+    "nw": "0.94.0-sdk"
   },
   "devDependencies": {
     "@types/jquery": "^3.3.47",
     "jshint": "^2.13.6",
-    "nw": "0.94.0-sdk",
     "typescript": "^5.3.3"
   },
   "scripts": {
@@ -30,7 +30,8 @@
     "typecheck": "tsc --noEmit",
     "ts": "tsc",
     "start": "nw .",
-    "nw": "nw ."
+    "nw": "nw .",
+    "verify:nw": "./scripts/verify-local-nw-install.sh"
   },
   "repository": {
     "type": "git",
