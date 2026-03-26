@@ -34,7 +34,8 @@
     "ts": "tsc",
     "start": "nw .",
     "nw": "nw .",
-    "verify:nw": "./scripts/verify-local-nw-install.sh"
+    "verify:nw": "./scripts/verify-local-nw-install.sh",
+    "test:install-docker": "./scripts/test-install-docker.sh"
   },
   "repository": {
     "type": "git",
