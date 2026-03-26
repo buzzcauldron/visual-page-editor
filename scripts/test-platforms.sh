@@ -36,7 +36,14 @@ echo "=== 2. Linux / Docker (container) ==="
 if command -v docker >/dev/null 2>&1; then
   if ! docker image inspect visual-page-editor:latest &>/dev/null 2>&1; then
     echo "  Building Docker image..."
-    if ! docker build --platform linux/amd64 -f Dockerfile.desktop -t visual-page-editor:latest . 2>/dev/null; then
+    VER="$(tr -d '\n' <"$ROOT/VERSION" 2>/dev/null || echo 0.0.0)"
+    if ! docker build --platform linux/amd64 \
+      --build-arg NWJS_VERSION="${NWJS_VERSION:-0.94.0}" \
+      --build-arg APP_VERSION="$VER" \
+      -f Dockerfile.desktop \
+      -t "visual-page-editor:$VER" \
+      -t visual-page-editor:latest \
+      "$ROOT" 2>/dev/null; then
       echo "  FAIL: docker build (see output above if not suppressed)"
       FAIL=$((FAIL + 1))
     fi

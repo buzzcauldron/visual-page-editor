@@ -1,151 +1,97 @@
-# Running Visual Page Editor in Docker
+# Docker (container) — stable, minimal setup
 
-This guide explains how to run Visual Page Editor as a Docker container.
+The container bundles **NW.js** and app files inside the image. You only need **Docker** on the host; no Node, no npm, no global NW.js.
 
-**NW.js version:** The desktop image default matches the app (`package.json` / `nw`, and `NWJS_VERSION` in `./bin/visual-page-editor`), currently **0.94.0**, unless you pass `--build-arg NWJS_VERSION=…` or set `NWJS_VERSION` for `docker-compose`.
+**Default NW.js version:** **0.94.0** (same family as `package.json` / `./bin/visual-page-editor`). Override at build time with `--build-arg NWJS_VERSION=…`.
 
-## Prerequisites
+---
 
-- Docker installed and running
-- X11 server running (for GUI display)
-- X11 forwarding enabled
+## Recommended: one command (GUI)
 
-The image bundles NW.js under `/app/nwjs`; the entrypoint calls it by full path. You do **not** need NW.js or Node on the **host** `PATH` for the container to run (only Docker and, for GUI, X11 as below).
-
-## Quick Start
-
-### Option 1: Using the convenience script
+From the repository root:
 
 ```bash
-./docker-run.sh examples/*.xml
+./docker-run.sh examples/lorem.xml
 ```
 
-### Option 2: Using docker-compose
+The first run **builds** an image tagged `visual-page-editor:<version>` where `<version>` comes from the [`VERSION`](VERSION) file (for example `visual-page-editor:1.2.0`). The script also tags **`visual-page-editor:latest`** for convenience.
+
+- **Rebuild** after pulling git changes or changing `VERSION`:  
+  `./docker-run.sh --build examples/lorem.xml`
+
+- **Help:** `./docker-run.sh --help`
+
+### Prerequisites
+
+| Host | What you need |
+|------|----------------|
+| **macOS** | [Docker Desktop](https://docs.docker.com/desktop/) and [XQuartz](https://www.xquartz.org/). XQuartz → Settings → Security → **Allow connections from network clients**, then quit and reopen XQuartz. `docker-run.sh` sets `DISPLAY=host.docker.internal:0`. |
+| **Linux** | Docker Engine + local X11. `docker-run.sh` uses `DISPLAY=:0` and `xhost +local:docker` (or set `DISPLAY` yourself). Mounting `/tmp/.X11-unix` is handled by the script. |
+| **Headless** | Omit GUI: run the image without a usable `DISPLAY`; the [entrypoint](Dockerfile.desktop) starts **Xvfb** on `:99` so the process still runs (no visible window). |
+
+---
+
+## Docker Compose (alternative)
+
+For teams that prefer Compose:
+
+1. Copy env template: `cp .env.docker.example .env`
+2. Set **`DISPLAY`** in `.env` for your OS (see comments in [`.env.docker.example`](.env.docker.example)).
+3. Optionally set **`VPE_VERSION`** to match [`VERSION`](VERSION) so the image name matches releases.
+4. Build and run:
 
 ```bash
-docker-compose up
+docker compose build
+docker compose run --rm visual-page-editor examples/lorem.xml
 ```
 
-### Option 3: Manual Docker command
+`network_mode: host` is **not** used so the same file works on **Docker Desktop (macOS/Windows)** and Linux.
+
+---
+
+## Manual `docker build` / `docker run`
+
+Pin the app version label and image tag to match [`VERSION`](VERSION):
 
 ```bash
-# Build the image
-docker build -f Dockerfile.desktop -t visual-page-editor:latest .
+V="$(tr -d '\n' < VERSION)"
+docker build --platform linux/amd64 \
+  --build-arg NWJS_VERSION=0.94.0 \
+  --build-arg APP_VERSION="$V" \
+  -f Dockerfile.desktop -t "visual-page-editor:${V}" .
+```
 
-# Allow X11 connections
+Run (Linux X11 example):
+
+```bash
 xhost +local:docker
-
-# Run the container
-docker run --rm -it \
-    -e DISPLAY=$DISPLAY \
-    -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-    -v $HOME/.Xauthority:/root/.Xauthority:rw \
-    -v $(pwd):/workspace:rw \
-    visual-page-editor:latest examples/*.xml
+docker run --rm -it --platform linux/amd64 \
+  -e DISPLAY=:0 \
+  -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+  -v "$HOME/.Xauthority:/root/.Xauthority:rw" \
+  -v "$(pwd):/workspace:rw" \
+  -v "$(pwd)/examples:/app/examples:ro" \
+  "visual-page-editor:${V}" examples/lorem.xml
 ```
 
-## Building the Image
+macOS + XQuartz: use `-e DISPLAY=host.docker.internal:0` and omit the `/tmp/.X11-unix` mount (see `./docker-run.sh`).
 
-```bash
-docker build -f Dockerfile.desktop -t visual-page-editor:latest .
-```
+---
 
-To specify a different NW.js version (default **0.94.0**, aligned with `package.json` and the desktop launcher):
+## Stability notes
 
-```bash
-docker build -f Dockerfile.desktop \
-    --build-arg NWJS_VERSION=0.94.0 \
-    -t visual-page-editor:latest .
-```
+- **Platform:** Images are **linux/amd64** NW.js. On Apple Silicon, Docker runs them via emulation; that is expected and keeps one image for everyone.
+- **Reproducible tags:** Prefer `visual-page-editor:<VERSION>` over `:latest` when reporting bugs or deploying.
+- **Data:** The repo is mounted at **`/workspace`**; saves from the app go to your host working tree. **`examples`** is mounted read-only at **`/app/examples`** so paths like `examples/lorem.xml` resolve with `WORKDIR` `/app`.
 
-## Usage
-
-### Opening files
-
-```bash
-# Open specific files
-./docker-run.sh examples/lorem.xml examples/lorem2.xml
-
-# Open all XML files in examples directory
-./docker-run.sh examples/*.xml
-
-# Open files from current directory
-./docker-run.sh *.xml
-```
-
-### Working with your data
-
-Files are mounted at `/workspace` in the container. Any files you save will be written to your host machine's current directory.
-
-### X11 Display Issues
-
-If you encounter display issues:
-
-1. **Allow X11 connections:**
-   ```bash
-   xhost +local:docker
-   ```
-
-2. **Check DISPLAY variable:**
-   ```bash
-   echo $DISPLAY
-   # Should output something like :0 or :1
-   ```
-
-3. **For remote X11:**
-   ```bash
-   export DISPLAY=your-remote-ip:0
-   ```
-
-## Container Details
-
-- **Base Image:** Ubuntu 22.04
-- **NW.js Version:** 0.94.0 by default (same as app + `npm` dependency `nw`; override with build arg `NWJS_VERSION`)
-- **Working Directory:** `/app`
-- **Data Mount:** `/workspace` (maps to current directory)
-
-## Environment Variables
-
-- `DISPLAY` - X11 display (default: `:0`)
-- `NWJS_VERSION` - NW.js version to use (build-time only)
+---
 
 ## Troubleshooting
 
-### "Cannot connect to X server"
+| Issue | What to try |
+|-------|----------------|
+| **Cannot connect to X server** | macOS: XQuartz running + network clients enabled. Linux: `echo $DISPLAY`, `xhost +local:docker`, X server running. |
+| **Rebuild after upgrade** | `./docker-run.sh --build …` or `docker compose build --no-cache` |
+| **Wrong / old NW.js** | Rebuild with explicit `--build-arg NWJS_VERSION=0.94.0` |
 
-Make sure:
-- X11 server is running
-- `xhost +local:docker` has been run
-- DISPLAY variable is set correctly
-
-### "Permission denied" errors
-
-Try running with:
-```bash
-docker run --rm -it --privileged \
-    -e DISPLAY=$DISPLAY \
-    -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-    visual-page-editor:latest
-```
-
-### Application doesn't start
-
-Check the logs:
-```bash
-docker logs visual-page-editor
-```
-
-## Headless Mode (Xvfb)
-
-If you don't have an X server, the container will automatically use Xvfb (virtual framebuffer). Note that you won't see the GUI, but the application will run.
-
-## Building for Different Platforms
-
-To build for a specific platform:
-
-```bash
-docker buildx build --platform linux/amd64 \
-    -f Dockerfile.desktop \
-    -t visual-page-editor:latest .
-```
-
+Application logs inside the container go to stderr; NW.js/Chromium messages appear in the terminal you used for `docker run`.

@@ -1,7 +1,13 @@
 FROM ubuntu:22.04
 
+ARG NWJS_VERSION=0.94.0
+ARG APP_VERSION=0.0.0
+
 LABEL maintainer="buzzcauldron <buzzcauldron@users.noreply.github.com>"
 LABEL description="Visual Page Editor - Desktop application container"
+LABEL org.opencontainers.image.title="Visual Page Editor"
+LABEL org.opencontainers.image.version="${APP_VERSION}"
+LABEL org.opencontainers.image.source="https://github.com/buzzcauldron/visual-page-editor"
 
 # Install dependencies
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -38,7 +44,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 WORKDIR /app
 
 # Download and extract NW.js (default matches package.json "nw" and bin/visual-page-editor NWJS_VERSION)
-ARG NWJS_VERSION=0.94.0
 RUN curl -fLSs -o /tmp/nwjs.tar.gz "https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz" && \
     tar -xzf /tmp/nwjs.tar.gz -C /tmp && \
     mv /tmp/nwjs-sdk-v${NWJS_VERSION}-linux-x64 /app/nwjs && \

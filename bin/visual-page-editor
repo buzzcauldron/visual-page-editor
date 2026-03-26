@@ -29,7 +29,9 @@ WIN_ARCH="x64"
 MACHINE_ARCH="x64"
 if [ "$PLATFORM" = "macos" ]; then
   MAC_ARCH=$(uname -m)
-  case "$MAC_ARCH" in arm64|arm64e) MACHINE_ARCH="arm64";; *) MACHINE_ARCH="x64";; esac
+  # Normalize so lookup/download/cache branches that test [ "$MAC_ARCH" = "arm64" ] match arm64e hosts
+  case "$MAC_ARCH" in arm64|arm64e) MAC_ARCH="arm64" ;; esac
+  case "$MAC_ARCH" in arm64) MACHINE_ARCH="arm64";; *) MACHINE_ARCH="x64";; esac
 elif [ "$PLATFORM" = "windows" ]; then
   if [ -n "${PROCESSOR_ARCHITECTURE:-}" ] && [ "$PROCESSOR_ARCHITECTURE" = "ARM64" ]; then WIN_ARCH="arm64"; MACHINE_ARCH="arm64"
   elif [ -n "${PROCESSOR_ARCHITEW6432:-}" ] && [ "$PROCESSOR_ARCHITEW6432" = "ARM64" ]; then WIN_ARCH="arm64"; MACHINE_ARCH="arm64"
@@ -397,7 +399,7 @@ if [ ! -f "$nw" ]; then
     echo "${0##*/}: error: unable to find the NW.js binary" >&2
     echo "  Platform: $PLATFORM" >&2
     echo "  Please install NW.js from https://nwjs.io/downloads/" >&2
-    echo "  Or set AUTO_DOWNLOAD_NWJS=1 to enable automatic download" >&2
+    echo "  Or set AUTO_DOWNLOAD_NWJS=1, or run from an interactive terminal (TTY), to enable automatic download" >&2
     exit 1
   fi
 fi
@@ -410,9 +412,10 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   echo "Environment variables:"
   echo "  NWJS_VERSION       - NW.js version to download (default: ${NWJS_VERSION})"
   echo "  AUTO_DOWNLOAD_NWJS - Set to '1', 'yes', or 'true' to enable automatic download"
+  echo "                       (also enabled when stdin and stdout are both TTYs, e.g. interactive terminal)"
   echo ""
   echo "After 'npm install', the NW.js SDK is available via node_modules/.bin/nw (preferred)."
-  echo "If NW.js is not found, the script can download it automatically when enabled."
+  echo "If NW.js is not found, the script can download automatically when enabled (see above)."
   echo "Downloaded NW.js is stored in: ~/.nwjs (Linux/macOS) or ~/nwjs (Windows)"
   exit 0
 fi

@@ -77,28 +77,13 @@ On **Linux ARM64**, `uname -m` sets the architecture so auto-download and `~/.nw
 
 ## Container (Docker)
 
-Run the editor in a container (no local NW.js needed on the host). The desktop image ([`Dockerfile.desktop`](Dockerfile.desktop)) bundles NW.js **0.94.0** by default—the same runtime family as `package.json` / `./bin/visual-page-editor`. Override at build time: `--build-arg NWJS_VERSION=…`.
+**Recommended:** from the repo root, use **`./docker-run.sh`** — it builds a version-tagged image (`visual-page-editor:<VERSION>` from [`VERSION`](VERSION)), configures **XQuartz** on macOS or **X11** on Linux, and mounts your project so saves stay on the host. First run builds the image; after upgrades use `./docker-run.sh --build …`.
 
-**Build:**
 ```bash
-docker build --platform linux/amd64 -f Dockerfile.desktop -t visual-page-editor .
+./docker-run.sh examples/lorem.xml
 ```
 
-**Run (headless, e.g. convert):**
-```bash
-docker run --rm --platform linux/amd64 -v $(pwd):/workspace visual-page-editor examples/lorem.xml
-```
-
-**Run with GUI (X11):**
-
-- Linux: use `./docker-run.sh` or pass `-e DISPLAY` and mount `/tmp/.X11-unix`.
-- macOS: install XQuartz, allow network clients, then:
-  ```bash
-  docker run --rm --platform linux/amd64 -e DISPLAY=host.docker.internal:0 -v $(pwd):/workspace visual-page-editor examples/lorem.xml
-  ```
-  The window appears in the XQuartz app.
-
-See [README-DOCKER.md](README-DOCKER.md) for more options.
+No Node or NW.js is required on the host—only Docker (and XQuartz on macOS for a visible window). Full prerequisites, Compose, and manual `docker` commands: **[README-DOCKER.md](README-DOCKER.md)**.
 
 ---
 
