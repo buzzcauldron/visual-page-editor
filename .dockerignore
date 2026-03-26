@@ -33,8 +33,10 @@ nwjs/
 # CI/CD
 .circleci/
 
-# Docker files themselves
+# Docker files themselves (not needed inside image context)
 Dockerfile
 Dockerfile.desktop
 docker-compose.yml
 docker-run.sh
+.env
+.env.local

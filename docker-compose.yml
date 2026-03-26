@@ -1,3 +1,14 @@
+# Visual Page Editor — desktop GUI in Docker (NW.js + Linux amd64).
+#
+# Recommended for most users: ./docker-run.sh   (sets DISPLAY, volumes, and platform for macOS vs Linux)
+#
+# Compose usage:
+#   1. cp .env.docker.example .env   # then edit DISPLAY for your OS (see comments in .env.docker.example)
+#   2. docker compose build
+#   3. docker compose run --rm visual-page-editor examples/lorem.xml
+#
+# Note: "network_mode: host" is intentionally omitted — it breaks Docker Desktop on macOS/Windows.
+
 services:
   visual-page-editor:
     build:
@@ -5,18 +16,16 @@ services:
       dockerfile: Dockerfile.desktop
       args:
         NWJS_VERSION: ${NWJS_VERSION:-0.94.0}
-    image: visual-page-editor:latest
+        APP_VERSION: ${VPE_VERSION:-0.0.0}
+    image: visual-page-editor:${VPE_VERSION:-latest}
     container_name: visual-page-editor
+    platform: linux/amd64
     environment:
+      # Substituted from your shell or from a ".env" file in this directory (see .env.docker.example)
       - DISPLAY=${DISPLAY:-:0}
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ${HOME}/.Xauthority:/root/.Xauthority:rw
-      - ./data:/workspace:rw
+      # Run `docker compose` from the repository root so `.` is the project tree.
+      - .:/workspace:rw
       - ./examples:/app/examples:ro
-    network_mode: host
     stdin_open: true
     tty: true
-    # Optional: open an example file (use a real path; no shell glob expansion in exec form)
-    # command: ["/app/examples/lorem.xml"]
-
