@@ -115,9 +115,15 @@ download_nwjs() {
     fi
   elif [ "$platform" = "linux" ]; then
     download_dir="$HOME/.nwjs"
-    nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz"
-    nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz"
-    nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-x64"
+    if [ "$arch" = "arm64" ]; then
+      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-arm64.tar.gz"
+      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-arm64.tar.gz"
+      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-arm64"
+    else
+      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz"
+      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz"
+      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-x64"
+    fi
     nwjs_binary="$nwjs_extracted/nw"
   elif [ "$platform" = "windows" ]; then
     download_dir="$HOME/nwjs"
@@ -253,6 +259,9 @@ if [ -z "$nw" ] && [ -f "$CACHE_FILE" ]; then
         [ -z "$FILE_ARCH" ] && arch_ok=0
       elif [ "$PLATFORM" = "windows" ] && [ "$MACHINE_ARCH" = "arm64" ]; then
         case "$cached_path" in *arm64*) ;; *) arch_ok=0;; esac
+      elif [ "$PLATFORM" = "linux" ] && [ "$MACHINE_ARCH" = "arm64" ]; then
+        FILE_ARCH=$(file "$cached_path" 2>/dev/null | grep -iE "aarch64|ARM aarch64" || echo "")
+        [ -z "$FILE_ARCH" ] && arch_ok=0
       fi
     fi
     [ "$arch_ok" = 1 ] && nw="$cached_path"
@@ -333,10 +342,24 @@ elif [ "$PLATFORM" = "windows" ]; then
     esac
   fi
 else
-  # Linux and others: Check download directory first, then PATH
-  [ ! -f "$nw" ] && nw="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw"
+  # Linux: prefer arch-specific ~/.nwjs SDK path (matches download_nwjs and MACHINE_ARCH)
+  if [ "$MACHINE_ARCH" = "arm64" ]; then
+    [ ! -f "$nw" ] && nw="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw"
+    [ ! -f "$nw" ] && nw="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw"
+  else
+    [ ! -f "$nw" ] && nw="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw"
+  fi
+  [ ! -f "$nw" ] && nw=$(find "$HOME/.nwjs" -path "*linux-arm64*/nw" -type f -perm +111 2>/dev/null | head -n 1)
+  [ ! -f "$nw" ] && nw=$(find "$HOME/.nwjs" -path "*linux-x64*/nw" -type f -perm +111 2>/dev/null | head -n 1)
   [ ! -f "$nw" ] && nw=$(find "$HOME/.nwjs" -name "nw" -type f -perm +111 2>/dev/null | head -n 1)
   [ ! -f "$nw" ] && nw=$(which nw 2>/dev/null || which nwjs 2>/dev/null)
+  # Warn if Linux ARM64 host is using an x86_64 NW.js binary
+  if [ "$PLATFORM" = "linux" ] && [ "$MACHINE_ARCH" = "arm64" ] && [ -f "$nw" ]; then
+    FILE_ARCH=$(file "$nw" 2>/dev/null | grep -iE "aarch64|ARM aarch64" || echo "")
+    if [ -z "$FILE_ARCH" ]; then
+      echo "Note: Using x64 NW.js on Linux ARM64. Prefer linux-arm64 build or run npm install (nw package)." >&2
+    fi
+  fi
 fi
 fi
 
@@ -353,7 +376,7 @@ if [ ! -f "$nw" ]; then
     if [ "$PLATFORM" = "macos" ]; then
       downloaded_nw=$(download_nwjs "$PLATFORM" "$MAC_ARCH")
     elif [ "$PLATFORM" = "linux" ]; then
-      downloaded_nw=$(download_nwjs "$PLATFORM" "x64")
+      downloaded_nw=$(download_nwjs "$PLATFORM" "$MACHINE_ARCH")
     elif [ "$PLATFORM" = "windows" ]; then
       downloaded_nw=$(download_nwjs "$PLATFORM" "${WIN_ARCH:-x64}")
     else
@@ -429,6 +452,9 @@ if [ -f "$nw" ]; then
   CACHE_ARCH="$MACHINE_ARCH"
   if [ "$PLATFORM" = "macos" ]; then
     FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
+    [ -n "$FILE_ARCH" ] && CACHE_ARCH="arm64" || CACHE_ARCH="x64"
+  elif [ "$PLATFORM" = "linux" ]; then
+    FILE_ARCH=$(file "$nw" 2>/dev/null | grep -iE "aarch64|ARM aarch64" || echo "")
     [ -n "$FILE_ARCH" ] && CACHE_ARCH="arm64" || CACHE_ARCH="x64"
   elif [ "$PLATFORM" = "windows" ]; then
     case "$nw" in *arm64*) CACHE_ARCH="arm64";; *) CACHE_ARCH="x64";; esac
