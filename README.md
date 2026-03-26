@@ -19,39 +19,46 @@ Visual Page Editor is an application for viewing and editing ground truth or pre
 
 ## Quick start (desktop)
 
-You do **not** need NW.js installed globally or on your `PATH`. After `npm install`, the app uses the local `nw` package (`node_modules/.bin/nw`). The launcher prefers that binary automatically.
+You do **not** need NW.js installed globally or on your `PATH`. The **`nw` npm package** downloads the NW.js SDK into `node_modules/` during install. The launcher prefers `node_modules/.bin/nw` automatically.
 
-**One command after clone (install deps + NW.js, then open the app):**
+**Automatic install (Node optional):** one block installs dependencies, verifies NW.js, and optionally starts the app.
+
+- **Linux / macOS / Git Bash:**
+  ```bash
+  git clone https://github.com/buzzcauldron/visual-page-editor.git && cd visual-page-editor && ./scripts/install-desktop.sh --start
+  ```
+  Install only (no launch): `./scripts/install-desktop.sh`  
+  Same from repo root: `./install.sh` or `npm run install-desktop`
+
+- **Windows (PowerShell):**
+  ```powershell
+  git clone https://github.com/buzzcauldron/visual-page-editor.git; cd visual-page-editor; .\scripts\install-desktop.ps1 -Start
+  ```
+
+`install-desktop` runs `./scripts/bootstrap-node.sh` when Node 18+ is missing (portable Node into `.tools/`), then **`npm install`** (pulls **NW.js**), then checks that **`node_modules/.bin/nw`** exists.
+
+**Manual path (if you already have Node + npm):**
 ```bash
 git clone https://github.com/buzzcauldron/visual-page-editor.git && cd visual-page-editor && npm install && npm start
 ```
 
-**If `npm` is not installed yet** (no Node on the machine), use the bootstrap script instead of the line above, e.g. `git clone … && cd visual-page-editor && ./scripts/bootstrap-node.sh --start` (Linux/macOS) or `… && .\scripts\bootstrap-node.ps1 -Start` (Windows PowerShell).
-
-**Linux / macOS (install then launch with a sample file):**
+**Linux / macOS (install then open a sample file):**
 ```bash
-git clone https://github.com/buzzcauldron/visual-page-editor.git
 cd visual-page-editor
-npm install
+./scripts/install-desktop.sh
 ./bin/visual-page-editor examples/lorem.xml
 ```
 
-**Windows (PowerShell):**
+**Windows (PowerShell), install then sample:**
 ```powershell
-git clone https://github.com/buzzcauldron/visual-page-editor.git
 cd visual-page-editor
-npm install
+.\scripts\install-desktop.ps1
 .\bin\visual-page-editor.ps1 examples\lorem.xml
 ```
 
-**GitHub ZIP (no Git):** Download the repository as a ZIP, extract it, open a terminal in that folder, then install and run as below.
+**GitHub ZIP (no Git):** Extract the archive, open a terminal in that folder, then run **`./scripts/install-desktop.sh --start`** (Unix) or **`.\scripts\install-desktop.ps1 -Start`** (Windows) — same automatic sequence as above.
 
-**Without Node.js installed:** You can still set everything up automatically (downloads an official **portable Node.js** into `.tools/`, then runs `npm install`; nothing is added to your system `PATH` permanently):
-
-- **Linux / macOS:** `./scripts/bootstrap-node.sh` then `npm start` (or `./scripts/bootstrap-node.sh --start` to do both). Requires `curl` or `wget`, and `tar` (usually present).
-- **Windows (PowerShell):** `.\scripts\bootstrap-node.ps1` then `npm start` (or `.\scripts\bootstrap-node.ps1 -Start`).
-
-If you **already have Node.js 18+** and `npm`, use `npm install` and `npm start` as usual—the bootstrap scripts detect that and skip the download.
+**Details:** `install-desktop` uses **`./scripts/bootstrap-node.sh`** when Node 18+ is missing (portable Node under `.tools/`; requires `curl`/`wget` + `tar` on Unix). You can still run bootstrap alone if you prefer.
 
 You do **not** need to install NW.js separately or add it to your system `PATH`; the `nw` package installs under `node_modules/`.
 
@@ -118,11 +125,9 @@ The `web-app` directory provides a web-based variant for remote use. See that di
 ```bash
 git clone https://github.com/buzzcauldron/visual-page-editor.git
 cd visual-page-editor
-npm install   # installs deps + NW.js SDK (dependency `nw`)
+./scripts/install-desktop.sh   # or: npm install
 ./bin/visual-page-editor
-# or: npm start   # runs NW.js from node_modules (.bin/nw); no global install
-# Without Node: ./scripts/bootstrap-node.sh  (needs bash + curl/wget)
-# Windows without Node: .\scripts\bootstrap-node.ps1  (PowerShell; or npm run bootstrap:win if npm exists from another install)
+# or: npm start
 ```
 
 Smoke-test a PATH-only install: `npm run verify:nw`. The launcher uses `NWJS_VERSION` (default **0.94.0**, aligned with `nw@0.94.0-sdk` in `package.json`). Set `AUTO_DOWNLOAD_NWJS=1` if you rely on the launcher downloading NW.js to `~/.nwjs` when `node_modules` is not present.
