@@ -39,12 +39,34 @@ Keep using the **same terminal** after install so `PATH` still includes `.tools/
 
 ## If something goes wrong
 
+- **`Error: spawn .../node_modules/nw/nwjs-sdk-.../nwjs.app/Contents/MacOS/nwjs ENOENT`**  
+  The NW.js download inside `node_modules/nw` is **missing or incomplete** (interrupted install, disk full, or antivirus). Reinstall that tree:
+  ```bash
+  rm -rf node_modules/nw
+  npm install
+  ```
+  Or wipe dependencies and run the installer again:
+  ```bash
+  rm -rf node_modules .tools
+  ./scripts/install-desktop.sh
+  ```
+  Then confirm the binary exists:
+  ```bash
+  ls -la node_modules/nw/nwjs-sdk-v*/nwjs.app/Contents/MacOS/nwjs
+  ```
+
 - **`env: node: No such file or directory`** when running `node_modules/.bin/nw`: run **`./bin/visual-page-editor`** from the repo (it prepends `.tools/node-v*/bin` to `PATH`), or run `./scripts/install-desktop.sh` again.
+
+- **Conda `(base)` / mixed Node**: A conda environment can put a different `node`/`npm` on your `PATH` than the one used when `node_modules` was built. Prefer **`conda deactivate`** before `./scripts/install-desktop.sh`, or run **`./scripts/test-fresh-install-mac.sh 1`** (uses a minimal `PATH` like a clean Mac).
+
 - **Wrong or cached NW.js path**:  
   `rm -f ~/.cache/visual-page-editor/nw-path`  
   then run `./bin/visual-page-editor` again.
+
 - **Scripts not executable**:  
   `chmod +x scripts/bootstrap-node.sh scripts/install-desktop.sh bin/visual-page-editor`
+
+- **Log mentions `/Applications/nwjs.app` or Rosetta on an M-series Mac**: You may have a **generic x64** NW.js on `PATH` or in Applications. Remove or avoid `/Applications/nwjs.app`, clear the cache (above), and rely on **`node_modules/nw`** after a full `npm install`.
 
 ## Test a “fresh clone” locally (numbered folders)
 

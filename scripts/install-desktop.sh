@@ -32,6 +32,17 @@ verify_nwjs() {
   if [ ! -x "$ROOT/node_modules/.bin/nw" ] && [ -f "$ROOT/node_modules/.bin/nw" ]; then
     chmod +x "$ROOT/node_modules/.bin/nw" 2>/dev/null || true
   fi
+  # macOS: the npm postinstall must extract nwjs.app; missing binary causes spawn ENOENT from cli.js
+  if [ "$(uname -s)" = "Darwin" ]; then
+    NW_MACHO="$(find "$ROOT/node_modules/nw" -path '*/nwjs.app/Contents/MacOS/nwjs' -type f 2>/dev/null | head -1)"
+    if [ -z "$NW_MACHO" ] || [ ! -f "$NW_MACHO" ]; then
+      echo "error: NW.js app bundle incomplete under node_modules/nw (expected .../nwjs.app/Contents/MacOS/nwjs)." >&2
+      echo "  Fix: rm -rf node_modules/nw && npm install" >&2
+      echo "  or:  rm -rf node_modules && ./scripts/install-desktop.sh" >&2
+      exit 1
+    fi
+    echo "==> NW.js SDK on disk: $NW_MACHO"
+  fi
   echo "==> NW.js OK: local SDK via npm (node_modules/.bin/nw)."
 }
 
