@@ -19,7 +19,14 @@ Visual Page Editor is an application for viewing and editing ground truth or pre
 
 ## Quick start (desktop)
 
-**Linux / macOS:**
+You do **not** need NW.js installed globally or on your `PATH`. After `npm install`, the app uses the local `nw` package (`node_modules/.bin/nw`). The launcher prefers that binary automatically.
+
+**One command after clone (install deps + NW.js, then open the app):**
+```bash
+git clone https://github.com/buzzcauldron/visual-page-editor.git && cd visual-page-editor && npm install && npm start
+```
+
+**Linux / macOS (install then launch with a sample file):**
 ```bash
 git clone https://github.com/buzzcauldron/visual-page-editor.git
 cd visual-page-editor
@@ -35,7 +42,7 @@ npm install
 .\bin\visual-page-editor.ps1 examples\lorem.xml
 ```
 
-Running `npm install` installs the [nw](https://www.npmjs.com/package/nw) devDependency; its postinstall downloads the **NW.js SDK** for your OS/arch into `node_modules/` (ignored by git). The launcher prefers `node_modules/.bin/nw` when present, then falls back to `~/.nwjs`, PATH, or (when `AUTO_DOWNLOAD_NWJS` is set) a download. For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher instead.
+The [nw](https://www.npmjs.com/package/nw) package is a **regular dependency**; its postinstall downloads the **NW.js SDK** for your OS/arch into `node_modules/` (ignored by git). The launcher prefers `node_modules/.bin/nw` when present, then falls back to `~/.nwjs`, PATH, or (when `AUTO_DOWNLOAD_NWJS` is set) a download. To confirm a clean machine needs no global `nw`, run `npm run verify:nw`. For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher instead.
 
 On **Linux ARM64**, `uname -m` sets the architecture so auto-download and `~/.nwjs` lookups use **linux-arm64**; `npm install` does the same via the `nw` package. If only an x64 binary is found, the launcher warns and you can run `npm install` or set `AUTO_DOWNLOAD_NWJS=1` to fetch the matching SDK.
 
@@ -96,12 +103,12 @@ The `web-app` directory provides a web-based variant for remote use. See that di
 ```bash
 git clone https://github.com/buzzcauldron/visual-page-editor.git
 cd visual-page-editor
-npm install   # installs JS deps and downloads NW.js SDK via the `nw` package
+npm install   # installs deps + NW.js SDK (dependency `nw`)
 ./bin/visual-page-editor
-# or: npm start   # runs NW.js from node_modules (.bin/nw)
+# or: npm start   # runs NW.js from node_modules (.bin/nw); no global install
 ```
 
-The launcher uses `NWJS_VERSION` (default **0.94.0**, aligned with `nw@0.94.0-sdk` in `package.json`). Set `AUTO_DOWNLOAD_NWJS=1` if you rely on the launcher downloading NW.js to `~/.nwjs` when `node_modules` is not present.
+Smoke-test a PATH-only install: `npm run verify:nw`. The launcher uses `NWJS_VERSION` (default **0.94.0**, aligned with `nw@0.94.0-sdk` in `package.json`). Set `AUTO_DOWNLOAD_NWJS=1` if you rely on the launcher downloading NW.js to `~/.nwjs` when `node_modules` is not present.
 
 Code review: `npm run review` or `./scripts/code-review.sh`. See [CODE_REVIEW.md](CODE_REVIEW.md).
 
