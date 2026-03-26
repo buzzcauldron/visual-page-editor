@@ -21,6 +21,9 @@ debian/*.substvars
 # Node modules
 node_modules/
 
+# Portable Node.js from scripts/bootstrap-node.{sh,ps1}
+.tools/
+
 # Editor and OS files
 .DS_Store
 *.swp

@@ -26,6 +26,8 @@ You do **not** need NW.js installed globally or on your `PATH`. After `npm insta
 git clone https://github.com/buzzcauldron/visual-page-editor.git && cd visual-page-editor && npm install && npm start
 ```
 
+**If `npm` is not installed yet** (no Node on the machine), use the bootstrap script instead of the line above, e.g. `git clone … && cd visual-page-editor && ./scripts/bootstrap-node.sh --start` (Linux/macOS) or `… && .\scripts\bootstrap-node.ps1 -Start` (Windows PowerShell).
+
 **Linux / macOS (install then launch with a sample file):**
 ```bash
 git clone https://github.com/buzzcauldron/visual-page-editor.git
@@ -42,7 +44,16 @@ npm install
 .\bin\visual-page-editor.ps1 examples\lorem.xml
 ```
 
-**GitHub ZIP (no Git):** Download the repository as a ZIP, extract it, open a terminal in that folder, then run `npm install` and `npm start` (or `./bin/visual-page-editor …`) exactly as above. You need **Node.js** (which provides `npm`) on the machine or in your environment; you do **not** need to install NW.js separately or add anything to your system `PATH`—the `nw` package installs locally under `node_modules/`.
+**GitHub ZIP (no Git):** Download the repository as a ZIP, extract it, open a terminal in that folder, then install and run as below.
+
+**Without Node.js installed:** You can still set everything up automatically (downloads an official **portable Node.js** into `.tools/`, then runs `npm install`; nothing is added to your system `PATH` permanently):
+
+- **Linux / macOS:** `./scripts/bootstrap-node.sh` then `npm start` (or `./scripts/bootstrap-node.sh --start` to do both). Requires `curl` or `wget`, and `tar` (usually present).
+- **Windows (PowerShell):** `.\scripts\bootstrap-node.ps1` then `npm start` (or `.\scripts\bootstrap-node.ps1 -Start`).
+
+If you **already have Node.js 18+** and `npm`, use `npm install` and `npm start` as usual—the bootstrap scripts detect that and skip the download.
+
+You do **not** need to install NW.js separately or add it to your system `PATH`; the `nw` package installs under `node_modules/`.
 
 **Docker:** The desktop image runs NW.js from a fixed path inside the container (`/app/nwjs/nw`); nothing is added to `PATH` on the host. See [README-DOCKER.md](README-DOCKER.md).
 
@@ -110,6 +121,8 @@ cd visual-page-editor
 npm install   # installs deps + NW.js SDK (dependency `nw`)
 ./bin/visual-page-editor
 # or: npm start   # runs NW.js from node_modules (.bin/nw); no global install
+# Without Node: ./scripts/bootstrap-node.sh  (needs bash + curl/wget)
+# Windows without Node: .\scripts\bootstrap-node.ps1  (PowerShell; or npm run bootstrap:win if npm exists from another install)
 ```
 
 Smoke-test a PATH-only install: `npm run verify:nw`. The launcher uses `NWJS_VERSION` (default **0.94.0**, aligned with `nw@0.94.0-sdk` in `package.json`). Set `AUTO_DOWNLOAD_NWJS=1` if you rely on the launcher downloading NW.js to `~/.nwjs` when `node_modules` is not present.

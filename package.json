@@ -2,6 +2,9 @@
   "name": "visual-page-editor",
   "version": "1.2.0",
   "description": "Modern visual editor for Page XML files - based on nw-page-editor",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "main": "./html/index.html",
   "author": "buzzcauldron",
   "license": "MIT",
