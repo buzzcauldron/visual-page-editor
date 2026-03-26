@@ -37,7 +37,7 @@ npm install
 
 Running `npm install` installs the [nw](https://www.npmjs.com/package/nw) devDependency; its postinstall downloads the **NW.js SDK** for your OS/arch into `node_modules/` (ignored by git). The launcher prefers `node_modules/.bin/nw` when present, then falls back to `~/.nwjs`, PATH, or (when `AUTO_DOWNLOAD_NWJS` is set) a download. For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher instead.
 
-On **Linux ARM64**, the bash launcher’s auto-download still targets x64; use `npm install` so the npm `nw` package supplies the correct binary, or install NW.js manually.
+On **Linux ARM64**, `uname -m` sets the architecture so auto-download and `~/.nwjs` lookups use **linux-arm64**; `npm install` does the same via the `nw` package. If only an x64 binary is found, the launcher warns and you can run `npm install` or set `AUTO_DOWNLOAD_NWJS=1` to fetch the matching SDK.
 
 **Open multiple files:**
 ```bash
