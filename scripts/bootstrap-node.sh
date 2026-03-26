@@ -41,6 +41,14 @@ ensure_portable_node() {
     *) echo "Unsupported CPU architecture: $arch" >&2; exit 1 ;;
   esac
 
+  # Apple Silicon: a zsh/bash session can run under Rosetta and report x86_64; use arm64 Node + npm nw artifacts
+  if [ "$os" = "darwin" ] && [ "$arch_n" = "x64" ]; then
+    if sysctl -n sysctl.proc_translated 2>/dev/null | grep -q '^1$'; then
+      arch_n=arm64
+      rm -rf "$ROOT/.tools/node-v${NODE_BOOTSTRAP_VERSION}-darwin-x64" 2>/dev/null || true
+    fi
+  fi
+
   if [ "$os" = "linux" ]; then
     ext=tar.xz
   else

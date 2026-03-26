@@ -74,13 +74,14 @@ fi
 # NW.js version configuration (can be overridden via environment variable)
 NWJS_VERSION="${NWJS_VERSION:-0.94.0}"
 
-# Prefer npm-installed NW.js (devDependency `nw` postinstall downloads SDK for this host)
+# Prefer npm-installed NW.js (dependency `nw` postinstall downloads SDK for this host)
 nw_from_npm=""
-if [ -n "$nw_page_editor" ] && [ -f "$nw_page_editor/node_modules/.bin/nw" ] && [ -x "$nw_page_editor/node_modules/.bin/nw" ]; then
+if [ -n "$nw_page_editor" ] && [ -f "$nw_page_editor/node_modules/.bin/nw" ]; then
   case "$nw_page_editor" in
     /*) nw_from_npm="$nw_page_editor/node_modules/.bin/nw" ;;
     *) _npm_root="$(cd "$nw_page_editor" 2>/dev/null && pwd)" && [ -n "$_npm_root" ] && nw_from_npm="$_npm_root/node_modules/.bin/nw" ;;
   esac
+  [ -n "$nw_from_npm" ] && [ ! -x "$nw_from_npm" ] && chmod +x "$nw_from_npm" 2>/dev/null || true
 fi
 
 # Cache dir for resolved NW.js path (speeds up subsequent startups)
@@ -469,6 +470,16 @@ if [ -d "$APP_PATH" ]; then
     /*) ;;
     *) APP_PATH=$(cd "$APP_PATH" && pwd) || true ;;
   esac
+fi
+
+# node_modules/.bin/nw is often #!/usr/bin/env node — portable Node from bootstrap lives in .tools/ and is not on PATH here
+if [ -n "$APP_PATH" ]; then
+  for _toolbin in "$APP_PATH"/.tools/node-v*/bin; do
+    if [ -x "$_toolbin/node" ]; then
+      export PATH="$_toolbin:$PATH"
+      break
+    fi
+  done
 fi
 
 # On macOS, binary inside .app bundle often ignores first arg and looks for bundle's app.nw; use --nwapp to force our app
