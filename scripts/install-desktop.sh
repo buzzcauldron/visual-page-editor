@@ -15,7 +15,12 @@ for a in "$@"; do
 done
 
 echo "==> Installing dependencies and NW.js (npm package nw)..."
-./scripts/bootstrap-node.sh "${forward[@]}"
+# With set -u, "${arr[@]}" errors if arr is empty on some Bash builds (e.g. conda); branch instead.
+if [ "${#forward[@]}" -eq 0 ]; then
+  ./scripts/bootstrap-node.sh
+else
+  ./scripts/bootstrap-node.sh "${forward[@]}"
+fi
 
 verify_nwjs() {
   if [ ! -e "$ROOT/node_modules/.bin/nw" ]; then
