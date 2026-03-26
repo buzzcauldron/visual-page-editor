@@ -99,7 +99,11 @@ ensure_portable_node
 
 command -v npm >/dev/null 2>&1 || { echo "npm not found after bootstrap" >&2; exit 1; }
 
-npm install "${args[@]}"
+if [ "${#args[@]}" -eq 0 ]; then
+  npm install
+else
+  npm install "${args[@]}"
+fi
 
 if [ "$DO_START" = 1 ]; then
   exec npm start
