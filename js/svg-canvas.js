@@ -1118,6 +1118,20 @@
     }
 
     /**
+     * True during an active line-text edit session: lower pane #textedit is enabled and something in the
+     * SVG has .editing. Focus may still be on the canvas (e.g. after adjusting a baseline), so this is
+     * broader than isLineTextEditActive — used so Backspace/Delete are not routed to element deletion.
+     */
+    function isLineTextEditSession() {
+      if ( ! self.cfg.textareaId || ! svgRoot )
+        return false;
+      var ta = document.getElementById(self.cfg.textareaId);
+      if ( ! ta || ta.disabled )
+        return false;
+      return $(svgRoot).find('.editing').length > 0;
+    }
+
+    /**
      * Sets selected to given element.
      */
     function selectElem( svgElem, reselect, nocenter ) {
@@ -1183,6 +1197,12 @@
           return true;
         // Never delete when focus is in a text field so Backspace/Del edit text, not the element (unless forceDelete)
         if ( ! forceDelete ) {
+          if ( isLineTextEditSession() ) {
+            var taSession = document.getElementById(self.cfg.textareaId);
+            if ( taSession && document.activeElement !== taSession )
+              taSession.focus();
+            return true;
+          }
           var active = document.activeElement;
           if ( active && ( active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable ) )
             return true;
