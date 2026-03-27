@@ -57,5 +57,5 @@ echo ""
 echo "Next: npm start   or   ./bin/visual-page-editor [page.xml ...]"
 echo "(If portable Node was installed under .tools/, use this same terminal or run ./scripts/install-desktop.sh again before npm.)"
 if [ "$(uname -s)" = "Darwin" ]; then
-  echo "macOS tips: see INSTALL-MAC.md (fresh-install test: ./scripts/test-fresh-install-mac.sh)"
+  echo "macOS tips: INSTALL-MAC.md — simulated clean install: TESTING.md"
 fi

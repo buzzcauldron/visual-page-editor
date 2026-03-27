@@ -7,6 +7,7 @@
 | **Code review** | `./scripts/code-review.sh` | JS (jshint if installed), HTML, shell, batch, PHP, XSLT/XSD (xmlstarlet), required files |
 | **Lint JS** | `npm run lint` or `npx jshint js/*.js --exclude js/*.min.js` | Needs Node/npm |
 | **Platform tests** | `./scripts/test-platforms.sh` | macOS launcher, Docker, arm64 features, version, installers |
+| **Install / clean-env tests** | See [TESTING.md](TESTING.md) | `verify:nw`, Docker bootstrap, macOS numbered-folder copy |
 | **Version sync** | `./scripts/sync-version.sh` | Syncs `VERSION` into package.json and all @version strings |
 
 ## Debug all branches thoroughly & relaunch

@@ -49,7 +49,7 @@ cd visual-page-editor
 ./bin/visual-page-editor examples/lorem.xml
 ```
 
-**macOS only:** use a **native Apple Silicon** terminal on M-series Macs when possible; portable Node and NW.js target **arm64**. Troubleshooting, Rosetta notes, and a **numbered fresh-install test** (`./scripts/test-fresh-install-mac.sh 1`): **[INSTALL-MAC.md](INSTALL-MAC.md)**.
+**macOS only:** use a **native Apple Silicon** terminal on M-series Macs when possible; portable Node and NW.js target **arm64**. Troubleshooting and Rosetta notes: **[INSTALL-MAC.md](INSTALL-MAC.md)**.
 
 **Windows (PowerShell), install then sample:**
 ```powershell
@@ -66,7 +66,7 @@ You do **not** need to install NW.js separately or add it to your system `PATH`;
 
 **Docker:** The desktop image runs NW.js from a fixed path inside the container (`/app/nwjs/nw`); nothing is added to `PATH` on the host. See [README-DOCKER.md](README-DOCKER.md).
 
-The [nw](https://www.npmjs.com/package/nw) package is a **regular dependency**; its postinstall downloads the **NW.js SDK** for your OS/arch into `node_modules/` (ignored by git). The launcher prefers `node_modules/.bin/nw` when present, then falls back to `~/.nwjs`, PATH, or (when `AUTO_DOWNLOAD_NWJS` is set) a download. To confirm a clean machine needs no global `nw`, run `npm run verify:nw`. To simulate a **fresh Linux VM** (no system Node, minimal `PATH`) and verify bootstrap + NW.js end-to-end, install [Docker](https://docs.docker.com/get-docker/) and run `./scripts/test-install-docker.sh` (or `npm run test:install-docker`). For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher instead.
+The [nw](https://www.npmjs.com/package/nw) package is a **regular dependency**; its postinstall downloads the **NW.js SDK** for your OS/arch into `node_modules/` (ignored by git). The launcher prefers `node_modules/.bin/nw` when present, then falls back to `~/.nwjs`, PATH, or (when `AUTO_DOWNLOAD_NWJS` is set) a download. **Install checks and simulated clean environments:** [TESTING.md](TESTING.md). For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher.
 
 On **Linux ARM64**, `uname -m` sets the architecture so auto-download and `~/.nwjs` lookups use **linux-arm64**; `npm install` does the same via the `nw` package. If only an x64 binary is found, the launcher warns and you can run `npm install` or set `AUTO_DOWNLOAD_NWJS=1` to fetch the matching SDK.
 
@@ -117,7 +117,7 @@ cd visual-page-editor
 # or: npm start
 ```
 
-Smoke-test a PATH-only install: `npm run verify:nw`. The launcher uses `NWJS_VERSION` (default **0.94.0**, aligned with `nw@0.94.0-sdk` in `package.json`). Set `AUTO_DOWNLOAD_NWJS=1` if you rely on the launcher downloading NW.js to `~/.nwjs` when `node_modules` is not present.
+Verification scripts (`verify:nw`, Docker bootstrap test, clean macOS copy): [TESTING.md](TESTING.md). The launcher uses `NWJS_VERSION` (default **0.94.0**, aligned with `nw@0.94.0-sdk` in `package.json`). Set `AUTO_DOWNLOAD_NWJS=1` if the launcher should download NW.js to `~/.nwjs` when `node_modules` is absent.
 
 Code review: `npm run review` or `./scripts/code-review.sh`. See [CODE_REVIEW.md](CODE_REVIEW.md).
 
