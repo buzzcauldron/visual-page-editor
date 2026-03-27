@@ -30,11 +30,11 @@ From the repo root:
 | **No global `nw` on PATH** | `npm run verify:nw` | Temp dir + `npm ci`; launcher `--help` with minimal `PATH`. |
 | **Linux VM–style (Docker)** | `./scripts/test-install-docker.sh` or `npm run test:install-docker` | Fresh Ubuntu container, copies repo (no `node_modules`), runs `bootstrap-node.sh`. Requires Docker. |
 
-The [`nw`](https://www.npmjs.com/package/nw) package installs the NW.js SDK under `node_modules/` (gitignored). The launcher prefers `node_modules/.bin/nw`, then `~/.nwjs`, then PATH, or (with `AUTO_DOWNLOAD_NWJS`) a download. Default **`NWJS_VERSION`** matches **`dependencies.nw`** in `package.json` (e.g. `0.94.0-sdk` → defaults use `0.94.0`).
+The [`nw`](https://www.npmjs.com/package/nw) package installs the NW.js SDK under `node_modules/` (gitignored). The launcher prefers `node_modules/.bin/nw`, then `~/.nwjs`, then PATH, or (with `AUTO_DOWNLOAD_NWJS`) a download. Default **`NWJS_VERSION`** matches **`dependencies.nw`** in `package.json` (e.g. `0.109.1-sdk` → defaults use `0.109.1`).
 
 ### NW.js version alignment (optional check)
 
-Canonical pin: **`package.json` → `dependencies.nw`** (e.g. `0.94.0-sdk`). The same **X.Y.Z** must appear as defaults in `bin/visual-page-editor`, `Dockerfile.desktop`, Docker/Compose scripts, and Linux packaging helpers—**not** in `build-macos.sh` (that script uses its own defaults for legacy `.app` builds).
+Canonical pin: **`package.json` → `dependencies.nw`** (e.g. `0.109.1-sdk`). The same **X.Y.Z** must appear as defaults in `bin/visual-page-editor`, `Dockerfile.desktop`, Docker/Compose scripts, and Linux packaging helpers—**not** in `build-macos.sh` (that script uses its own defaults for legacy `.app` builds).
 
 ```bash
 npm run check:nw-align

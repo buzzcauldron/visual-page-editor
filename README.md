@@ -117,7 +117,7 @@ cd visual-page-editor
 # or: npm start
 ```
 
-Verification scripts (`verify:nw`, Docker bootstrap test, clean macOS copy): [TESTING.md](TESTING.md). The launcher uses `NWJS_VERSION` (default **0.94.0**, aligned with `nw@0.94.0-sdk` in `package.json`). Set `AUTO_DOWNLOAD_NWJS=1` if the launcher should download NW.js to `~/.nwjs` when `node_modules` is absent.
+Verification scripts (`verify:nw`, Docker bootstrap test, clean macOS copy): [TESTING.md](TESTING.md). The launcher uses `NWJS_VERSION` (default **0.109.1**, aligned with `nw@0.109.1-sdk` in `package.json`). Set `AUTO_DOWNLOAD_NWJS=1` if the launcher should download NW.js to `~/.nwjs` when `node_modules` is absent.
 
 Code review: `npm run review` or `./scripts/code-review.sh`. See [CODE_REVIEW.md](CODE_REVIEW.md).
 

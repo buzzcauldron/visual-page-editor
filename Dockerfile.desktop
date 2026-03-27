@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-ARG NWJS_VERSION=0.94.0
+ARG NWJS_VERSION=0.109.1
 ARG APP_VERSION=0.0.0
 
 LABEL maintainer="buzzcauldron <buzzcauldron@users.noreply.github.com>"

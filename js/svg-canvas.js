@@ -1104,18 +1104,45 @@
     }
 
     /**
+     * True when the line text box (#textedit) is focused and enabled — user is editing line text.
+     * Used to avoid stealing focus or panning the view during that session (Backspace + snap issues).
+     */
+    function isLineTextEditActive() {
+      var id = self.cfg.textareaId;
+      if ( ! id )
+        return false;
+      var ta = document.getElementById(id);
+      if ( ! ta || ta.disabled )
+        return false;
+      return document.activeElement === ta;
+    }
+
+    /**
      * Sets selected to given element.
      */
     function selectElem( svgElem, reselect, nocenter ) {
       if ( $(svgElem).hasClass('selected') &&
            ( typeof reselect === 'undefined' || ! reselect ) )
         return;
+      // Flush text/point edits into the SVG before unselect. page-editor onUnselect clears #textedit;
+      // without this, switching selection drops in-progress line text that was only in the textarea.
+      var $new = $(svgElem);
+      var $editing = svgRoot ? $(svgRoot).find('.editing') : $();
+      if ( $editing.length ) {
+        var edNode = $editing[0];
+        var selNode = $new[0];
+        var stillSameEdit = edNode === selNode || ( selNode && $.contains( edNode, selNode ) );
+        if ( ! stillSameEdit )
+          removeEditings();
+      }
       unselectElem();
-      if ( $(document.activeElement).filter('input[type=text], textarea').length > 0 )
-        $(document.activeElement).blur();
-      // Focus canvas so Backspace/Delete hit our handler (Mousetrap skips when focus is in INPUT/TEXTAREA)
-      if ( svgRoot && svgRoot.parentNode )
-        svgRoot.parentNode.focus();
+      if ( ! isLineTextEditActive() ) {
+        if ( $(document.activeElement).filter('input[type=text], textarea').length > 0 )
+          $(document.activeElement).blur();
+        // Focus canvas so Backspace/Delete hit our handler (Mousetrap skips when focus is in INPUT/TEXTAREA)
+        if ( svgRoot && svgRoot.parentNode )
+          svgRoot.parentNode.focus();
+      }
       $(svgElem).addClass('selected');
       // Defer pan and onSelect to next frame so first click feels instant (selection paints immediately)
       var doCenter = self.cfg.centerOnSelection && ( typeof nocenter === 'undefined' || ! nocenter );
@@ -1126,7 +1153,7 @@
           cancelAnimationFrame( panToSelectedRafId );
         panToSelectedRafId = requestAnimationFrame( function () {
           panToSelectedRafId = 0;
-          if ( doCenter )
+          if ( doCenter && ! isLineTextEditActive() )
             panToSelected();
           if ( Array.isArray(onSelect) )
             for ( var n = 0; n < onSelect.length; n++ )
@@ -1158,6 +1185,8 @@
         if ( ! forceDelete ) {
           var active = document.activeElement;
           if ( active && ( active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable ) )
+            return true;
+          if ( self.cfg.textareaId && active && active.id === self.cfg.textareaId )
             return true;
         }
         var selElem = $(svgRoot).find('.selected').first();
@@ -1555,11 +1584,11 @@
               setEditText( svgElem, opts.text_selector, opts.text_creator, true );
               break;
             case 'points':
-              setEditPoints( svgElem, opts.points_selector, opts.restrict, true, opts.points_validator );
+              setEditPoints( svgElem, opts.points_selector, opts.restrict, true, opts.points_validator, opts.selectNocenter );
               break;
             case 'text+points':
               setEditText( svgElem, opts.text_selector, opts.text_creator, true );
-              setEditPoints( svgElem, opts.points_selector, opts.restrict, false, opts.points_validator );
+              setEditPoints( svgElem, opts.points_selector, opts.restrict, false, opts.points_validator, opts.selectNocenter );
               break;
           }
 
@@ -2375,7 +2404,7 @@
      * @param {object}   svgElem          Selected element for editing.
      * @param {string}   points_selector  CSS selector for the element to edit.
      */
-    function setEditPoints( svgElem, points_selector, restrict, resetedit, isvalidpoints ) {
+    function setEditPoints( svgElem, points_selector, restrict, resetedit, isvalidpoints, selectNocenter ) {
       var
       restrict_axis = restrict === self.enum.restrict.AxisAlignedRectangle || restrict === self.enum.restrict.AxisAligned ? true : false,
       rootMatrix,
@@ -2431,7 +2460,7 @@
 
       if ( numElems === 0 ) {
         var toSelect = $(svgElem).closest('.TextLine')[0] || ( svgElem && svgElem.nodeType ? svgElem : null );
-        if ( toSelect ) selectElem( toSelect );
+        if ( toSelect ) selectElem( toSelect, false, !!selectNocenter );
         return;
       }
 
@@ -2644,7 +2673,7 @@
 
       $(svgElem).addClass('editing');
       if ( numElems > 0 )
-        selectElem( numElems > 1 ? svgElem : $(svgElem).find('.selectable')[0] );
+        selectElem( numElems > 1 ? svgElem : $(svgElem).find('.selectable')[0], false, !!selectNocenter );
 
       /// Element function to remove editing ///
       var prevRemove = typeof svgElem.removeEditing !== 'undefined' ?
