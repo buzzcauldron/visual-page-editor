@@ -38,7 +38,8 @@
     "test:install-docker": "./scripts/test-install-docker.sh",
     "test:install-mac": "./scripts/test-fresh-install-mac.sh",
     "install-desktop": "./scripts/install-desktop.sh",
-    "docker:run": "./docker-run.sh"
+    "docker:run": "./docker-run.sh",
+    "check:nw-align": "./scripts/check-nwjs-version-alignment.sh"
   },
   "repository": {
     "type": "git",
@@ -51,4 +52,3 @@
     "visual-editor"
   ]
 }
-

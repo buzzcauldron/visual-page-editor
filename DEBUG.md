@@ -8,6 +8,7 @@
 | **Lint JS** | `npm run lint` or `npx jshint js/*.js --exclude js/*.min.js` | Needs Node/npm |
 | **Platform tests** | `./scripts/test-platforms.sh` | macOS launcher, Docker, arm64 features, version, installers |
 | **Install / clean-env tests** | See [TESTING.md](TESTING.md) | `verify:nw`, Docker bootstrap, macOS numbered-folder copy |
+| **NW.js default alignment** | `npm run check:nw-align` | Read-only; `dependencies.nw` vs launcher/Docker/packaging defaults |
 | **Version sync** | `./scripts/sync-version.sh` | Syncs `VERSION` into package.json and all @version strings |
 
 ## Debug all branches thoroughly & relaunch
