@@ -535,7 +535,7 @@ $(window).on('load', function () {
   /// Setup Page XML schema validation ///
   var
   pagexml_xsd_file = '../xsd/pagecontent_omnius.xsd',
-  pagexml_xsd_fallback_url = 'https://raw.githubusercontent.com/omni-us/pageformat/main/pagecontent_omnius.xsd',
+  pagexml_xsd_fallback_url = 'https://raw.githubusercontent.com/omni-us/pageformat/master/pagecontent_omnius.xsd',
   pagexml_xsd = false;
   function loadPageXmlXsd( async ) {
     if ( ! pagexml_xsd ) {

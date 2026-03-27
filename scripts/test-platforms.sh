@@ -6,6 +6,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
+# Docker Desktop often installs the CLI under /usr/local/bin or Homebrew paths; CI may have a minimal PATH.
+export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
 
 PASS=0
 FAIL=0
@@ -43,8 +45,8 @@ if command -v docker >/dev/null 2>&1; then
       -f Dockerfile.desktop \
       -t "visual-page-editor:$VER" \
       -t visual-page-editor:latest \
-      "$ROOT" 2>/dev/null; then
-      echo "  FAIL: docker build (see output above if not suppressed)"
+      "$ROOT"; then
+      echo "  FAIL: docker build"
       FAIL=$((FAIL + 1))
     fi
   fi
