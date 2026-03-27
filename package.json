@@ -19,7 +19,7 @@
   "dependencies": {
     "github-markdown-css": "^5.6.0",
     "image-size": "^0.6.2",
-    "nw": "0.94.0-sdk"
+    "nw": "0.109.1-sdk"
   },
   "devDependencies": {
     "@types/jquery": "^3.3.47",

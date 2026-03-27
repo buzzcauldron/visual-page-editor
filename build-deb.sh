@@ -11,7 +11,7 @@ NAME="visual-page-editor"
 VERSION="$([ -f "$PROJECT_ROOT/VERSION" ] && cat "$PROJECT_ROOT/VERSION" | tr -d '\n')"
 [ -z "$VERSION" ] && VERSION="$(node -p "require('$PROJECT_ROOT/package.json').version" 2>/dev/null)" || true
 VERSION="${VERSION:-1.0.0}"
-NWJS_VERSION="${NWJS_VERSION:-0.94.0}"
+NWJS_VERSION="${NWJS_VERSION:-0.109.1}"
 
 # Colors for output
 RED='\033[0;31m'

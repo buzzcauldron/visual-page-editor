@@ -21,7 +21,7 @@ Examples:
 
 Environment:
   VPE_IMAGE         Override image name:tag (default: visual-page-editor:<VERSION>)
-  NWJS_VERSION      Docker build-arg for NW.js SDK (default: 0.94.0)
+  NWJS_VERSION      Docker build-arg for NW.js SDK (default: 0.109.1)
   DOCKER_DEFAULT_PLATFORM  Default: linux/amd64 (same image on Apple Silicon and Intel)
 
 See README-DOCKER.md for prerequisites (XQuartz on macOS, X11 on Linux).
@@ -30,7 +30,7 @@ EOF
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSION_FILE="$SCRIPT_DIR/VERSION"
-NWJS_VERSION="${NWJS_VERSION:-0.94.0}"
+NWJS_VERSION="${NWJS_VERSION:-0.109.1}"
 
 VERSION="$(tr -d ' \t\n\r' <"$VERSION_FILE" 2>/dev/null || echo 0.0.0)"
 DEFAULT_IMAGE="visual-page-editor:${VERSION}"

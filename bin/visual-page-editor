@@ -74,7 +74,7 @@ fi
   nw_page_editor="$nw_page_editor/share/nw-page-editor";
 
 # NW.js version configuration (can be overridden via environment variable)
-NWJS_VERSION="${NWJS_VERSION:-0.94.0}"
+NWJS_VERSION="${NWJS_VERSION:-0.109.1}"
 
 # Prefer npm-installed NW.js (dependency `nw` postinstall downloads SDK for this host)
 nw_from_npm=""
@@ -245,6 +245,25 @@ download_nwjs() {
 nw=""
 if [ -n "$nw_from_npm" ] && [ -f "$nw_from_npm" ]; then
   nw="$nw_from_npm"
+fi
+# Prefer the extracted SDK binary from npm `nw` (matches NWJS_VERSION). `node_modules/.bin/nw` is a Node
+# script; `file` does not report arm64, and the Apple Silicon branch below used to replace it with the
+# first ~/.nwjs match (often an older SDK).
+if [ -n "$nw_page_editor" ] && [ -d "$nw_page_editor/node_modules/nw" ]; then
+  _nw_pkg="$nw_page_editor/node_modules/nw"
+  if [ "$PLATFORM" = "macos" ]; then
+    if [ "$MAC_ARCH" = "arm64" ] && [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app/Contents/MacOS/nwjs" ]; then
+      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app/Contents/MacOS/nwjs"
+    elif [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs" ]; then
+      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs"
+    fi
+  elif [ "$PLATFORM" = "linux" ]; then
+    if [ "$MACHINE_ARCH" = "arm64" ] && [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw" ]; then
+      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw"
+    elif [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw" ]; then
+      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw"
+    fi
+  fi
 fi
 if [ -z "$nw" ] && [ -f "$CACHE_FILE" ]; then
   cached_path=$(head -n 1 "$CACHE_FILE" 2>/dev/null)
@@ -435,20 +454,27 @@ fi
 # Launch application with better error handling
 EXIT_CODE=0
 if [ "$PLATFORM" = "macos" ] && [ "$MAC_ARCH" = "arm64" ] && [ -f "$nw" ]; then
-  FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
-  if [ -z "$FILE_ARCH" ]; then
-    # Using x64 on Apple Silicon: try once to find ARM64 (faster than x64 via Rosetta)
-    ARM64_NW=$(find /Applications -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
-    [ ! -f "$ARM64_NW" ] && ARM64_NW=$(find "$HOME/.nwjs" -path "*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
-    if [ -n "$ARM64_NW" ] && [ -f "$ARM64_NW" ]; then
-      nw="$ARM64_NW"
-      echo "Using ARM64 NW.js: $nw" >&2
-    else
-      echo "" >&2
-      echo "WARNING: x64 NW.js on Apple Silicon (Rosetta 2). Install ARM64 for faster startup." >&2
-      echo "" >&2
-    fi
-  fi
+  case "$nw" in
+    */node_modules/.bin/nw)
+      # Node CLI wrapper — do not substitute a random ~/.nwjs binary; use npm SDK path resolution above or Rosetta.
+      ;;
+    *)
+      FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
+      if [ -z "$FILE_ARCH" ]; then
+        # Using x64 on Apple Silicon: try once to find ARM64 (faster than x64 via Rosetta)
+        ARM64_NW=$(find /Applications -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+        [ ! -f "$ARM64_NW" ] && ARM64_NW=$(find "$HOME/.nwjs" -path "*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+        if [ -n "$ARM64_NW" ] && [ -f "$ARM64_NW" ]; then
+          nw="$ARM64_NW"
+          echo "Using ARM64 NW.js: $nw" >&2
+        else
+          echo "" >&2
+          echo "WARNING: x64 NW.js on Apple Silicon (Rosetta 2). Install ARM64 for faster startup." >&2
+          echo "" >&2
+        fi
+      fi
+      ;;
+  esac
 fi
 
 # Save resolved path and architecture to cache (attune version to hardware for next run)

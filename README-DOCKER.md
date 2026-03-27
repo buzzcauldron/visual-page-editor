@@ -2,7 +2,7 @@
 
 The container bundles **NW.js** and app files inside the image. You only need **Docker** on the host; no Node, no npm, no global NW.js.
 
-**Default NW.js version:** **0.94.0** (same family as `package.json` / `./bin/visual-page-editor`). Override at build time with `--build-arg NWJS_VERSION=…`.
+**Default NW.js version:** **0.109.1** (same family as `package.json` / `./bin/visual-page-editor`). Override at build time with `--build-arg NWJS_VERSION=…`.
 
 ---
 
@@ -92,6 +92,6 @@ macOS + XQuartz: use `-e DISPLAY=host.docker.internal:0` and omit the `/tmp/.X11
 |-------|----------------|
 | **Cannot connect to X server** | macOS: XQuartz running + network clients enabled. Linux: `echo $DISPLAY`, `xhost +local:docker`, X server running. |
 | **Rebuild after upgrade** | `./docker-run.sh --build …` or `docker compose build --no-cache` |
-| **Wrong / old NW.js** | Rebuild with explicit `--build-arg NWJS_VERSION=0.94.0` |
+| **Wrong / old NW.js** | Rebuild with explicit `--build-arg NWJS_VERSION=0.109.1` |
 
 Application logs inside the container go to stderr; NW.js/Chromium messages appear in the terminal you used for `docker run`.

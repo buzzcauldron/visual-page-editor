@@ -40,7 +40,7 @@ if command -v docker >/dev/null 2>&1; then
     echo "  Building Docker image..."
     VER="$(tr -d '\n' <"$ROOT/VERSION" 2>/dev/null || echo 0.0.0)"
     if ! docker build --platform linux/amd64 \
-      --build-arg NWJS_VERSION="${NWJS_VERSION:-0.94.0}" \
+      --build-arg NWJS_VERSION="${NWJS_VERSION:-0.109.1}" \
       --build-arg APP_VERSION="$VER" \
       -f Dockerfile.desktop \
       -t "visual-page-editor:$VER" \

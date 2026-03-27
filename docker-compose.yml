@@ -15,7 +15,7 @@ services:
       context: .
       dockerfile: Dockerfile.desktop
       args:
-        NWJS_VERSION: ${NWJS_VERSION:-0.94.0}
+        NWJS_VERSION: ${NWJS_VERSION:-0.109.1}
         APP_VERSION: ${VPE_VERSION:-0.0.0}
     image: visual-page-editor:${VPE_VERSION:-latest}
     container_name: visual-page-editor

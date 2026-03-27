@@ -75,7 +75,10 @@ $(window).on('load', function () {
                 pageCanvas.cfg.baselineType = lineType;
               }
             }
-            if ( text.length !== 0 ) {
+            // Avoid overwriting #textedit while the user is typing (deferred onSelect vs input race).
+            if ( document.activeElement && document.activeElement.id === pageCanvas.cfg.textareaId && $('.editing').length )
+              ;
+            else if ( text.length !== 0 ) {
               text = pageCanvas.cfg.textFormatter(text.html());
               $('#textedit').val(text);
             }
@@ -122,11 +125,16 @@ $(window).on('load', function () {
               return (className.match(/(^|\s)selected-parent-\S+/g) || []).join(' ');
             } );
         },
-      onUnselect: function () {
+      onUnselect: function ( elem ) {
           $('#selectedType').text('-');
           $('#selectedId').text('-');
           $('#modeElement').text('-/'+$('.editable').length);
-          $('#textedit').val('');
+          // Do not clear the text box if this node is still in text/point edit (e.g. selection moved to a child baseline).
+          // Clearing here drops in-progress line text that only lives in #textedit until removeEditing runs.
+          var $u = elem ? $(elem) : $();
+          var keepTextPane = $u.length && ( $u.hasClass('editing') || $u.find('.editing').length > 0 );
+          if ( ! keepTextPane )
+            $('#textedit').val('');
           $('#textinfo').empty();
           // Keep the current baseline type selection for creating new baselines
           // Only update config from radio button if one is checked

@@ -14,7 +14,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 PACKAGE_TYPE="${1:-both}"  # rpm, deb, or both
-NWJS_VERSION="${NWJS_VERSION:-0.94.0}"
+NWJS_VERSION="${NWJS_VERSION:-0.109.1}"
 
 check_docker() {
     if ! command -v docker &> /dev/null; then

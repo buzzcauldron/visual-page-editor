@@ -80,7 +80,7 @@ If the desktop app crashes on launch or soon after:
    Then run `./bin/visual-page-editor` again so it re-detects (and can pick ARM64 if present).
 
 4. **NW.js version**  
-   The launcher expects NW.js **0.94.0** by default. If you have an older SDK (e.g. 0.77.0) in `~/.nwjs`, either install 0.94.0 (see README / launcher download prompt) or set `NWJS_VERSION=0.77.0` when running the launcher.
+   The launcher expects NW.js **0.109.1** by default (see `package.json` / `NWJS_VERSION`). If you have a different SDK in `~/.nwjs`, either install the matching version (see README / launcher download prompt) or set `NWJS_VERSION` when running the launcher.
 
 ## Common issues
 
