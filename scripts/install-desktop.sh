@@ -22,6 +22,20 @@ else
   ./scripts/bootstrap-node.sh "${forward[@]}"
 fi
 
+# bootstrap-node.sh runs in a subshell; PATH changes (e.g. portable Node under .tools/) are not inherited.
+# Prepend so `npm start` and --start work in this same script.
+prepend_portable_node_path() {
+  local _tb
+  for _tb in "$ROOT"/.tools/node-v*/bin; do
+    if [ -x "$_tb/node" ] && [ -x "$_tb/npm" ]; then
+      export PATH="$_tb:$PATH"
+      return 0
+    fi
+  done
+  return 0
+}
+prepend_portable_node_path
+
 verify_nwjs() {
   if [ ! -e "$ROOT/node_modules/.bin/nw" ]; then
     echo "error: node_modules/.bin/nw missing — npm package nw did not install correctly." >&2
