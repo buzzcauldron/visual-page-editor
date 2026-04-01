@@ -11,17 +11,18 @@ NAME="visual-page-editor"
 VERSION="$([ -f "$SCRIPT_DIR/VERSION" ] && cat "$SCRIPT_DIR/VERSION" | tr -d '\n')"
 [ -z "$VERSION" ] && VERSION="$(node -p "require('$SCRIPT_DIR/package.json').version" 2>/dev/null)" || true
 VERSION="${VERSION:-1.0.0}"
-# Default to 0.77.0 for ARM64 support (first NW.js with osx-arm64 builds; 0.50.0 does not exist)
-# Can be overridden via NWJS_VERSION environment variable
+# NW.js version: align with package.json dependencies.nw (same family as ./bin/visual-page-editor).
+# Override with NWJS_VERSION=… if you need a different SDK for packaging experiments.
 if [ -z "${NWJS_VERSION:-}" ]; then
-    # Detect if we need ARM64 - if so, use a version that supports it
+    NWJS_VERSION="$(node -p "const p=require('$SCRIPT_DIR/package.json');const n=p.dependencies&&p.dependencies.nw;const m=String(n||'').match(/^(\d+\.\d+\.\d+)/);m?m[1]:''" 2>/dev/null || true)"
+fi
+if [ -z "$NWJS_VERSION" ]; then
+    echo "Warning: could not read dependencies.nw from package.json; using legacy NW.js defaults." >&2
     if sysctl -n hw.optional.arm64 2>/dev/null | grep -q "1" || [ "$(uname -m)" = "arm64" ]; then
-        NWJS_VERSION="0.77.0"  # First version with osx-arm64 on dl.nwjs.io
+        NWJS_VERSION="0.77.0"
     else
-        NWJS_VERSION="0.44.4"  # Older version is fine for Intel Macs
+        NWJS_VERSION="0.44.4"
     fi
-else
-    NWJS_VERSION="${NWJS_VERSION}"
 fi
 APP_NAME="Visual Page Editor.app"
 BUILD_DIR="$PROJECT_ROOT/build-macos"
@@ -141,8 +142,7 @@ download_nwjs() {
         echo -e "${RED}ERROR: NW.js v${NWJS_VERSION} for ${NWJS_ARCH} is not available (HTTP $http_code)${NC}"
         if [ "$ARCH" = "arm64" ]; then
             echo -e "${YELLOW}Note: ARM64 support requires NW.js v0.77.0 or later.${NC}"
-            echo -e "${YELLOW}Try setting: NWJS_VERSION=0.77.0 ./build-macos.sh${NC}"
-            echo -e "${YELLOW}Or use: NWJS_VERSION=0.94.0 ./build-macos.sh${NC}"
+            echo -e "${YELLOW}Try: NWJS_VERSION matching package.json dependencies.nw (see npm run check:nw-align)${NC}"
         fi
         echo "You can download it manually from: $nwjs_url"
         echo "Or check available versions at: https://nwjs.io/downloads/"
@@ -181,7 +181,7 @@ download_nwjs() {
         echo -e "${RED}Warning: Could not download NW.js automatically.${NC}"
         if [ "$ARCH" = "arm64" ]; then
             echo -e "${YELLOW}Note: ARM64 support requires NW.js v0.77.0 or later.${NC}"
-            echo -e "${YELLOW}Try setting: NWJS_VERSION=0.77.0 ./build-macos.sh${NC}"
+            echo -e "${YELLOW}Set NWJS_VERSION to the X.Y.Z in package.json dependencies.nw (npm run check:nw-align).${NC}"
         fi
         echo "You can download it manually from: $nwjs_url"
         echo "Extract it to: $nwjs_extracted"
@@ -313,8 +313,8 @@ fi
 # Change to resources directory
 cd "$RESOURCES_DIR"
 
-# Launch NW.js with the application
-exec "$NWJS_BIN" "$RESOURCES_DIR" "$@"
+# Launch NW.js with the application (--nwapp matches bin/visual-page-editor; avoids app.nw resolution issues on macOS)
+exec "$NWJS_BIN" --nwapp "$RESOURCES_DIR" "$@"
 EOF
     chmod +x "$MACOS_DIR/launcher"
 }

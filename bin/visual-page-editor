@@ -535,6 +535,16 @@ if [ $EXIT_CODE -ne 0 ]; then
     tail -10 "$LOG_FILE" >&2
   fi
   if [ "$PLATFORM" = "macos" ]; then
+    if [ -f "$LOG_FILE" ] && { grep -q "Mach rendezvous" "$LOG_FILE" 2>/dev/null || grep -q "shared_memory_switch" "$LOG_FILE" 2>/dev/null; }; then
+      echo "" >&2
+      echo "Log suggests Chromium/NW.js multiprocess IPC failed (Mach rendezvous / shared memory)." >&2
+      if [ -n "$nw_page_editor" ] && [ -f "$nw_page_editor/package.json" ]; then
+        echo "Try: rm -f $CACHE_FILE && cd \"$nw_page_editor\" && npm ci && ./bin/${0##*/}" >&2
+      else
+        echo "Try: rm -f $CACHE_FILE && npm ci (from repo root) then run this launcher again." >&2
+      fi
+      echo "See DEBUG.md → Project crashed → item 5 (Mach rendezvous / shared_memory_switch)." >&2
+    fi
     if [ $EXIT_CODE -eq 33 ] || { [ -f "$LOG_FILE" ] && grep -q "app\.nw" "$LOG_FILE" 2>/dev/null; }; then
       echo "" >&2
       echo "If the log mentions app.nw or Resources/app.nw: do not use a generic /Applications/nwjs.app." >&2

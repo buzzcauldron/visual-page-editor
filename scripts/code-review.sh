@@ -215,6 +215,18 @@ if [ -f "bin/visual-page-editor.bat" ] && [ -x "bin/visual-page-editor.bat" ]; t
     count_warning "bin/visual-page-editor.bat should not be executable on Unix systems"
 fi
 
+# NW.js default alignment (launcher, Docker, packaging)
+print_section "NW.js version alignment"
+if [ -x "./scripts/check-nwjs-version-alignment.sh" ]; then
+    if ./scripts/check-nwjs-version-alignment.sh 2>&1; then
+        report_success "NW.js defaults match package.json (check-nwjs-version-alignment.sh)"
+    else
+        count_error "NW.js version literals out of sync — run: npm run check:nw-align"
+    fi
+else
+    count_warning "scripts/check-nwjs-version-alignment.sh missing or not executable"
+fi
+
 # Check for required files
 print_section "Required Files"
 REQUIRED_FILES=("package.json" "README.md" "LICENSE.md" "html/index.html")

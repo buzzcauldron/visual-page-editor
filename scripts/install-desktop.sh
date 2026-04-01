@@ -56,6 +56,13 @@ verify_nwjs() {
       exit 1
     fi
     echo "==> NW.js SDK on disk: $NW_MACHO"
+    if sysctl -n hw.optional.arm64 2>/dev/null | grep -q "1"; then
+      if ! file "$NW_MACHO" 2>/dev/null | grep -qi "arm64"; then
+        echo "error: NW.js binary is not arm64 but this Mac is Apple Silicon — crashes are likely under Rosetta/x64." >&2
+        echo "  Fix: rm -rf node_modules/nw && npm install   (or ./scripts/install-desktop.sh)" >&2
+        exit 1
+      fi
+    fi
   fi
   echo "==> NW.js OK: local SDK via npm (node_modules/.bin/nw)."
 }
