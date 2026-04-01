@@ -340,7 +340,7 @@ $(document).ready(function () {
       var
       value = props[k].value?'&nbsp;&nbsp;⇒&nbsp;&nbsp;'+escapeEnts(props[k].value):'',
       conf = props[k].conf?'conf='+props[k].conf:'',
-      setBy = props[k].setBy?'setBy='+props[k].setBy:'';
+      setBy = props[k].setBy?'setBy='+props[k].setBy:'',
       extra = conf||setBy?'&nbsp;('+conf+(conf&&setBy?' ':'')+setBy+')':'';
       info += '<div>&nbsp;&nbsp;'+escapeEnts(k)+extra+value+'</div>';
     }
@@ -424,8 +424,8 @@ $(document).ready(function () {
     flushPropertyModal();
     var
     isreadonly = pageCanvas.util.isReadOnly(elem),
-    add = $('<button tabIndex="-1">Add new property (alt+a)</button>');//,
-    target = $('#selectedType').text()+' '+$('#selectedId').text();
+    add = $('<button tabIndex="-1">Add new property (alt+a)</button>');
+    var target = $('#selectedType').text()+' '+$('#selectedId').text();
     prop_elem = elem;
 
     $('#props-target').html( target === '- -' ? 'Document' : target );
@@ -448,7 +448,7 @@ $(document).ready(function () {
 
     function updateElemSetBy( elem, input ) {
       var
-      elem_name = elem.attr('class').replace(/ .*/, '');
+      elem_name = elem.attr('class').replace(/ .*/, ''),
       setBy_val = input[0].value.trim();
       if ( setBy_val ) {
         elem.attr('setBy', setBy_val);
@@ -514,7 +514,7 @@ $(document).ready(function () {
           else
             keyDict[tkey] = {'count': 1, 'elems': [this]};
         });
-      for ( const [k, v] of Object.entries(keyDict) )
+      for ( const v of Object.values(keyDict) )
         if ( v.count > 1 )
           $(v.elems).addClass('field-invalid');
         else
@@ -1529,7 +1529,7 @@ $(document).ready(function () {
     /// Other regions modes ///
     else if ( other.prop('checked') ) {
       var other_region_sel = '.'+other_region;
-      afterCreate = function () {};
+      var afterCreate = function () {};
       if ( other_region_type ) {
         other_region_sel = '.'+other_region+'[type="'+other_region_type+'"]';
         afterCreate = function ( elem ) { $(elem).parent().attr('type', other_region_type); };

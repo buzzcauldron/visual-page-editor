@@ -11,7 +11,7 @@
 /*jshint esversion: 6 */
 /*global ensurePageEditorHeavyVendors, turf */
 
-import { PanZoom, FITTED } from '../src/canvas/pan-zoom.mjs';
+import { PanZoom } from '../src/canvas/pan-zoom.mjs';
 
 // @todo Bug: draggable may be behind other elements, could add transparent polygon on top to ease dragging
 // @todo Allow use without keyboard shortcuts and no Mousetrap dependency
@@ -714,13 +714,14 @@ import { PanZoom, FITTED } from '../src/canvas/pan-zoom.mjs';
         var g = $(this);
         var attr = g.attr('custom');
         // Add class based on baseline type (if getBaselineType is available, otherwise default to default)
+        var baselineType;
         if ( typeof self.util.getBaselineType === 'function' ) {
-          var baselineType = self.util.getBaselineType(g[0]);
+          baselineType = self.util.getBaselineType(g[0]);
           g.removeClass('baseline-default baseline-margin');
           g.addClass('baseline-' + baselineType);
         } else {
           var match = attr && attr.match(/type\s*\{type\s*:\s*(default|margin)\s*;\s*\}/);
-          var baselineType = match ? match[1] : 'default';
+          baselineType = match ? match[1] : 'default';
           g.removeClass('baseline-default baseline-margin');
           g.addClass('baseline-' + baselineType);
         }
@@ -780,7 +781,7 @@ import { PanZoom, FITTED } from '../src/canvas/pan-zoom.mjs';
         polystart = $(self.cfg.polystartHref).clone(false,true)[0];
       }
       else {
-        polystart = polystartSvg.getElementById(self.cfg.polystartHref.replace(/.*#/,'')).cloneNode(true);
+        polystart = polystartSvg.getElementById(self.cfg.polystartHref.replace(/.*#/,'')).cloneNode(true); // jshint ignore:line
       }
       polystart
         .attr('id', svgContainer.id+'_polystart')

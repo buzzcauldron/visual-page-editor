@@ -188,7 +188,7 @@ $(document).ready(function () {
   }
 
   function fileExists( file ) {
-    filepath = getFilePath(file);
+    var filepath = getFilePath(file);
     if ( fs.existsSync(filepath) )
       return true;
     badfiles.push(file);
@@ -291,9 +291,9 @@ $(document).ready(function () {
   }
 
   /// Base window title including version (so user can confirm which build is running) ///
-  var baseWindowTitle = (typeof nw !== 'undefined' && nw.App && nw.App.manifest && nw.App.manifest.window)
-    ? ((nw.App.manifest.window.title || 'Visual Page Editor') + ' ' + (nw.App.manifest.version || ''))
-    : ('Visual Page Editor ' + (window.PAGE_EDITOR_VERSION || ''));
+  var baseWindowTitle = (typeof nw !== 'undefined' && nw.App && nw.App.manifest && nw.App.manifest.window) ?
+    ((nw.App.manifest.window.title || 'Visual Page Editor') + ' ' + (nw.App.manifest.version || '')) :
+    ('Visual Page Editor ' + (window.PAGE_EDITOR_VERSION || ''));
   $('title').text(baseWindowTitle);
 
   /// Function for preparing new title for app ///
@@ -557,29 +557,29 @@ $(document).ready(function () {
   function loadPageXmlXsd( async ) {
     if ( ! pagexml_xsd ) {
       // Helper function to process XSD data
-      function processXsdData( data ) {
+      var processXsdData = function( data ) {
         pagexml_xsd = (new XMLSerializer()).serializeToString(data);
         pagexml_xsd = unescape(encodeURIComponent(pagexml_xsd));
         pageCanvas.cfg.pagexmlns = $(data).find('[targetNamespace]').attr('targetNamespace');
-      }
+      };
       var xsdTimeout = 12000; // ms; avoid ETIMEDOUT by failing fast
-      function onXsdFail( resolvedPath, textStatus, errorThrown ) {
+      var onXsdFail = function( resolvedPath, textStatus, errorThrown ) {
         var errStr = (textStatus || '') + ' ' + (errorThrown || '');
-        var hint = /timeout|ETIMEDOUT/i.test(errStr)
-          ? ' Network timed out. For offline use run: scripts/fetch-xsd.sh'
-          : '';
+        var hint = /timeout|ETIMEDOUT/i.test(errStr) ?
+          ' Network timed out. For offline use run: scripts/fetch-xsd.sh' :
+          '';
         var msg = 'Page XML schema not loaded: ' + resolvedPath + '. Run "git submodule update --init" or "scripts/fetch-xsd.sh" to enable validation.' + hint;
         console.warn( msg );
         showFileExpectedToast( msg );
-      }
+      };
       // Fallback: fetch from GitHub when submodule is not initialized
-      function fetchXsdFromGitHub( resolvedPath ) {
+      var fetchXsdFromGitHub = function( resolvedPath ) {
         $.ajax({ url: pagexml_xsd_fallback_url, async: async, dataType: 'xml', timeout: xsdTimeout })
           .done( function ( data ) { processXsdData( data ); } )
           .fail( function ( _jqXhr, textStatus, errorThrown ) {
             onXsdFail( resolvedPath, textStatus, errorThrown );
           } );
-      }
+      };
       // First try to load the file directly (in case it's the actual XSD)
       $.ajax({ url: pagexml_xsd_file, async: async, dataType: 'xml', timeout: xsdTimeout })
         .done( function ( data ) {
@@ -664,7 +664,7 @@ $(document).ready(function () {
 
     if ( typeof localStorage.versionCheck !== 'undefined' ) {
       versionCheck = JSON.parse(localStorage.versionCheck);
-      lastDate = new Date(Date.parse(versionCheck.lastDate));
+      var lastDate = new Date(Date.parse(versionCheck.lastDate));
       if ( (nowDate-lastDate)/(1000*3600*24) < checkDays )
         return;
     }
