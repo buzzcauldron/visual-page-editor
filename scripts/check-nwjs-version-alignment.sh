@@ -66,8 +66,14 @@ must_contain "docker-run.sh" "NWJS_VERSION=\"\${NWJS_VERSION:-${EXPECTED}}\""
 must_contain "scripts/test-platforms.sh" "NWJS_VERSION:-${EXPECTED}"
 must_contain "build-deb.sh" "NWJS_VERSION:-${EXPECTED}"
 must_contain "rpm/build-rpm.sh" "NWJS_VERSION:-${EXPECTED}"
+must_contain "rpm/visual-page-editor.spec" "nwjs_version ${EXPECTED}"
 must_contain "build-docker.sh" "NWJS_VERSION:-${EXPECTED}"
 must_contain ".env.docker.example" "NWJS_VERSION=${EXPECTED}"
+
+# .circleci/config.yml — optional (may not exist in all forks); uses VERSION_NWJS: v0.109.1 format
+if [ -f ".circleci/config.yml" ]; then
+  must_contain ".circleci/config.yml" "${EXPECTED}"
+fi
 
 if [ "$FAIL" -ne 0 ]; then
   echo "" >&2

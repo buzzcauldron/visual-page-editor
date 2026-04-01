@@ -1,7 +1,7 @@
 %define name visual-page-editor
 %define version 1.2.0
 %define release 1
-%{!?nwjs_version:%define nwjs_version 0.94.0}
+%{!?nwjs_version:%define nwjs_version 0.109.1}
 %define debug_package %{nil}
 
 Summary: Visual editor for Page XML files
@@ -13,7 +13,7 @@ Group: Applications/Text
 Source0: %{name}-%{version}.tar.gz
 URL: https://github.com/buzzcauldron/visual-page-editor
 BuildArch: x86_64
-BuildRequires: curl, tar, gzip
+BuildRequires: tar
 Requires: perl
 Requires: perl(Cwd)
 
@@ -103,7 +103,9 @@ awk '
 { print }
 ' %{buildroot}/usr/bin/%{name} > %{buildroot}/usr/bin/%{name}.tmp && \
 chmod 755 %{buildroot}/usr/bin/%{name}.tmp && \
-mv %{buildroot}/usr/bin/%{name}.tmp %{buildroot}/usr/bin/%{name}
+mv %{buildroot}/usr/bin/%{name}.tmp %{buildroot}/usr/bin/%{name} && \
+grep -q '/usr/lib64/%{name}/nwjs/nw' %{buildroot}/usr/bin/%{name} || \
+  { echo "Error: launcher patch failed — bundled NW.js path not found in %{buildroot}/usr/bin/%{name}" >&2; exit 1; }
 
 # Install documentation
 echo "==> Installing documentation..."
