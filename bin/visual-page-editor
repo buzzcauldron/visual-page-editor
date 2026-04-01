@@ -90,156 +90,6 @@ fi
 CACHE_DIR="${HOME}/.cache/visual-page-editor"
 CACHE_FILE="${CACHE_DIR}/nw-path"
 
-# Function to download NW.js automatically
-download_nwjs() {
-  local platform="$1"
-  local arch="$2"
-  local download_dir=""
-  local nwjs_url=""
-  local nwjs_archive=""
-  local nwjs_extracted=""
-  local nwjs_binary=""
-  
-  echo "${0##*/}: NW.js not found. Attempting to download automatically..." >&2
-  
-  # Determine download location (prefer user's home directory)
-  if [ "$platform" = "macos" ]; then
-    download_dir="$HOME/.nwjs"
-    if [ "$arch" = "arm64" ]; then
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-osx-arm64.zip"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-osx-arm64.zip"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-osx-arm64"
-      nwjs_binary="$nwjs_extracted/nwjs.app/Contents/MacOS/nwjs"
-    else
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-osx-x64.zip"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-osx-x64.zip"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-osx-x64"
-      nwjs_binary="$nwjs_extracted/nwjs.app/Contents/MacOS/nwjs"
-    fi
-  elif [ "$platform" = "linux" ]; then
-    download_dir="$HOME/.nwjs"
-    if [ "$arch" = "arm64" ]; then
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-arm64.tar.gz"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-arm64.tar.gz"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-arm64"
-    else
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-x64"
-    fi
-    nwjs_binary="$nwjs_extracted/nw"
-  elif [ "$platform" = "windows" ]; then
-    download_dir="$HOME/nwjs"
-    if [ "$arch" = "arm64" ]; then
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-win-arm64.zip"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-arm64.zip"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-arm64"
-      nwjs_binary="$nwjs_extracted/nw.exe"
-    else
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-win-x64.zip"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-x64.zip"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-x64"
-      nwjs_binary="$nwjs_extracted/nw.exe"
-    fi
-  else
-    echo "${0##*/}: error: automatic download not supported for platform: $platform" >&2
-    return 1
-  fi
-  
-  # Check if curl or wget is available
-  if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
-    echo "${0##*/}: error: curl or wget required for automatic download" >&2
-    echo "  Please install curl or wget, or download NW.js manually from:" >&2
-    echo "  $nwjs_url" >&2
-    return 1
-  fi
-  
-  # Create download directory
-  mkdir -p "$download_dir" || {
-    echo "${0##*/}: error: cannot create download directory: $download_dir" >&2
-    return 1
-  }
-  
-  # Check if already downloaded
-  if [ -f "$nwjs_binary" ]; then
-    echo "${0##*/}: Found existing NW.js at: $nwjs_binary" >&2
-    echo "$nwjs_binary"
-    return 0
-  fi
-  
-  # Download NW.js
-  echo "${0##*/}: Downloading NW.js v${NWJS_VERSION} from $nwjs_url..." >&2
-  echo "${0##*/}: This may take a few minutes..." >&2
-  
-  if command -v curl >/dev/null 2>&1; then
-    if ! curl -fLSs -o "$nwjs_archive" "$nwjs_url"; then
-      echo "${0##*/}: error: failed to download NW.js" >&2
-      rm -f "$nwjs_archive"
-      return 1
-    fi
-  elif command -v wget >/dev/null 2>&1; then
-    if ! wget -q --show-progress -O "$nwjs_archive" "$nwjs_url"; then
-      echo "${0##*/}: error: failed to download NW.js" >&2
-      rm -f "$nwjs_archive"
-      return 1
-    fi
-  fi
-  
-  # Extract NW.js
-  echo "${0##*/}: Extracting NW.js..." >&2
-  if [ "$platform" = "macos" ] || [ "$platform" = "windows" ]; then
-    # Use unzip for macOS and Windows
-    if ! command -v unzip >/dev/null 2>&1; then
-      echo "${0##*/}: error: unzip required for extraction" >&2
-      rm -f "$nwjs_archive"
-      return 1
-    fi
-    if ! unzip -q -o "$nwjs_archive" -d "$download_dir"; then
-      echo "${0##*/}: error: failed to extract NW.js archive" >&2
-      rm -f "$nwjs_archive"
-      return 1
-    fi
-  else
-    # Use tar for Linux
-    if ! tar -xzf "$nwjs_archive" -C "$download_dir"; then
-      echo "${0##*/}: error: failed to extract NW.js archive" >&2
-      rm -f "$nwjs_archive"
-      return 1
-    fi
-  fi
-  
-  # Clean up archive
-  rm -f "$nwjs_archive"
-  
-  # Verify extraction
-  if [ ! -f "$nwjs_binary" ]; then
-    echo "${0##*/}: error: NW.js binary not found after extraction" >&2
-    echo "  Expected: $nwjs_binary" >&2
-    return 1
-  fi
-  
-  # Make binary executable (Linux)
-  if [ "$platform" = "linux" ]; then
-    chmod +x "$nwjs_binary" 2>/dev/null || true
-  fi
-  
-  echo "${0##*/}: NW.js downloaded and extracted successfully!" >&2
-  echo "${0##*/}: Location: $nwjs_binary" >&2
-  
-  # For macOS, also create a symlink in /Applications if possible
-  if [ "$platform" = "macos" ] && [ -d "$nwjs_extracted/nwjs.app" ]; then
-    if [ -w "/Applications" ]; then
-      local app_link="/Applications/nwjs-sdk-v${NWJS_VERSION}-${arch}.app"
-      if [ ! -e "$app_link" ]; then
-        ln -s "$nwjs_extracted/nwjs.app" "$app_link" 2>/dev/null && \
-          echo "${0##*/}: Created symlink: $app_link" >&2 || true
-      fi
-    fi
-  fi
-  
-  echo "$nwjs_binary"
-  return 0
-}
 
 # Find NW.js binary: prefer npm install, then cache (only use if path + version + architecture match this machine)
 nw=""
@@ -385,36 +235,12 @@ fi
   echo "  Tried: $nw_page_editor" >&2 &&
   exit 1;
 
-# If NW.js not found, attempt automatic download
 if [ ! -f "$nw" ]; then
-  # Auto-download when curl/wget available (no prompt)
-  if [ -t 0 ] && [ -t 1 ] || [ "${AUTO_DOWNLOAD_NWJS:-}" = "1" ] || [ "${AUTO_DOWNLOAD_NWJS:-}" = "yes" ] || [ "${AUTO_DOWNLOAD_NWJS:-}" = "true" ]; then
-    if [ "$PLATFORM" = "macos" ]; then
-      downloaded_nw=$(download_nwjs "$PLATFORM" "$MAC_ARCH")
-    elif [ "$PLATFORM" = "linux" ]; then
-      downloaded_nw=$(download_nwjs "$PLATFORM" "$MACHINE_ARCH")
-    elif [ "$PLATFORM" = "windows" ]; then
-      downloaded_nw=$(download_nwjs "$PLATFORM" "${WIN_ARCH:-x64}")
-    else
-      downloaded_nw=""
-    fi
-
-    if [ -n "$downloaded_nw" ] && [ -f "$downloaded_nw" ]; then
-      nw="$downloaded_nw"
-    else
-      echo "${0##*/}: error: unable to find or download the NW.js binary" >&2
-      echo "  Platform: $PLATFORM" >&2
-      echo "  Please install NW.js from https://nwjs.io/downloads/" >&2
-      echo "  Or add NW.js to your PATH" >&2
-      exit 1
-    fi
-  else
-    echo "${0##*/}: error: unable to find the NW.js binary" >&2
-    echo "  Platform: $PLATFORM" >&2
-    echo "  Please install NW.js from https://nwjs.io/downloads/" >&2
-    echo "  Or set AUTO_DOWNLOAD_NWJS=1, or run from an interactive terminal (TTY), to enable automatic download" >&2
-    exit 1
-  fi
+  echo "${0##*/}: error: NW.js not found." >&2
+  echo "  Run 'npm install' from the project directory to install the bundled NW.js SDK." >&2
+  echo "  If npm install was run but NW.js is still missing, clear the cache and retry:" >&2
+  echo "    rm -f $CACHE_FILE && npm install" >&2
+  exit 1
 fi
 
 # Help message
@@ -423,13 +249,10 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   echo "Usage: ${0##*/} [page.xml]+ [pages_dir]+ [--list pages_list]+ [--css file.css]+ [--js file.js]+"
   echo ""
   echo "Environment variables:"
-  echo "  NWJS_VERSION       - NW.js version to download (default: ${NWJS_VERSION})"
-  echo "  AUTO_DOWNLOAD_NWJS - Set to '1', 'yes', or 'true' to enable automatic download"
-  echo "                       (also enabled when stdin and stdout are both TTYs, e.g. interactive terminal)"
+  echo "  NWJS_VERSION - NW.js version to use (default: ${NWJS_VERSION})"
   echo ""
-  echo "After 'npm install', the NW.js SDK is available via node_modules/.bin/nw (preferred)."
-  echo "If NW.js is not found, the script can download automatically when enabled (see above)."
-  echo "Downloaded NW.js is stored in: ~/.nwjs (Linux/macOS) or ~/nwjs (Windows)"
+  echo "Run 'npm install' once to install NW.js SDK via the 'nw' npm package (preferred)."
+  echo "NW.js is then available at node_modules/.bin/nw."
   exit 0
 fi
 
