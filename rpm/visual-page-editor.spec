@@ -1,5 +1,5 @@
 %define name visual-page-editor
-%define version 1.2.0
+%define version 1.3.1
 %define release 1
 %{!?nwjs_version:%define nwjs_version 0.109.1}
 %define debug_package %{nil}

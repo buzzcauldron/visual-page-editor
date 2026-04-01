@@ -12,7 +12,7 @@
 // @todo Displace new windows so that they do not appear on top of the first
 // @todo When undo/redo returns to saved state, disable save button
 
-$(document).ready(function () {
+$(window).on('load', function () {
 
   var
   win = nw.Window.get(),
