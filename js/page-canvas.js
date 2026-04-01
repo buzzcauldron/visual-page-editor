@@ -10,6 +10,8 @@
 /*jshint esversion: 6 */
 /*global ensurePageEditorHeavyVendors, PDFJS, Tiff */
 
+import { createPdfLoader, createTiffLoader } from '../src/page/image-loaders.mjs';
+
 // @todo View word, line and region reading order, and possibility to modify it
 // @todo On word break, move one part to a different line?
 // @todo Round coords and/or remove non-page-xsd elements on export
@@ -193,185 +195,19 @@
     }
 
     /// Loader for PDF using pdf.js ///
-    self.cfg.imageLoader.push( pdfLoader );
+    self.cfg.imageLoader.push( createPdfLoader({
+      onError: function(msg) { self.throwError(msg); },
+      onWarning: function(msg) { self.warning(msg); },
+      getPagePath: function() { return self.cfg.pagePath; },
+      onImageSizeMismatch: function(msg, img) { return self.cfg.onImageSizeMismatch(msg, img); },
+    }) );
 
     self.util.clearPdfsCache = function () { caches.delete('pdfs'); };
 
-    /// Function to render a pdf page once the pdf document has been loaded ///
-    function loadPdfPage( pdf, pdfPagePath, pageNum, image, onLoad ) {
-      var
-      imgWidth = parseInt(image.attr('width')),
-      imgHeight = parseInt(image.attr('height'));
-
-      if ( pageNum < 1 || pageNum > pdf.numPages )
-        self.throwError( 'Unexpected page number: '+pageNum );
-
-      pdf.getPage(pageNum)
-        .then( function( page ) {
-          var viewport = page.getViewport(1.0);
-          var ratio_diff = imgWidth < imgHeight ?
-            imgWidth/imgHeight - viewport.width/viewport.height:
-            imgHeight/imgWidth - viewport.height/viewport.width;
-          if ( Math.abs(ratio_diff) > 1e-2 ) {
-            var msg = 'aspect ratio differs between pdf page and XML: '+viewport.width+'/'+viewport.height+' vs. '+imgWidth+'/'+imgHeight;
-            if ( self.cfg.onImageSizeMismatch( msg, image ) )
-              self.warning(msg);
-          }
-
-          viewport = page.getViewport( imgWidth/viewport.width );
-
-          var
-          pdfPagePathSize = pdfPagePath+':'+imgWidth+'x'+imgHeight,
-          canvas = $('<canvas/>')[0],
-          context = canvas.getContext('2d');
-          canvas.height = imgHeight;
-          canvas.width = imgWidth;
-
-          try {
-            var fstat = require('fs').statSync(pdfPagePath.replace(/^file:\/\//, '').replace(/\[[0-9]+]$/, ''));
-            pdfPagePathSize += ':'+fstat.size+':'+fstat.mtimeMs;
-          } finally {}
-
-          page.render({ canvasContext: context, viewport: viewport })
-            .then( function () {
-              canvas.toBlob( function(blob) {
-                imageLoadBlob( blob, image, onLoad, pdfPagePathSize );
-              }, 'image/webp' );
-            },
-            function ( err ) {
-              self.throwError( 'problems rendering pdf: '+err );
-            } );
-        },
-        function ( err ) {
-          self.throwError( 'problems getting pdf page: '+err );
-        } );
-    }
-
-    /// Limit number of cached pdf pages ///
-    let pendingLimitPdfCache = false;
-    async function limitPdfCache() { // jshint ignore:line
-      if ( ! pendingLimitPdfCache )
-        return;
-      const maxCached = 200;
-      const pdfcache = await caches.open('pdfs'); // jshint ignore:line
-      const pdfreqs = await pdfcache.keys(); // jshint ignore:line
-      for ( let n=0; n<pdfreqs.length-maxCached; n++ )
-        pdfcache.delete(pdfreqs[n]);
-      pendingLimitPdfCache = false;
-    }
-    function scheduleLimitPdfCache() {
-      pendingLimitPdfCache = true;
-      setTimeout( limitPdfCache, 15000 );
-    }    
-
-    /// Function to load image from blob ///
-    function imageLoadBlob( blob, image, onLoad, pdfPagePathSize ) {
-      if ( typeof pdfPagePathSize !== 'undefined' ) {
-        pdfPagePathSize = pdfPagePathSize.replace(/^file:\/\//,'http://file');
-        var
-        headers = new Headers({ 'Last-Modified': new Date().toGMTString() }),
-        response = new Response( blob, { headers: headers } );
-        caches.open('pdfs').then( cache => cache.put( pdfPagePathSize, response ) );
-        scheduleLimitPdfCache();
-      }
-      //var pageNum = /]$/.test(image.attr('data-rhref')) ? parseInt(image.attr('data-rhref').replace(/.*\[([0-9]+)]$/,'$1')) : 1;
-      var url = URL.createObjectURL(blob);
-      image.attr( 'data-rhref', url );
-      image.on('destroyed', function() { URL.revokeObjectURL(url); });
-      onLoad(image);
-      //console.timeEnd('pdf load '+pageNum);
-    }
-
-    /// Main pdf loading function ///
-    function pdfLoader( image, onLoad, cached ) {
-      if ( typeof image === 'string' )
-        return /\.pdf(\[[0-9]+]|)$/i.test(image);
-      if ( typeof PDFJS === 'undefined' ) {
-        ensurePageEditorHeavyVendors( function () {
-          if ( typeof PDFJS === 'undefined' ) {
-            onLoad( image );
-            self.throwError( 'Unable to load PDF.js' );
-            return;
-          }
-          pdfLoader( image, onLoad, cached );
-        } );
-        return;
-      }
-
-      var
-      url = image.attr('data-rhref').replace(/\[[0-9]+]$/,''),
-      delim = self.cfg.pagePath.substr(1,2) === ':\\' ? '\\' : '/',
-      pdfPagePath = self.cfg.pagePath.replace(/[/\\][^/\\]+$/,'')+delim+image.attr('data-href'),
-      pdfPagePathSize = pdfPagePath+':'+image.attr('width')+'x'+image.attr('height'),
-      pageNum = /]$/.test(image.attr('data-rhref')) ? parseInt(image.attr('data-rhref').replace(/.*\[([0-9]+)]$/,'$1'))+1 : 1;
-
-      /// Try to get pdf page from cache ///
-
-      try {
-        var fstat = require('fs').statSync(url.replace(/^file:\/\//, ''));
-        pdfPagePathSize += ':'+fstat.size+':'+fstat.mtimeMs;
-      } finally {}
-
-      var request = new Request(pdfPagePathSize.replace(/^file:\/\//,'http://file'));
-      if ( typeof cached === 'undefined' ) {
-        caches.match(request).then( response => pdfLoader( image, onLoad, typeof response === 'undefined' ? false : response ) );
-        return;
-      }
-      else if ( cached ) {
-        //console.time('pdf load '+pageNum);
-        caches.match(request).then( response => response.blob().then( blob => imageLoadBlob( blob, image, onLoad ) ) );
-        return;
-      }
-
-      /// Render page from pdf ///
-      //console.time('pdf load '+pageNum);
-      PDFJS.getDocument(url)
-        .then( pdf => loadPdfPage( pdf, pdfPagePath, pageNum, image, onLoad ) )
-        .catch( () => { onLoad(image); self.throwError( 'Unable to load pdf: '+url ); } );
-    }
-
     /// Loader for TIFF using tiff.js ///
-    self.cfg.imageLoader.push( function tiffLoader( image, onLoad ) {
-        if ( typeof image === 'string' )
-          return /\.tif{1,2}(\[[0-9]+]|)$/i.test(image);
-        if ( typeof Tiff === 'undefined' ) {
-          ensurePageEditorHeavyVendors( function () {
-            if ( typeof Tiff === 'undefined' ) {
-              onLoad( image );
-              self.throwError( 'Unable to load tiff.js' );
-              return;
-            }
-            tiffLoader( image, onLoad );
-          } );
-          return;
-        }
-
-        var
-        url = image.attr('data-rhref').replace(/\[[0-9]+]$/,''),
-        pageNum = /]$/.test(image.attr('data-rhref')) ? parseInt(image.attr('data-rhref').replace(/.*\[([0-9]+)]$/,'$1'))+1 : 1;
-
-        Tiff.initialize({TOTAL_MEMORY: 16777216 * 10});
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', url);
-        xhr.responseType = 'arraybuffer';
-        xhr.onload = function (e) {
-          var buffer = xhr.response;
-          var tiff = new Tiff({buffer: buffer});
-          if ( pageNum < 1 || pageNum > tiff.countDirectory() )
-            self.throwError( 'Unexpected page number: '+pageNum );
-          tiff.setDirectory(pageNum-1);
-          var canvas = tiff.toCanvas();
-          canvas.toBlob( function(blob) {
-            var url = URL.createObjectURL(blob);
-            image.attr( 'data-rhref', url );
-            //image.on('load', function() { URL.revokeObjectURL(url); });
-            image.on('destroyed', function() { URL.revokeObjectURL(url); });
-            onLoad(image);
-          } );
-        };
-        xhr.addEventListener('error', () => { onLoad(image); self.throwError( 'Unable to load tiff: '+url ); } );
-        xhr.send();
-      } );
+    self.cfg.imageLoader.push( createTiffLoader({
+      onError: function(msg) { self.throwError(msg); },
+    }) );
 
     /// Utility variables and functions ///
     self.util.setPolyrect = setPolyrect;
