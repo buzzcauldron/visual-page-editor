@@ -89,7 +89,7 @@ export function createPdfLoader({ onError, onWarning, getPagePath, onImageSizeMi
         try {
           var fstat = require('fs').statSync(pdfPagePath.replace(/^file:\/\//, '').replace(/\[[0-9]+]$/, ''));
           pdfPagePathSize += ':'+fstat.size+':'+fstat.mtimeMs;
-        } finally {}
+        } catch(e) {}
 
         page.render({ canvasContext: context, viewport: viewport })
           .then(
@@ -134,7 +134,7 @@ export function createPdfLoader({ onError, onWarning, getPagePath, onImageSizeMi
     try {
       var fstat = require('fs').statSync(url.replace(/^file:\/\//, ''));
       pdfPagePathSize += ':'+fstat.size+':'+fstat.mtimeMs;
-    } finally {}
+    } catch(e) {}
 
     var request = new Request(pdfPagePathSize.replace(/^file:\/\//,'http://file'));
     if ( typeof cached === 'undefined' ) {
