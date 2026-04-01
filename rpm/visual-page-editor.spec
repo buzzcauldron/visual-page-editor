@@ -12,7 +12,6 @@ License: MIT
 Group: Applications/Text
 Source0: %{name}-%{version}.tar.gz
 URL: https://github.com/buzzcauldron/visual-page-editor
-BuildArch: x86_64
 BuildRequires: tar
 Requires: perl
 Requires: perl(Cwd)
@@ -28,38 +27,42 @@ are required.
 %prep
 %setup -q -n %{name}-%{version}
 
-# Download NW.js if not present
+# Download NW.js if not present (fallback — build-rpm.sh embeds it in the tarball via tar -czh)
 if [ ! -d "nwjs" ] || [ ! -f "nwjs/nw" ]; then
-    echo "==> Downloading NW.js v%{nwjs_version}..."
-    if ! curl -fLSs -o nwjs-sdk-linux-x64.tar.gz \
-        "https://dl.nwjs.io/v%{nwjs_version}/nwjs-sdk-v%{nwjs_version}-linux-x64.tar.gz"; then
+    _arch=$(uname -m)
+    case "$_arch" in aarch64|arm64) _nwjs_suffix="linux-arm64" ;; *) _nwjs_suffix="linux-x64" ;; esac
+    _nwjs_archive="nwjs-sdk-${_nwjs_suffix}.tar.gz"
+    _nwjs_dir="nwjs-sdk-v%{nwjs_version}-${_nwjs_suffix}"
+    echo "==> Downloading NW.js v%{nwjs_version} (${_nwjs_suffix})..."
+    if ! curl -fLSs -o "${_nwjs_archive}" \
+        "https://dl.nwjs.io/v%{nwjs_version}/nwjs-sdk-v%{nwjs_version}-${_nwjs_suffix}.tar.gz"; then
         echo "Error: Failed to download NW.js v%{nwjs_version}" >&2
         exit 1
     fi
-    if ! tar -xzf nwjs-sdk-linux-x64.tar.gz; then
+    if ! tar -xzf "${_nwjs_archive}"; then
         echo "Error: Failed to extract NW.js archive" >&2
-        rm -f nwjs-sdk-linux-x64.tar.gz
+        rm -f "${_nwjs_archive}"
         exit 1
     fi
-    if [ ! -d "nwjs-sdk-v%{nwjs_version}-linux-x64" ]; then
+    if [ ! -d "${_nwjs_dir}" ]; then
         echo "Error: Extracted NW.js directory not found" >&2
-        echo "Expected: nwjs-sdk-v%{nwjs_version}-linux-x64" >&2
-        rm -f nwjs-sdk-linux-x64.tar.gz
+        echo "Expected: ${_nwjs_dir}" >&2
+        rm -f "${_nwjs_archive}"
         exit 1
     fi
-    if ! mv nwjs-sdk-v%{nwjs_version}-linux-x64 nwjs; then
+    if ! mv "${_nwjs_dir}" nwjs; then
         echo "Error: Failed to rename NW.js directory" >&2
-        rm -f nwjs-sdk-linux-x64.tar.gz
+        rm -f "${_nwjs_archive}"
         exit 1
     fi
     if [ ! -d "nwjs" ] || [ ! -f "nwjs/nw" ]; then
         echo "Error: NW.js directory is missing or incomplete after installation" >&2
         echo "Expected nwjs directory with nw binary" >&2
-        rm -f nwjs-sdk-linux-x64.tar.gz
+        rm -f "${_nwjs_archive}"
         exit 1
     fi
-    rm -f nwjs-sdk-linux-x64.tar.gz
-    echo "==> NW.js v%{nwjs_version} downloaded and extracted successfully"
+    rm -f "${_nwjs_archive}"
+    echo "==> NW.js v%{nwjs_version} (${_nwjs_suffix}) downloaded and extracted successfully"
 fi
 
 %build

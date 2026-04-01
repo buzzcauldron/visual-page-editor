@@ -12,7 +12,9 @@ VERSION="$([ -f "$PROJECT_ROOT/VERSION" ] && cat "$PROJECT_ROOT/VERSION" | tr -d
 [ -z "$VERSION" ] && VERSION="$(node -p "require('$PROJECT_ROOT/package.json').version" 2>/dev/null)" || true
 VERSION="${VERSION:-1.0.0}"
 NWJS_VERSION="${NWJS_VERSION:-0.109.1}"
-NWJS_SDK_DIR="$PROJECT_ROOT/node_modules/nw/nwjs-sdk-v${NWJS_VERSION}-linux-x64"
+_HOST_ARCH="$(uname -m)"
+case "$_HOST_ARCH" in aarch64|arm64) NWJS_LINUX_SUFFIX="linux-arm64" ;; *) NWJS_LINUX_SUFFIX="linux-x64" ;; esac
+NWJS_SDK_DIR="$PROJECT_ROOT/node_modules/nw/nwjs-sdk-v${NWJS_VERSION}-${NWJS_LINUX_SUFFIX}"
 
 # Colors for output
 RED='\033[0;31m'

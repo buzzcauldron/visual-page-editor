@@ -2,6 +2,7 @@ FROM ubuntu:22.04
 
 ARG NWJS_VERSION=0.109.1
 ARG APP_VERSION=0.0.0
+ARG TARGETARCH=amd64
 
 LABEL maintainer="buzzcauldron <buzzcauldron@users.noreply.github.com>"
 LABEL description="Visual Page Editor - Desktop application container"
@@ -34,6 +35,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     libatspi2.0-0 \
     libxss1 \
     libxtst6 \
+    x11-utils \
     libgl1 \
     libgl1-mesa-dri \
     libgtk-3-0 \
@@ -43,10 +45,14 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 # Set working directory
 WORKDIR /app
 
-# Download and extract NW.js (default matches package.json "nw" and bin/visual-page-editor NWJS_VERSION)
-RUN curl -fLSs -o /tmp/nwjs.tar.gz "https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz" && \
+# Download and extract NW.js — selects linux-arm64 or linux-x64 based on TARGETARCH build arg
+RUN case "${TARGETARCH}" in \
+        arm64) _nwjs_suffix="linux-arm64" ;; \
+        *)     _nwjs_suffix="linux-x64"   ;; \
+    esac && \
+    curl -fLSs -o /tmp/nwjs.tar.gz "https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-${_nwjs_suffix}.tar.gz" && \
     tar -xzf /tmp/nwjs.tar.gz -C /tmp && \
-    mv /tmp/nwjs-sdk-v${NWJS_VERSION}-linux-x64 /app/nwjs && \
+    mv /tmp/nwjs-sdk-v${NWJS_VERSION}-${_nwjs_suffix} /app/nwjs && \
     rm -f /tmp/nwjs.tar.gz && \
     chmod +x /app/nwjs/nw
 
@@ -82,12 +88,19 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
   exit 0
 fi
 
-# Use Xvfb if DISPLAY not set
+# Use Xvfb if DISPLAY not set or unreachable
+_need_xvfb=0
 if [ -z "$DISPLAY" ]; then
+  _need_xvfb=1
+elif ! xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
+  _need_xvfb=1
+fi
+if [ "$_need_xvfb" = "1" ]; then
   export DISPLAY=:99
   Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
   XVFB_PID=$!
-  trap "kill $XVFB_PID" EXIT
+  trap "kill $XVFB_PID 2>/dev/null || true" EXIT
+  sleep 0.5
 fi
 
 # Run the application

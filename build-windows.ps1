@@ -2,7 +2,7 @@
 # Requires PowerShell 5.1 or later
 
 param(
-    [string]$NWJS_VERSION = "0.44.4",
+    [string]$NWJS_VERSION = "",
     [string]$VERSION = ""
 )
 
@@ -11,6 +11,19 @@ $ErrorActionPreference = "Stop"
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PROJECT_ROOT = $SCRIPT_DIR
 $NAME = "visual-page-editor"
+
+# NWJS_VERSION from package.json dependencies.nw (single source of truth), then hardcoded fallback
+if ([string]::IsNullOrEmpty($NWJS_VERSION)) {
+    $pkgFile = Join-Path $PROJECT_ROOT "package.json"
+    if (Test-Path $pkgFile) {
+        try {
+            $pkg = Get-Content $pkgFile -Raw | ConvertFrom-Json
+            $nwDep = $pkg.dependencies.nw
+            if ($nwDep -match '^(\d+\.\d+\.\d+)') { $NWJS_VERSION = $Matches[1] }
+        } catch { }
+    }
+    if ([string]::IsNullOrEmpty($NWJS_VERSION)) { $NWJS_VERSION = "0.109.1" }
+}
 
 # VERSION from VERSION file or package.json (single source of truth)
 if ([string]::IsNullOrEmpty($VERSION)) {

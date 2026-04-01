@@ -6,11 +6,20 @@ version: 2
 jobs:
   publish-github-release:
     docker:
-      - image: cibuilds/github:0.12.0
+      - image: cimg/base:stable
     environment:
       VERSION_NWJS: v0.109.1
     steps:
       - checkout
+      - run:
+          name: Install ghr
+          command: |
+            GHR_VERSION=v0.16.2
+            curl -fLSs -o /tmp/ghr.tar.gz \
+              "https://github.com/tcnksm/ghr/releases/download/${GHR_VERSION}/ghr_${GHR_VERSION}_linux_amd64.tar.gz"
+            tar -xzf /tmp/ghr.tar.gz -C /tmp
+            sudo mv /tmp/ghr_${GHR_VERSION}_linux_amd64/ghr /usr/local/bin/ghr
+            rm -rf /tmp/ghr*
       - run:
           name: "Publish Release on GitHub"
           command: |
@@ -21,7 +30,7 @@ jobs:
             mkdir nw-page-editor-win-x64
             mv nwjs/*-win-x64/* nw-page-editor-win-x64
             mv nw-page-editor-win-x64/nw.exe nw-page-editor-win-x64/nw-page-editor.exe
-            cp -r *.md css examples html js node_modules package.json xsd xslt nw-page-editor-win-x64
+            cp -r *.md css examples html js package.json xsd xslt nw-page-editor-win-x64
             mkdir artifacts
             zip -qr artifacts/nw-page-editor-win-x64.zip nw-page-editor-win-x64
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ./artifacts/
