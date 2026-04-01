@@ -532,6 +532,8 @@
         return null;
 
       var pageSvg = self.getSvgClone();
+      if ( ! pageSvg )
+        return null;
 
       $(pageSvg).find('LastChange').html((new Date()).toISOString().replace(/\.[0-9]*/,''));
 
@@ -586,6 +588,9 @@
 
       /// Remove protected properties ///
       $(pageSvg).find('.protected').addBack('.protected').removeClass('protected');
+
+      if ( xslt_export.length > 0 && ! xslt_export.every(returnElem) )
+        self.throwError( 'Export XSLTs not ready yet; try again in a moment' );
 
       var pageDoc = pageSvg;
       for ( var n=0; n<xslt_export.length; n++ )
