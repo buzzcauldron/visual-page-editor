@@ -33,7 +33,7 @@
     "build:watch": "esbuild src/entry.js --bundle --platform=node --packages=external --format=iife --outfile=js/bundle.js --watch",
     "prepare": "npm run build",
     "review": "./scripts/code-review.sh",
-    "lint": "jshint js/*.js --exclude js/*.min.js",
+    "lint": "jshint js/*.js --exclude js/*.min.js,js/bundle.js,js/xmllint.js",
     "test": "npm run review",
     "test:unit": "vitest run",
     "test:launcher": "bats scripts/test-launcher.bats",

@@ -8,7 +8,7 @@
  */
 
 /*jshint esversion: 6 */
-/*global ensurePageEditorHeavyVendors, PDFJS, Tiff */
+/*global pageCanvas */
 
 import { createPdfLoader, createTiffLoader } from '../src/page/image-loaders.mjs';
 
@@ -2152,7 +2152,7 @@ import { createPdfLoader, createTiffLoader } from '../src/page/image-loaders.mjs
     /**
      * Modifies the default poly-rectangle parameters and resizes selected Coords.
      */
-    function modifyPolyrectParams( deltaHeight, deltaOffset ) {
+    function modifyPolyrectParams( deltaHeight, deltaOffset ) { // jshint ignore:line
       var
       coords = $(self.util.svgRoot).find('.selected').closest('g').children('.Coords'),
       polyrect = isPolyrect(coords[0]);
@@ -3397,7 +3397,7 @@ import { createPdfLoader, createTiffLoader } from '../src/page/image-loaders.mjs
      * Handles the adding of table rows or columns.
      */
     function addRowCol( addtype ) {
-      var row, col, corner1, corner2, points,
+      var row, col, points,
       editing = editingCellInfo(true);
       if ( ! editing )
         return true;

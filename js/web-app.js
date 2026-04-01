@@ -7,6 +7,8 @@
  * @license MIT License
  */
 
+/*global pageCanvas, page_editor_version, list_xmls, uname, brhash */
+
 $(window).on('load', function () {
 
   pageCanvas.cfg.ajaxVersionStamp = page_editor_version.replace(/^[^\d]*/, '');

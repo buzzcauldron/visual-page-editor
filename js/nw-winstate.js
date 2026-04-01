@@ -113,15 +113,15 @@ document.addEventListener('DOMContentLoaded', function() {
     function getPrimaryArea() {
       var area = { x: 0, y: 0, width: 800, height: 600 };
       if (screens.length === 0) return area;
-      var primary = screens[0];
+      var primary = screens[0], b;
       for (var p = 0; p < screens.length; p++) {
-        var b = screens[p].bounds;
+        b = screens[p].bounds;
         if (b.x <= 0 && b.x + b.width > 0 && b.y <= 0 && b.y + b.height > 0) {
           primary = screens[p];
           break;
         }
       }
-      var b = primary.bounds;
+      b = primary.bounds;
       if (primary.work_area && primary.work_area.width > 0 && primary.work_area.height > 0) {
         area = primary.work_area;
       } else {
@@ -130,10 +130,10 @@ document.addEventListener('DOMContentLoaded', function() {
       return area;
     }
 
-    var locationIsOnAScreen = false;
+    var locationIsOnAScreen = false, b;
     for (var i = 0; i < screens.length; i++) {
       var screen = screens[i];
-      var b = screen.bounds;
+      b = screen.bounds;
       if (winState.x >= b.x && winState.x < b.x + b.width && winState.y >= b.y && winState.y < b.y + b.height) {
         locationIsOnAScreen = true;
         break;
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
         union.width = b0.width;
         union.height = b0.height;
         for (var j = 1; j < screens.length; j++) {
-          var b = screens[j].bounds;
+          b = screens[j].bounds;
           var uRight = union.x + union.width, uBottom = union.y + union.height;
           var bRight = b.x + b.width, bBottom = b.y + b.height;
           union.x = Math.min(union.x, b.x);
