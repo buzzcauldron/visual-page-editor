@@ -76,140 +76,65 @@ else
     ARCH_DESCRIPTION="Unknown (defaulting to x64)"
 fi
 
+# NW.js SDK path provided by 'npm install' — no separate download needed
+NWJS_SDK_DIR="$PROJECT_ROOT/node_modules/nw/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Ensure npm dependencies (including nw SDK) are installed
+ensure_npm_deps() {
+    if [ ! -d "$NWJS_SDK_DIR" ]; then
+        echo -e "${YELLOW}NW.js SDK not found at $NWJS_SDK_DIR${NC}"
+        echo "Running npm install to fetch it..."
+        npm --prefix "$PROJECT_ROOT" install
+    fi
+    if [ ! -d "$NWJS_SDK_DIR/nwjs.app" ]; then
+        echo -e "${RED}Error: NW.js SDK still missing after npm install: $NWJS_SDK_DIR${NC}"
+        echo "Expected path: $NWJS_SDK_DIR/nwjs.app"
+        echo "Check that package.json dependencies.nw matches NWJS_VERSION ($NWJS_VERSION)."
+        exit 1
+    fi
+    echo -e "${GREEN}NW.js SDK ready at $NWJS_SDK_DIR${NC}"
+}
+
 # Check for required tools
 check_requirements() {
     echo -e "${YELLOW}Checking requirements...${NC}"
-    
+
     local missing_tools=()
-    
-    for tool in curl unzip; do
+    for tool in node npm; do
         if ! command -v $tool &> /dev/null; then
             missing_tools+=($tool)
         fi
     done
-    
+
     if [ ${#missing_tools[@]} -ne 0 ]; then
         echo -e "${RED}Error: Missing required tools: ${missing_tools[*]}${NC}"
-        echo "Please install them using Homebrew:"
-        echo "  brew install curl"
+        echo "Install Node.js from https://nodejs.org/ or via Homebrew: brew install node"
         exit 1
     fi
-    
-    echo -e "${GREEN}All requirements met!${NC}"
-}
 
-# Download NW.js if needed
-download_nwjs() {
-    echo -e "${YELLOW}Checking for NW.js v${NWJS_VERSION} (${NWJS_ARCH})...${NC}"
-    
-    local nwjs_archive="$PROJECT_ROOT/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}.zip"
-    local nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}.zip"
-    local nwjs_extracted="$PROJECT_ROOT/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}"
-    local nwjs_binary="$nwjs_extracted/nwjs.app/Contents/MacOS/nwjs"
-    
-    # Check if already downloaded and verify architecture
-    if [ -d "$nwjs_extracted" ] && [ -d "$nwjs_extracted/nwjs.app" ] && [ -f "$nwjs_binary" ]; then
-        local file_arch=$(file "$nwjs_binary" 2>/dev/null | grep -i "arm64\|arm64e\|x86_64" || echo "")
-        local expected_arch=""
-        if [ "$ARCH" = "arm64" ]; then
-            expected_arch="arm64"
-        else
-            expected_arch="x86_64"
-        fi
-        
-        if echo "$file_arch" | grep -qi "$expected_arch"; then
-            echo -e "${GREEN}NW.js already present at $nwjs_extracted${NC}"
-            echo -e "${GREEN}✓ Architecture verified: $expected_arch${NC}"
-            return 0
-        else
-            echo -e "${YELLOW}Warning: Existing NW.js has wrong architecture, re-downloading...${NC}"
-            rm -rf "$nwjs_extracted" "$nwjs_archive"
-        fi
-    fi
-    
-    echo "Downloading NW.js v${NWJS_VERSION} (${NWJS_ARCH}) from $nwjs_url..."
-    
-    # Check if URL exists before attempting download
-    local http_code=$(curl -sL -o /dev/null -w "%{http_code}" "$nwjs_url" 2>/dev/null || echo "000")
-    
-    if [ "$http_code" != "200" ] && [ "$http_code" != "302" ]; then
-        echo -e "${RED}ERROR: NW.js v${NWJS_VERSION} for ${NWJS_ARCH} is not available (HTTP $http_code)${NC}"
-        if [ "$ARCH" = "arm64" ]; then
-            echo -e "${YELLOW}Note: ARM64 support requires NW.js v0.77.0 or later.${NC}"
-            echo -e "${YELLOW}Try: NWJS_VERSION matching package.json dependencies.nw (see npm run check:nw-align)${NC}"
-        fi
-        echo "You can download it manually from: $nwjs_url"
-        echo "Or check available versions at: https://nwjs.io/downloads/"
-        return 1
-    fi
-    
-    if curl -fLSs -o "$nwjs_archive" "$nwjs_url"; then
-        echo "Extracting NW.js..."
-        unzip -q "$nwjs_archive" -d "$PROJECT_ROOT"
-        rm -f "$nwjs_archive"
-        
-        # Verify downloaded binary architecture
-        if [ -f "$nwjs_binary" ]; then
-            local file_arch=$(file "$nwjs_binary" 2>/dev/null | grep -i "arm64\|arm64e\|x86_64" || echo "")
-            local expected_arch=""
-            if [ "$ARCH" = "arm64" ]; then
-                expected_arch="arm64"
-            else
-                expected_arch="x86_64"
-            fi
-            
-            if echo "$file_arch" | grep -qi "$expected_arch"; then
-                echo -e "${GREEN}NW.js downloaded and extracted successfully!${NC}"
-                echo -e "${GREEN}✓ Architecture verified: $expected_arch${NC}"
-            else
-                echo -e "${RED}ERROR: Downloaded NW.js has wrong architecture!${NC}"
-                echo "Expected: $expected_arch, Got: $file_arch"
-                echo "Please check the download URL or download manually."
-                return 1
-            fi
-        else
-            echo -e "${RED}ERROR: NW.js binary not found after extraction!${NC}"
-            return 1
-        fi
-    else
-        echo -e "${RED}Warning: Could not download NW.js automatically.${NC}"
-        if [ "$ARCH" = "arm64" ]; then
-            echo -e "${YELLOW}Note: ARM64 support requires NW.js v0.77.0 or later.${NC}"
-            echo -e "${YELLOW}Set NWJS_VERSION to the X.Y.Z in package.json dependencies.nw (npm run check:nw-align).${NC}"
-        fi
-        echo "You can download it manually from: $nwjs_url"
-        echo "Extract it to: $nwjs_extracted"
-        return 1
-    fi
+    echo -e "${GREEN}All requirements met!${NC}"
 }
 
 # Create .app bundle structure
 create_app_bundle() {
     echo -e "${YELLOW}Creating .app bundle structure...${NC}"
-    
+
     # Clean previous build
     rm -rf "$BUILD_DIR"
     mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
-    
-    # Copy NW.js app
-    local nwjs_extracted="$PROJECT_ROOT/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}"
-    if [ ! -d "$nwjs_extracted/nwjs.app" ]; then
-        echo -e "${RED}Error: NW.js app not found at $nwjs_extracted/nwjs.app${NC}"
-        exit 1
-    fi
-    
-    # Copy NW.js framework and resources
-    cp -R "$nwjs_extracted/nwjs.app/Contents/Frameworks" "$CONTENTS_DIR/" 2>/dev/null || true
-    cp -R "$nwjs_extracted/nwjs.app/Contents/Resources"/* "$RESOURCES_DIR/" 2>/dev/null || true
-    
+
+    # Copy NW.js framework and resources from npm-installed SDK
+    cp -R "$NWJS_SDK_DIR/nwjs.app/Contents/Frameworks" "$CONTENTS_DIR/" 2>/dev/null || true
+    cp -R "$NWJS_SDK_DIR/nwjs.app/Contents/Resources"/* "$RESOURCES_DIR/" 2>/dev/null || true
+
     # Copy NW.js binary
-    cp "$nwjs_extracted/nwjs.app/Contents/MacOS/nwjs" "$MACOS_DIR/nwjs"
+    cp "$NWJS_SDK_DIR/nwjs.app/Contents/MacOS/nwjs" "$MACOS_DIR/nwjs"
     chmod +x "$MACOS_DIR/nwjs"
     
     # Copy application files
@@ -339,7 +264,7 @@ main() {
     echo ""
     
     check_requirements
-    download_nwjs
+    ensure_npm_deps
     create_app_bundle
     
     echo ""
