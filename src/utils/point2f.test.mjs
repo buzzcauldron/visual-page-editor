@@ -346,9 +346,10 @@ describe('edge cases', () => {
     expect(p.norm()).toBeCloseTo(5);
   });
 
-  it('unit of near-zero vector produces NaN (degenerate)', () => {
+  it('unit of zero vector is a no-op (returns unchanged zero vector, no NaN)', () => {
     const p = Point2f(0, 0).unit();
-    expect(isNaN(p.x)).toBe(true);
+    expect(p.x).toBe(0);
+    expect(p.y).toBe(0);
   });
 
   it('sideOfLine: coincident line points produce 0 (degenerate)', () => {

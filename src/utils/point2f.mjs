@@ -63,6 +63,7 @@ Point2f.prototype.euc = function( val ) {
 };
 Point2f.prototype.unit = function() {
   var norm = Math.sqrt( this.x*this.x + this.y*this.y );
+  if ( norm === 0 ) return this;
   this.x /= norm;
   this.y /= norm;
   return this;
