@@ -9,6 +9,7 @@
  */
 
 /*jshint esversion: 6 */
+/*global ensurePageEditorHeavyVendors, turf */
 
 // @todo Bug: draggable may be behind other elements, could add transparent polygon on top to ease dragging
 // @todo Allow use without keyboard shortcuts and no Mousetrap dependency
@@ -1871,32 +1872,38 @@
         return elem[0];
       }
       function onfinish( elem ) {
-        var
-        min_elems = num_elems[0],
-        max_elems = num_elems[1],
-        select_poly = turf_polygon(elem),
-        selected = [];
-        unselectElem();
-        $(elem_selector).each(function() {
-            if ( max_elems !== 0 && selected.length === max_elems )
-              return;
-            if ( poly_selector && $(this).find(poly_selector).length == 0 )
-              return;
-            try {
-              var
-              elem = poly_selector ? $(this).find(poly_selector)[0] : this,
-              elem_poly = turf_polygon(elem),
-              isect = turf.intersect(select_poly, elem_poly);
-              if ( isect )
-                selected.push(this);
-            } catch(e) {console.log(e);}
-          });
-        if ( selected.length >= min_elems ) {
-          $(selected).addClass('selected');
-          if ( afterSelect )
-            afterSelect( selected, elem );
+        function runIntersect() {
+          var
+          min_elems = num_elems[0],
+          max_elems = num_elems[1],
+          select_poly = turf_polygon(elem),
+          selected = [];
+          unselectElem();
+          $(elem_selector).each(function() {
+              if ( max_elems !== 0 && selected.length === max_elems )
+                return;
+              if ( poly_selector && $(this).find(poly_selector).length == 0 )
+                return;
+              try {
+                var
+                el = poly_selector ? $(this).find(poly_selector)[0] : this,
+                elem_poly = turf_polygon(el),
+                isect = turf.intersect(select_poly, elem_poly);
+                if ( isect )
+                  selected.push(this);
+              } catch(e) {console.log(e);}
+            });
+          if ( selected.length >= min_elems ) {
+            $(selected).addClass('selected');
+            if ( afterSelect )
+              afterSelect( selected, elem );
+          }
+          $(elem).remove();
         }
-        $(elem).remove();
+        if ( typeof turf === 'undefined' )
+          ensurePageEditorHeavyVendors( runIntersect );
+        else
+          runIntersect();
         return false;
       }
 

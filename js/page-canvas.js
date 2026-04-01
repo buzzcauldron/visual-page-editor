@@ -8,6 +8,7 @@
  */
 
 /*jshint esversion: 6 */
+/*global ensurePageEditorHeavyVendors, PDFJS, Tiff */
 
 // @todo View word, line and region reading order, and possibility to modify it
 // @todo On word break, move one part to a different line?
@@ -283,10 +284,19 @@
 
     /// Main pdf loading function ///
     function pdfLoader( image, onLoad, cached ) {
-      if ( typeof PDFJS === 'undefined' )
-        return false;
       if ( typeof image === 'string' )
         return /\.pdf(\[[0-9]+]|)$/i.test(image);
+      if ( typeof PDFJS === 'undefined' ) {
+        ensurePageEditorHeavyVendors( function () {
+          if ( typeof PDFJS === 'undefined' ) {
+            onLoad( image );
+            self.throwError( 'Unable to load PDF.js' );
+            return;
+          }
+          pdfLoader( image, onLoad, cached );
+        } );
+        return;
+      }
 
       var
       url = image.attr('data-rhref').replace(/\[[0-9]+]$/,''),
@@ -321,11 +331,20 @@
     }
 
     /// Loader for TIFF using tiff.js ///
-    self.cfg.imageLoader.push( function ( image, onLoad ) {
-        if ( typeof Tiff === 'undefined' )
-          return false;
+    self.cfg.imageLoader.push( function tiffLoader( image, onLoad ) {
         if ( typeof image === 'string' )
           return /\.tif{1,2}(\[[0-9]+]|)$/i.test(image);
+        if ( typeof Tiff === 'undefined' ) {
+          ensurePageEditorHeavyVendors( function () {
+            if ( typeof Tiff === 'undefined' ) {
+              onLoad( image );
+              self.throwError( 'Unable to load tiff.js' );
+              return;
+            }
+            tiffLoader( image, onLoad );
+          } );
+          return;
+        }
 
         var
         url = image.attr('data-rhref').replace(/\[[0-9]+]$/,''),
