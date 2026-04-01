@@ -69,7 +69,7 @@ Run every check, then relaunch the desktop app:
 If the desktop app crashes on launch or soon after:
 
 1. **Check the log**  
-   `tail -50 /tmp/visual-page-editor.log` — look for `ERROR`, `Rosetta`, `x64`, `GPU process exited`, `app.nw`.
+   `tail -50 /tmp/visual-page-editor.log` — look for `ERROR`, `Rosetta`, `x64`, `GPU process exited`, `app.nw`, `Mach rendezvous`, `shared_memory_switch`, `crashpad`.
 
 2. **Apple Silicon (M1/M2/M3): use ARM64 NW.js**  
    See **CRASH_FIX_MAC.md**. Do **not** use x64 NW.js on Apple Silicon; use `nwjs-sdk-v*-osx-arm64.zip`, extract to `~/.nwjs/` or `/Applications/nwjs-sdk-v*-osx-arm64/`, or let the launcher download to `~/.nwjs`. Avoid a generic `/Applications/nwjs.app` alone — it can break `--nwapp` (see **Common issues** below).
@@ -81,6 +81,20 @@ If the desktop app crashes on launch or soon after:
 
 4. **NW.js version**  
    The launcher expects NW.js **0.109.1** by default (see `package.json` / `NWJS_VERSION`). If you have a different SDK in `~/.nwjs`, either install the matching version (see README / launcher download prompt) or set `NWJS_VERSION` when running the launcher.
+
+5. **Mach rendezvous / `shared_memory_switch` (macOS)**  
+   If the log contains messages like **`Mach rendezvous failed`** or **`shared_memory_switch`**, Chromium’s **multiprocess IPC** (shared memory handoff between NW.js / browser / GPU-style subprocesses) failed—often after a **helper or GPU process** exited unexpectedly, memory pressure, or an OS/runtime interaction. This is **not** caused by your Page XML.
+
+   **Checklist:**
+
+   - On **Apple Silicon**, confirm the NW binary is **arm64** (after `npm ci`), e.g.  
+     `file node_modules/nw/nwjs-sdk-v*-osx-arm64/nwjs.app/Contents/MacOS/nwjs`  
+     — expect `Mach-O 64-bit executable arm64`.  
+   - Clear the launcher cache: `rm -f ~/.cache/visual-page-editor/nw-path`  
+   - From the repo root, reinstall the pinned SDK: `npm ci` (or `npm install`) so `node_modules/nw` matches **`dependencies.nw`** in `package.json`.  
+   - Relaunch: `./bin/visual-page-editor`
+
+   **Optional last-resort trial (may hurt performance):** NW.js supports **`chromium-args`** in `package.json` ([manifest docs](https://docs.nwjs.io/en/latest/References/Manifest%20Format/#chromium-args)). Some users reduce GPU-process crashes by adding a flag such as `--disable-gpu` or `--disable-gpu-compositing` under `"chromium-args": "..."`. Treat this as **diagnosis**: remove it once you confirm whether it changes behavior on your machine.
 
 ## Common issues
 

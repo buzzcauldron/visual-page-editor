@@ -93,7 +93,7 @@ docker run --rm -it \
 
 ### Build macOS .app Bundle
 
-The build script automatically detects your Mac's architecture and downloads the appropriate NW.js build:
+The build script automatically detects your Mac's architecture and downloads the appropriate NW.js build. **By default it uses the same NW.js `X.Y.Z` as `dependencies.nw` in `package.json`** (aligned with `./bin/visual-page-editor`). Override with `NWJS_VERSION` only when you intend to test another SDK.
 
 ```bash
 cd /path/to/visual-page-editor
@@ -114,7 +114,7 @@ The .app bundle will be in: `build-macos/Visual Page Editor.app`
 ### Custom NW.js Version
 
 ```bash
-NWJS_VERSION=0.77.0 ./build-macos.sh
+NWJS_VERSION=0.109.1 ./build-macos.sh
 ```
 
 ### Create DMG (Optional)
