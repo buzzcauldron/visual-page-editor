@@ -603,10 +603,18 @@ $(document).ready(function () {
   }
   loadPageXmlXsd(true);
 
+  var xmllintLoaded = false;
+  function ensureXmllint( cb ) {
+    if ( xmllintLoaded || typeof validateXML !== 'undefined' ) { xmllintLoaded = true; return cb(); }
+    var s = document.createElement('script');
+    s.src = '../js/xmllint.js';
+    s.onload = function () { xmllintLoaded = true; cb(); };
+    s.onerror = function () { cb( new Error('Failed to load xmllint.js') ); };
+    document.head.appendChild( s );
+  }
+
   function validatePageXml() {
-    var
-    val = '',
-    pageXml = pageCanvas.getXmlPage();
+    var pageXml = pageCanvas.getXmlPage();
     if ( ! pageXml )
       return;
     loadPageXmlXsd(false);
@@ -614,33 +622,36 @@ $(document).ready(function () {
       showFileExpectedToast( 'Page XML schema not loaded. Run "git submodule update --init" or "scripts/fetch-xsd.sh" to enable validation.' );
       return;
     }
-    pageXml = pageXml.replace(/ xmlns="[^"]+"/, ' xmlns="'+pageCanvas.cfg.pagexmlns+'"');
-    pageXml = unescape(encodeURIComponent(pageXml));
-    try {
-      var
-      intercept = null,
-      unhook_intercept = null;
-      // Try to load intercept-stdout, but make it optional
+    ensureXmllint( function ( loadErr ) {
+      if ( loadErr ) { alert( 'Could not load XML validator: '+loadErr.message ); return; }
+      var val = '';
+      pageXml = pageXml.replace(/ xmlns="[^"]+"/, ' xmlns="'+pageCanvas.cfg.pagexmlns+'"');
+      pageXml = unescape(encodeURIComponent(pageXml));
       try {
-        intercept = require("intercept-stdout");
-        unhook_intercept = intercept(function(txt) { val += txt; });
+        var
+        intercept = null,
+        unhook_intercept = null;
+        // Try to load intercept-stdout, but make it optional
+        try {
+          intercept = require("intercept-stdout");
+          unhook_intercept = intercept(function(txt) { val += txt; });
+        } catch ( e ) {
+          console.warn('intercept-stdout not available, validation output may not be captured:', e.message);
+        }
+        validateXML({ xml: pageXml,
+                      schema: pagexml_xsd,
+                      arguments: ['--noout', '--schema', 'PageXmlSchema', 'PageXmlFile'] });
+        if ( unhook_intercept )
+          unhook_intercept();
       } catch ( e ) {
-        // intercept-stdout not available, validation will proceed without capturing stdout
-        console.warn('intercept-stdout not available, validation output may not be captured:', e.message);
+        alert( 'Page XML validation failed to execute: '+e );
+        return;
       }
-      validateXML({ xml: pageXml,
-                    schema: pagexml_xsd,
-                    arguments: ['--noout', '--schema', 'PageXmlSchema', 'PageXmlFile'] });
-      if ( unhook_intercept )
-        unhook_intercept();
-    } catch ( e ) {
-      alert( 'Page XML validation failed to execute: '+e );
-      return;
-    }
-    if ( val === '' || ! / validates$/.test(val.trim()) )
-      alert( 'Page XML does not validate: '+val );
-    else
-      alert( 'Page XML validates' );
+      if ( val === '' || ! / validates$/.test(val.trim()) )
+        alert( 'Page XML does not validate: '+val );
+      else
+        alert( 'Page XML validates' );
+    } );
   }
   $('#pageXmlValidate').on('click',validatePageXml);
 

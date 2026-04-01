@@ -1029,6 +1029,17 @@ $(document).ready(function () {
     .each(handleXmlTextValidate)
     .click(handleXmlTextValidate);
 
+  /// Lazy-load marked.js (Markdown renderer) only when first needed ///
+  var markedLoaded = false;
+  function ensureMarked( cb ) {
+    if ( markedLoaded || typeof marked !== 'undefined' ) { markedLoaded = true; return cb(); }
+    var s = document.createElement('script');
+    s.src = '../js/marked-4.0.12.min.js';
+    s.onload = function () { markedLoaded = true; cb(); };
+    s.onerror = function () { cb( new Error('Failed to load marked') ); };
+    document.head.appendChild( s );
+  }
+
   /// Setup readme ///
   function populateReadme() {
     var content = $('#readme-content');
@@ -1057,21 +1068,22 @@ $(document).ready(function () {
         tryLoadReadme(index + 1);
       } )
       .done( function ( data ) {
-          // Successfully loaded README
-          content.html(marked.parse(data));
-          
-          // Add version information
-          var ul = $('<ul/>'),
-              versions = pageCanvas.getVersion(),
-              keys = Object.keys(versions).sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
-          
-          for ( var k in keys ) {
-            k = keys[k];
-            $('<li>'+k+': '+versions[k]+'</li>').appendTo(ul);
-          }
-          
-          $('<h1>Component versions</h1>').appendTo(content);
-          ul.appendTo(content);
+          ensureMarked( function () {
+            content.html(marked.parse(data));
+
+            // Add version information
+            var ul = $('<ul/>'),
+                versions = pageCanvas.getVersion(),
+                keys = Object.keys(versions).sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+
+            for ( var k in keys ) {
+              k = keys[k];
+              $('<li>'+k+': '+versions[k]+'</li>').appendTo(ul);
+            }
+
+            $('<h1>Component versions</h1>').appendTo(content);
+            ul.appendTo(content);
+          } );
         } );
     }
     
@@ -1099,8 +1111,10 @@ $(document).ready(function () {
       }
       $.ajax({ url: paths[index], dataType: 'text', cache: false })
         .done( function ( data ) {
-          content.html(marked.parse(data));
-          $('#readme-modal').addClass('modal-active');
+          ensureMarked( function () {
+            content.html(marked.parse(data));
+            $('#readme-modal').addClass('modal-active');
+          } );
         } )
         .fail( function () { tryLoad(index + 1); } );
     }
