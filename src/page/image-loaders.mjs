@@ -189,8 +189,11 @@ export function createTiffLoader({ onError }) {
     xhr.onload = function () {
       var buffer = xhr.response;
       var tiff = new Tiff({buffer: buffer});
-      if ( pageNum < 1 || pageNum > tiff.countDirectory() )
+      if ( pageNum < 1 || pageNum > tiff.countDirectory() ) {
+        onLoad( image );
         onError( 'Unexpected page number: '+pageNum );
+        return;
+      }
       tiff.setDirectory(pageNum-1);
       var canvas = tiff.toCanvas();
       canvas.toBlob( function(blob) {
