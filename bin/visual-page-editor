@@ -505,9 +505,33 @@ if [ -n "$APP_PATH" ]; then
   done
 fi
 
-# On macOS, NW.js must get --nwapp <dir> (not bare <dir>) or it looks for app.nw inside the SDK bundle.
-# This applies when $nw is node_modules/.bin/nw as well as .../nwjs.app/Contents/MacOS/nwjs — the former
-# path does not match *.app/Contents/MacOS/*, so we always pass --nwapp on macOS.
+# macOS: Spawning .../nwjs.app/Contents/MacOS/nwjs (or via the npm `nw` CLI) makes Chromium look for
+# Resources/app.nw inside the SDK and exit. Launch the SDK as a bundle with open(1) instead.
+MACOS_NWJS_APP=""
+if [ "$PLATFORM" = "macos" ]; then
+  case "$nw" in
+    */nwjs.app/Contents/MacOS/nwjs)
+      MACOS_NWJS_APP="${nw%/Contents/MacOS/nwjs}"
+      ;;
+  esac
+  if [ -z "$MACOS_NWJS_APP" ] && [ -n "$nw_page_editor" ]; then
+    _np="$nw_page_editor/node_modules/nw"
+    if [ "$MAC_ARCH" = "arm64" ] && [ -d "$_np/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app" ]; then
+      MACOS_NWJS_APP="$_np/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app"
+    elif [ -d "$_np/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app" ]; then
+      MACOS_NWJS_APP="$_np/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app"
+    fi
+  fi
+  if [ -z "$MACOS_NWJS_APP" ]; then
+    if [ "$MAC_ARCH" = "arm64" ]; then
+      [ -d "$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app" ] && MACOS_NWJS_APP="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app"
+      [ -z "$MACOS_NWJS_APP" ] && [ -d "/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app" ] && MACOS_NWJS_APP="/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app"
+    fi
+    [ -z "$MACOS_NWJS_APP" ] && [ -d "$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app" ] && MACOS_NWJS_APP="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app"
+    [ -z "$MACOS_NWJS_APP" ] && [ -d "/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app" ] && MACOS_NWJS_APP="/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app"
+  fi
+fi
+
 NW_LAUNCH_ARGS=("$APP_PATH" "${argv[@]}")
 if [ "$PLATFORM" = "macos" ]; then
   NW_LAUNCH_ARGS=(--nwapp "$APP_PATH" "${argv[@]}")
@@ -515,8 +539,13 @@ fi
 
 # Launch with error trapping
 set +e  # Don't exit on error, we'll handle it
-"$nw" "${NW_LAUNCH_ARGS[@]}" 2>>"$LOG_FILE"
-EXIT_CODE=$?
+if [ "$PLATFORM" = "macos" ] && [ -n "$MACOS_NWJS_APP" ] && [ -d "$MACOS_NWJS_APP" ]; then
+  open -n "$MACOS_NWJS_APP" --args --nwapp "$APP_PATH" "${argv[@]}" 2>>"$LOG_FILE"
+  EXIT_CODE=$?
+else
+  "$nw" "${NW_LAUNCH_ARGS[@]}" 2>>"$LOG_FILE"
+  EXIT_CODE=$?
+fi
 set -e  # Re-enable error exit
 
 # Check exit code and provide helpful messages
