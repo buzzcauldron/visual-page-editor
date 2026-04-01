@@ -11,6 +11,8 @@
 /*jshint esversion: 6 */
 /*global ensurePageEditorHeavyVendors, turf */
 
+import { PanZoom, FITTED } from '../src/canvas/pan-zoom.mjs';
+
 // @todo Bug: draggable may be behind other elements, could add transparent polygon on top to ease dragging
 // @todo Allow use without keyboard shortcuts and no Mousetrap dependency
 // @todo Function to get number of undo/redo states
@@ -46,20 +48,7 @@
     hasChanged = false,
     changeHistory = [],
     historyPosition = 0,
-    canvasW,
-    canvasH,
-    canvasR,
-    fitState,
-    FITTED = { NONE: 0, WIDTH: 1, HEIGHT: 2, PAGE: 3 },
-    panzoom,
-    xmin,
-    ymin,
-    width,
-    height,
-    boxX0,
-    boxY0,
-    boxW,
-    boxH,
+    panZoom,
     panToSelectedRafId = 0;
 
     /// Check container element ///
@@ -368,13 +357,11 @@
 
       if ( state.panzoom ) {
         self.svgPanZoom( state.panzoom[0], state.panzoom[1], state.panzoom[2], state.panzoom[3] );
-        boxX0 = state.panzoom[4];
-        boxY0 = state.panzoom[5];
-        boxW = state.panzoom[6];
-        boxH = state.panzoom[7];
-        svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
+        panZoom.setViewBox( state.panzoom[4], state.panzoom[5], state.panzoom[6], state.panzoom[7] );
+        panZoom.adjustSize();
+      } else {
+        adjustSize();
       }
-      adjustSize();
 
       state.mode();
       if ( state.selected )
@@ -400,7 +387,7 @@
       var state = {
           type: changeType,
           svg: self.getSvgClone(true),
-          panzoom: panzoom ? [ xmin, ymin, width, height, boxX0, boxY0, boxW, boxH ] : false ,
+          panzoom: panZoom && panZoom.active ? panZoom.getHistoryState() : false ,
           mode: self.mode.current,
           selected: svgRoot ? getElementPath( $(svgRoot).find('.selected') ) : ''
         };
@@ -499,236 +486,32 @@
      * @param {int}  height  Height for SVG range.
      */
     self.svgPanZoom = function ( range_xmin, range_ymin, range_width, range_height ) {
-      panzoom = true;
-      xmin = range_xmin;
-      ymin = range_ymin;
-      width = range_width;
-      height = range_height;
-      var
-      svgR = width / height ;
-
-      function fitWidth() {
-        boxW = width ;
-        boxH = width / canvasR ;
-        boxX0 = xmin ;
-        boxY0 = ymin + ( svgR < canvasR ? 0 : ( height - boxH ) / 2 );
-        svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
-        fitState = FITTED.WIDTH;
-        dragpointScale();
-        for ( var k=0; k<self.cfg.onPanZoomChange.length; k++ )
-          self.cfg.onPanZoomChange[k](boxW,boxH);
-        return false;
-      }
-
-      function fitHeight() {
-        boxH = height ;
-        boxW = height * canvasR ;
-        boxY0 = ymin ;
-        boxX0 = xmin + ( svgR > canvasR ? 0 : ( width - boxW ) / 2 );
-        svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
-        fitState = FITTED.HEIGHT;
-        dragpointScale();
-        for ( var k=0; k<self.cfg.onPanZoomChange.length; k++ )
-          self.cfg.onPanZoomChange[k](boxW,boxH);
-        return false;
-      }
-
-      function fitElem(elem) {
-        var rect = elem[0].getBBox();
-        if ( rect.width/rect.height < canvasR && rect.height > 0 ) {
-          boxH = rect.height ;
-          boxW = boxH * canvasR ;
-          boxY0 = rect.y ;
-          boxX0 = rect.x + ( rect.width - boxW ) / 2 ;
-        }
-        else if ( rect.width > 0 ) {
-          boxW = rect.width ;
-          boxH = boxW / canvasR ;
-          boxX0 = rect.x ;
-          boxY0 = rect.y + ( rect.height - boxH ) / 2 ;
-        }
-        else
-          return false;
-        svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
-        fitState = FITTED.NONE;
-        dragpointScale();
-        for ( var k=0; k<self.cfg.onPanZoomChange.length; k++ )
-          self.cfg.onPanZoomChange[k](boxW,boxH);
-        return false;
-      }
-
-      function fitPage() {
-        if( svgR < canvasR )
-          fitHeight();
-        else
-          fitWidth();
-        fitState = FITTED.PAGE;
-        return false;
-      }
-
-      function zoom( amount, point, factor ) {
-        point = typeof point == 'undefined' ? { x:boxX0+0.5*boxW, y:boxY0+0.5*boxH } : point ;
-        factor = typeof factor == 'undefined' ? 0.05 : factor ;
-        var
-        center = 0.2,
-        scale = amount > 0 ?
-          Math.pow( 1.0-factor, amount ) :
-          Math.pow( 1.0+factor, -amount ) ;
-        boxW *= scale;
-        boxH *= scale;
-        boxX0 = scale * ( boxX0 - point.x ) + point.x;
-        boxY0 = scale * ( boxY0 - point.y ) + point.y;
-        boxX0 = (1-center) * boxX0 + center * ( point.x - 0.5*boxW );
-        boxY0 = (1-center) * boxY0 + center * ( point.y - 0.5*boxH );
-        viewBoxLimits();
-        svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
-        fitState = FITTED.NONE;
-        dragpointScale();
-        for ( var k=0; k<self.cfg.onPanZoomChange.length; k++ )
-          self.cfg.onPanZoomChange[k](boxW,boxH);
-        return false;
-      }
-
-      /**
-       * Moves center of viewbox.
-       */
-      function pan( dx, dy ) {
-        //console.log('called pan dx='+dx+' dy='+dy);
-        //boxX0 -= dx * boxW ;
-        //boxY0 -= dy * boxH ;
-        var S = boxW < boxH ? boxW : boxH;
-        boxX0 -= dx * S ;
-        boxY0 -= dy * S ;
-        viewBoxLimits();
-        svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
-        for ( var k=0; k<self.cfg.onPanZoomChange.length; k++ )
-          self.cfg.onPanZoomChange[k](boxW,boxH);
-        return false;
-      }
-
-      /**
-       * Sets a specific viewBox.
-       */
-      function setViewBox( new_boxX0, new_boxY0, new_boxW, new_boxH ) {
-        boxX0 = new_boxX0;
-        boxY0 = new_boxY0;
-        boxW = new_boxW;
-        boxH = new_boxH;
-        svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
-      }
-
-      /// Pan on wheel and zoom on shift+wheel ///
-      function wheelPanZoom( event ) {
-        event = event.originalEvent;
-        if ( event.deltaX === 0 && event.deltaY === 0 )
-          return false;
-        event.preventDefault();
-        if ( event.shiftKey )
-          return zoom( event.deltaX+event.deltaY > 0 ? 1 : -1, selectedCenter() );
-        else {
-          var x=0, y=0;
-          if ( Math.abs(event.deltaX) > Math.abs(event.deltaY) )
-            x = event.deltaX > 0 ? -0.02 : 0.02;
-          else
-            y = event.deltaY > 0 ? -0.02 : 0.02;
-          return pan(x,y);
-        }
-      }
-      $(svgRoot).on('wheel',wheelPanZoom);
-
-      /// Keyboard shortcuts (see KEYBOARD-SHORTCUTS.md) ///
-      Mousetrap.bind( ['alt+0','mod+0'], function () { return fitPage(); } );
-      Mousetrap.bind( ['alt+shift+w','mod+shift+w'], function () { return fitWidth(); } );
-      Mousetrap.bind( ['alt+shift+h','mod+shift+h'], function () { return fitHeight(); } );
-      Mousetrap.bind( ['alt+=','mod+='], function () { return zoom(1,selectedCenter()); } );
-      Mousetrap.bind( ['alt+-','mod+-'], function () { return zoom(-1,selectedCenter()); } );
-      Mousetrap.bind( ['alt+right','mod+right'], function () { return pan(-0.02,0); } );
-      Mousetrap.bind( ['alt+left', 'mod+left'], function () { return pan(0.02,0); } );
-      Mousetrap.bind( ['alt+up',   'mod+up'], function () { return pan(0,0.02); } );
-      Mousetrap.bind( ['alt+down', 'mod+down'], function () { return pan(0,-0.02); } );
-
-      /// Arrow keys: pan when zoomed in; when fit-to-page, trigger page navigation (prev/next)
-      Mousetrap.bind( 'left',  function () { if ( fitState !== FITTED.PAGE ) { pan( 0.02, 0); return false; } $('#prevPage').click(); return false; } );
-      Mousetrap.bind( 'right', function () { if ( fitState !== FITTED.PAGE ) { pan(-0.02, 0); return false; } $('#nextPage').click(); return false; } );
-      Mousetrap.bind( 'up',    function () { if ( fitState !== FITTED.PAGE ) { pan( 0, 0.02); return false; } $('#prevPage').click(); return false; } );
-      Mousetrap.bind( 'down',  function () { if ( fitState !== FITTED.PAGE ) { pan( 0,-0.02); return false; } $('#nextPage').click(); return false; } );
-
-      /// Pan by dragging (smoothing: inertia + pointer tolerance for easier use) ///
-      if ( typeof interact !== 'undefined' && typeof interact.pointerMoveTolerance === 'function' ) {
-        interact.pointerMoveTolerance( 6 );
-      }
-      interact(svgRoot)
-        .draggable( { inertia: true } )
-        //.ignoreFrom('text')
-        .styleCursor(false)
-        .on( 'dragstart', function () {
-            self.util.dragging = true;
-          } )
-        .on( 'dragend', function () {
-            window.setTimeout( function () { self.util.dragging = false; }, 100 );
-          } )
-        .on( 'dragmove', function ( event ) {
-            pan( event.dx/canvasW, event.dy/canvasH );
-            //event.stopPropagation();
-            event.preventDefault();
-            //return false;
-          } );
-
-      fitPage();
-      //fitWidth();
-
-      self.fitWidth = fitWidth;
-      self.fitHeight = fitHeight;
-      self.fitElem = fitElem;
-      self.fitPage = fitPage;
-      self.setViewBox = setViewBox;
-
-      $(window).resize( function () { self.adjustViewBox(); } );
+      panZoom = new PanZoom({
+        svgRoot: svgRoot,
+        svgContainer: svgContainer,
+        onPanZoomChange: self.cfg.onPanZoomChange,
+        dragpointScale: function ( boxW, boxH ) {
+          var
+          cssrule = '#'+self.cfg.stylesId+'{ #'+svgContainer.id+'_dragpoint }',
+          scale = 0.0025 * Math.min( boxW, boxH );
+          $.stylesheet(cssrule).css( 'transform', 'scale('+scale+')' );
+        },
+        selectedCenter: selectedCenter,
+        util: self.util,
+      });
+      panZoom.init( range_xmin, range_ymin, range_width, range_height );
+      self.fitWidth  = function ()          { return panZoom.fitWidth(); };
+      self.fitHeight = function ()          { return panZoom.fitHeight(); };
+      self.fitElem   = function (elem)      { return panZoom.fitElem(elem); };
+      self.fitPage   = function ()          { return panZoom.fitPage(); };
+      self.setViewBox = function (x,y,w,h)  { return panZoom.setViewBox(x,y,w,h); };
     };
-
-    function viewBoxLimits() {
-      var factW = width > 0 ? boxW / width : 1, factH = height > 0 ? boxH / height : 1;
-      if ( factW > 1.2 && factH > 1.2 ) {
-        if ( factW < factH ) {
-          boxW = 1.2 * width;
-          boxH = width / canvasR;
-        }
-        else {
-          boxH = 1.2 * height;
-          boxW = height * canvasR;
-        }
-      }
-      if ( factW > 1 && factH > 1 ) {
-        boxX0 = ( width - boxW ) / 2;
-        boxY0 = ( height - boxH ) / 2;
-      }
-
-      if ( boxX0 < xmin + ( boxW <= width ? 0 : width-boxW ) )
-           boxX0 = xmin + ( boxW <= width ? 0 : width-boxW ) ;
-      if ( boxY0 < ymin + ( boxH <= height ? 0 : height-boxH ) )
-           boxY0 = ymin + ( boxH <= height ? 0 : height-boxH ) ;
-      if ( boxX0 > xmin + ( boxW <= width ? width-boxW : 0 ) )
-           boxX0 = xmin + ( boxW <= width ? width-boxW : 0 ) ;
-      if ( boxY0 > ymin + ( boxH <= height ? height-boxH : 0 ) )
-           boxY0 = ymin + ( boxH <= height ? height-boxH : 0 ) ;
-    }
 
     /**
      * Adjust the view box of the SVG canvas.
      */
     self.adjustViewBox = function () {
-      if ( ! svgRoot )
-        return;
-      adjustSize();
-      viewBoxLimits();
-      //console.log('called adjustViewBox: '+boxX0+' '+boxY0+' '+boxW+' '+boxH );
-      switch ( fitState ) {
-        case FITTED.WIDTH:  self.fitWidth();  break;
-        case FITTED.HEIGHT: self.fitHeight(); break;
-        case FITTED.PAGE:   self.fitPage();   break;
-        default:
-          svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
-      }
+      if ( panZoom ) panZoom.adjustViewBox();
     };
 
     /**
@@ -764,41 +547,34 @@
     }
 
     /**
-     * Adjusts the size of the dragpoint graphic for editing points.
+     * Delegates to PanZoom when active; no-op when called before svgPanZoom().
      */
     function dragpointScale() {
-      var
-      cssrule = '#'+self.cfg.stylesId+'{ #'+svgContainer.id+'_dragpoint }',
-      scale = 0.0025 * Math.min( boxW, boxH );
-      $.stylesheet(cssrule).css( 'transform', 'scale('+scale+')' );
+      if ( panZoom ) panZoom.dragpointScale();
     }
 
     /**
      * Returns the current canvas range.
      */
     self.util.canvasRange = function () {
-      return { width:width, height:height, x:xmin, y:ymin };
+      return panZoom ? panZoom.canvasRange() : { width:0, height:0, x:0, y:0 };
     };
 
     /**
-     * Adjusts the size of the SVG canvas based on its container size.
-     * Guards against first call (prevW/prevH undefined) and zero height to avoid NaN/Infinity.
+     * Measures container and sets SVG width/height attributes.
+     * Used before PanZoom is active (e.g. on SVG load); delegates to PanZoom once active.
      */
     function adjustSize() {
-      var
-      prevW = canvasW,
-      prevH = canvasH;
-      canvasW = $(svgContainer).innerWidth();
-      canvasH = $(svgContainer).innerHeight();
-      if ( ! canvasH )
-        canvasH = 1;
-      canvasR = canvasW / canvasH;
-      if ( typeof prevW === 'number' && typeof prevH === 'number' && prevW > 0 && prevH > 0 ) {
-        boxW *= canvasW / prevW;
-        boxH *= canvasH / prevH;
+      if ( panZoom ) {
+        panZoom.adjustSize();
+        return;
       }
-      svgRoot.setAttribute( 'width', canvasW );
-      svgRoot.setAttribute( 'height', canvasH );
+      var cW = $(svgContainer).innerWidth();
+      var cH = $(svgContainer).innerHeight() || 1;
+      if ( svgRoot ) {
+        svgRoot.setAttribute( 'width', cW );
+        svgRoot.setAttribute( 'height', cH );
+      }
     }
 
     /**
@@ -816,83 +592,17 @@
         return self.util.mouseCoords;
     }
 
-    /**
-     * Centers the viewbox on the selected element.
-     * Uses a horizontal bias so the selection stays in the visible canvas (left of the side menu).
-     */
     function panToSelected() {
-      var point = selectedCenter();
-      if ( ! point )
-        return;
-      // Position selection at ~35% from left so it stays visible when the drawer is open
-      var centerBiasX = 0.35;
-      var centerBiasY = 0.5;
-      boxX0 = point.x - centerBiasX * boxW;
-      boxY0 = point.y - centerBiasY * boxH;
-      viewBoxLimits();
-      if ( isNaN(boxX0) || isNaN(boxY0) || isNaN(boxW) || isNaN(boxH) )
-        return;
-      svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
+      if ( panZoom ) panZoom.panToSelected();
     }
 
-    /**
-     * Snaps the view to the left side of the document (left edge of content at left of viewport).
-     * BUG FIX (1.1.1): The previous implementation caused the document to snap to the RIGHT when zoomed in
-     * (view showed the right edge instead of the left). This is now fixed: we set boxX0 = xmin and re-apply
-     * it after viewBoxLimits() so the left edge stays at the viewport left.
-     */
     function snapImageToLeft() {
-      if ( ! svgRoot )
-        return;
-      if ( typeof xmin === 'undefined' || isNaN(xmin) )
-        return;
-      boxX0 = xmin;
-      viewBoxLimits();
-      boxX0 = xmin;
-      if ( isNaN(boxX0) || isNaN(boxY0) || isNaN(boxW) || isNaN(boxH) )
-        return;
-      svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
+      if ( panZoom ) panZoom.snapImageToLeft();
     }
     self.snapImageToLeft = snapImageToLeft;
 
-    /**
-     * Centers and zooms the viewbox on the selected element.
-     * Uses same horizontal bias as panToSelected so element stays visible (not under drawer).
-     */
     function panZoomTo( fact, limits, sel ) {
-      if ( typeof sel === 'undefined' )
-        sel = '.selected';
-      if ( typeof sel === 'string' )
-        sel = $(svgRoot).find(sel).closest('g');
-      if ( typeof sel === 'object' && ! ( sel instanceof jQuery ) )
-        sel = $(sel);
-      if ( sel.length === 0 || sel.hasClass('dragging') )
-        return;
-      var rect = sel[0].getBBox();
-
-      if ( typeof fact.w !== 'undefined' ) {
-        boxW = rect.width / fact.w;
-        boxH = boxW / canvasR;
-      }
-      else if ( typeof fact.h !== 'undefined' ) {
-        boxH = rect.height / fact.h;
-        boxW = boxH * canvasR;
-      }
-
-      var centerBiasX = 0.35;
-      var centerBiasY = 0.5;
-      boxX0 = (rect.x + 0.5*rect.width) - centerBiasX * boxW;
-      boxY0 = (rect.y + 0.5*rect.height) - centerBiasY * boxH;
-
-      if ( typeof limits === 'undefined' || limits )
-        viewBoxLimits();
-
-      svgRoot.setAttribute( 'viewBox', boxX0+' '+boxY0+' '+boxW+' '+boxH );
-
-      dragpointScale();
-
-      for ( var k=0; k<self.cfg.onPanZoomChange.length; k++ )
-        self.cfg.onPanZoomChange[k](boxW,boxH);
+      if ( panZoom ) panZoom.panZoomTo( fact, limits, sel );
     }
     self.util.panZoomTo = panZoomTo;
 
@@ -982,7 +692,7 @@
       /// Append SVG and initialize ///
       hasChanged = false;
       clearChangeHistory();
-      panzoom = false;
+      panZoom = null;
       svgContainer.appendChild( svgDoc.documentElement ? svgDoc.documentElement : svgDoc );
       self.util.svgRoot = svgRoot = svgContainer.firstChild;
       self.util.mouseCoords = svgRoot.createSVGPoint();
