@@ -12,7 +12,7 @@
 
 /* @todo Capture tabs when modals open */
 
-$(window).on('load', function () {
+$(document).ready(function () {
 
   /// Restore UI state (edit mode, drawer options) on document load – used so selection persists across images
   function restoreEditorUIOnLoad() {
