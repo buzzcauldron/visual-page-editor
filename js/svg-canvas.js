@@ -917,8 +917,6 @@ import { PanZoom, FITTED } from '../src/canvas/pan-zoom.mjs';
           var active = document.activeElement;
           if ( active && ( active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable ) )
             return true;
-          if ( self.cfg.textareaId && active && active.id === self.cfg.textareaId )
-            return true;
         }
         var selElem = $(svgRoot).find('.selected').first();
         if ( selElem.length === 0 || isReadOnly(selElem) )
