@@ -246,18 +246,12 @@ nw=""
 if [ -n "$nw_from_npm" ] && [ -f "$nw_from_npm" ]; then
   nw="$nw_from_npm"
 fi
-# Prefer the extracted SDK binary from npm `nw` (matches NWJS_VERSION). `node_modules/.bin/nw` is a Node
-# script; `file` does not report arm64, and the Apple Silicon branch below used to replace it with the
-# first ~/.nwjs match (often an older SDK).
+# On Linux: prefer the extracted SDK `nw` binary from npm (matches NWJS_VERSION).
+# On macOS: keep using `node_modules/.bin/nw` (Node CLI). The raw .../MacOS/nwjs Mach-O ignores
+# `--nwapp` and looks for app.nw inside the SDK bundle (breaks launches); the npm CLI spawns correctly.
 if [ -n "$nw_page_editor" ] && [ -d "$nw_page_editor/node_modules/nw" ]; then
   _nw_pkg="$nw_page_editor/node_modules/nw"
-  if [ "$PLATFORM" = "macos" ]; then
-    if [ "$MAC_ARCH" = "arm64" ] && [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app/Contents/MacOS/nwjs" ]; then
-      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app/Contents/MacOS/nwjs"
-    elif [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs" ]; then
-      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs"
-    fi
-  elif [ "$PLATFORM" = "linux" ]; then
+  if [ "$PLATFORM" = "linux" ]; then
     if [ "$MACHINE_ARCH" = "arm64" ] && [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw" ]; then
       nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw"
     elif [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw" ]; then
