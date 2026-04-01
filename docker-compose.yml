@@ -11,6 +11,7 @@
 
 services:
   visual-page-editor:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile.desktop
