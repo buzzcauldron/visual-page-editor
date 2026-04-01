@@ -403,14 +403,28 @@ $(window).on('load', function () {
         } );
     } );
 
+  /// Defer heavy file loads until after first paint so the window/chrome can appear (hang mitigation) ///
+  function runAfterFirstPaint( fn ) {
+    window.requestAnimationFrame( function () {
+      window.requestAnimationFrame( function () {
+        if ( typeof window.requestIdleCallback === 'function' )
+          window.requestIdleCallback( fn, { timeout: 2000 } );
+        else
+          window.setTimeout( fn, 0 );
+      } );
+    } );
+  }
+
   /// Open file if provided as argument, else try last open file ///
   if ( nw.App.argv.length > 0 && window.location.hash === '#1' ) {
     global.pageWindows = [ true ];
-    if ( parseArgs(nw.App.argv) )
-      window.setTimeout( function () {
-          if ( typeof pageCanvas.fitPage !== 'undefined' )
-            pageCanvas.fitPage();
-        }, 300 );
+    runAfterFirstPaint( function () {
+      if ( parseArgs(nw.App.argv) )
+        window.setTimeout( function () {
+            if ( typeof pageCanvas.fitPage !== 'undefined' )
+              pageCanvas.fitPage();
+          }, 300 );
+    } );
   }
   else {
     var lastOpen = null;
@@ -420,13 +434,13 @@ $(window).on('load', function () {
     } catch ( e ) { /* ignore */ }
     if ( lastOpen && lastOpen.fileList && lastOpen.fileList.length > 0 &&
          $( '#openLastFileOnStartup input' ).prop( 'checked' ) ) {
-      var idx = (typeof lastOpen.fileNum === 'number' && lastOpen.fileNum >= 1 && lastOpen.fileNum <= lastOpen.fileList.length)
-        ? lastOpen.fileNum - 1 : 0;
-      if ( parseArgs(lastOpen.fileList, false, lastOpen.fileNum) )
-        window.setTimeout( function () {
-            if ( typeof pageCanvas.fitPage !== 'undefined' )
-              pageCanvas.fitPage();
-          }, 300 );
+      runAfterFirstPaint( function () {
+        if ( parseArgs(lastOpen.fileList, false, lastOpen.fileNum) )
+          window.setTimeout( function () {
+              if ( typeof pageCanvas.fitPage !== 'undefined' )
+                pageCanvas.fitPage();
+            }, 300 );
+      } );
     }
     if ( iswin )
       global.pageWindows = [ true ];
@@ -435,9 +449,12 @@ $(window).on('load', function () {
   }
 
   if ( typeof global.argv !== 'undefined' ) {
-    if ( parseArgs(global.argv) )
-      window.setTimeout( function () { pageCanvas.fitPage(); }, 300 );
+    var argvDeferred = global.argv;
     delete global.argv;
+    runAfterFirstPaint( function () {
+      if ( parseArgs(argvDeferred) )
+        window.setTimeout( function () { pageCanvas.fitPage(); }, 300 );
+    } );
   }
 
   /// Open new window if app already running ///
