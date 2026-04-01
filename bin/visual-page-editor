@@ -247,8 +247,8 @@ if [ -n "$nw_from_npm" ] && [ -f "$nw_from_npm" ]; then
   nw="$nw_from_npm"
 fi
 # On Linux: prefer the extracted SDK `nw` binary from npm (matches NWJS_VERSION).
-# On macOS: keep using `node_modules/.bin/nw` (Node CLI). The raw .../MacOS/nwjs Mach-O ignores
-# `--nwapp` and looks for app.nw inside the SDK bundle (breaks launches); the npm CLI spawns correctly.
+# On macOS: prefer `node_modules/.bin/nw` (Node CLI); the launcher passes the app path as the first
+# argument (same as `nw .`), which the CLI forwards to the native binary correctly.
 if [ -n "$nw_page_editor" ] && [ -d "$nw_page_editor/node_modules/nw" ]; then
   _nw_pkg="$nw_page_editor/node_modules/nw"
   if [ "$PLATFORM" = "linux" ]; then
@@ -505,47 +505,15 @@ if [ -n "$APP_PATH" ]; then
   done
 fi
 
-# macOS: Spawning .../nwjs.app/Contents/MacOS/nwjs (or via the npm `nw` CLI) makes Chromium look for
-# Resources/app.nw inside the SDK and exit. Launch the SDK as a bundle with open(1) instead.
-MACOS_NWJS_APP=""
-if [ "$PLATFORM" = "macos" ]; then
-  case "$nw" in
-    */nwjs.app/Contents/MacOS/nwjs)
-      MACOS_NWJS_APP="${nw%/Contents/MacOS/nwjs}"
-      ;;
-  esac
-  if [ -z "$MACOS_NWJS_APP" ] && [ -n "$nw_page_editor" ]; then
-    _np="$nw_page_editor/node_modules/nw"
-    if [ "$MAC_ARCH" = "arm64" ] && [ -d "$_np/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app" ]; then
-      MACOS_NWJS_APP="$_np/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app"
-    elif [ -d "$_np/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app" ]; then
-      MACOS_NWJS_APP="$_np/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app"
-    fi
-  fi
-  if [ -z "$MACOS_NWJS_APP" ]; then
-    if [ "$MAC_ARCH" = "arm64" ]; then
-      [ -d "$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app" ] && MACOS_NWJS_APP="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app"
-      [ -z "$MACOS_NWJS_APP" ] && [ -d "/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app" ] && MACOS_NWJS_APP="/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-arm64/nwjs.app"
-    fi
-    [ -z "$MACOS_NWJS_APP" ] && [ -d "$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app" ] && MACOS_NWJS_APP="$HOME/.nwjs/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app"
-    [ -z "$MACOS_NWJS_APP" ] && [ -d "/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app" ] && MACOS_NWJS_APP="/Applications/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app"
-  fi
-fi
-
+# Pass the app directory as the first argument (same as `npm start` → `nw .`).
+# The npm `nw` CLI spawns the native binary with [appPath, ...extraArgs], not `--nwapp`.
+# Using --nwapp on macOS breaks the Node wrapper's argv handling.
 NW_LAUNCH_ARGS=("$APP_PATH" "${argv[@]}")
-if [ "$PLATFORM" = "macos" ]; then
-  NW_LAUNCH_ARGS=(--nwapp "$APP_PATH" "${argv[@]}")
-fi
 
-# Launch with error trapping
+# Launch with error trapping (direct exec: reliable exit codes, stderr to log; avoids open(1) flakiness)
 set +e  # Don't exit on error, we'll handle it
-if [ "$PLATFORM" = "macos" ] && [ -n "$MACOS_NWJS_APP" ] && [ -d "$MACOS_NWJS_APP" ]; then
-  open -n "$MACOS_NWJS_APP" --args --nwapp "$APP_PATH" "${argv[@]}" 2>>"$LOG_FILE"
-  EXIT_CODE=$?
-else
-  "$nw" "${NW_LAUNCH_ARGS[@]}" 2>>"$LOG_FILE"
-  EXIT_CODE=$?
-fi
+"$nw" "${NW_LAUNCH_ARGS[@]}" 2>>"$LOG_FILE"
+EXIT_CODE=$?
 set -e  # Re-enable error exit
 
 # Check exit code and provide helpful messages
