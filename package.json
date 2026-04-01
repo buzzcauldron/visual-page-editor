@@ -36,6 +36,7 @@
     "lint": "jshint js/*.js --exclude js/*.min.js",
     "test": "npm run review",
     "test:unit": "vitest run",
+    "test:launcher": "bats scripts/test-launcher.bats",
     "typecheck": "tsc --noEmit",
     "ts": "tsc",
     "start": "nw .",
