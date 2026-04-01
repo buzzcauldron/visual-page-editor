@@ -12,9 +12,9 @@
 
 /* @todo Capture tabs when modals open */
 
-$(document).ready(function () {
+$(window).on('load', function () {
 
-  /// Restore UI state (edit mode, drawer options) on document load – used so selection persists across images
+  /// Restore UI state (edit mode, drawer options) after window load (DOM + resources) – used so selection persists across images
   function restoreEditorUIOnLoad() {
     var changeReg = pageCanvas.cfg.registerChangeEnabled;
     pageCanvas.cfg.registerChangeEnabled = false;
