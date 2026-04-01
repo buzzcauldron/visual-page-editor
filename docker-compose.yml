@@ -19,7 +19,6 @@ services:
         APP_VERSION: ${VPE_VERSION:-0.0.0}
     image: visual-page-editor:${VPE_VERSION:-latest}
     container_name: visual-page-editor
-    platform: linux/amd64
     environment:
       # Substituted from your shell or from a ".env" file in this directory (see .env.docker.example)
       - DISPLAY=${DISPLAY:-:0}

@@ -99,6 +99,7 @@ fi
 # On Linux: prefer the extracted SDK `nw` binary from npm (matches NWJS_VERSION).
 # On macOS: prefer `node_modules/.bin/nw` (Node CLI); the launcher passes the app path as the first
 # argument (same as `nw .`), which the CLI forwards to the native binary correctly.
+# If .bin/nw is missing but the SDK dir is present (e.g. postinstall failed), use the binary directly.
 if [ -n "$nw_page_editor" ] && [ -d "$nw_page_editor/node_modules/nw" ]; then
   _nw_pkg="$nw_page_editor/node_modules/nw"
   if [ "$PLATFORM" = "linux" ]; then
@@ -106,6 +107,15 @@ if [ -n "$nw_page_editor" ] && [ -d "$nw_page_editor/node_modules/nw" ]; then
       nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw"
     elif [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw" ]; then
       nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw"
+    fi
+  elif [ "$PLATFORM" = "macos" ] && [ -z "$nw" ]; then
+    _mac_sdk_arch="${MAC_ARCH:-x64}"
+    _mac_nwjs_bin="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-${_mac_sdk_arch}/nwjs.app/Contents/MacOS/nwjs"
+    [ -f "$_mac_nwjs_bin" ] && nw="$_mac_nwjs_bin"
+    # Fallback: x64 SDK on arm64 host (Rosetta)
+    if [ ! -f "$nw" ] && [ "$MAC_ARCH" = "arm64" ]; then
+      _mac_nwjs_bin="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs"
+      [ -f "$_mac_nwjs_bin" ] && nw="$_mac_nwjs_bin"
     fi
   fi
 fi

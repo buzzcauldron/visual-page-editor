@@ -130,8 +130,13 @@ create_app_bundle() {
     mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
     # Copy NW.js framework and resources from npm-installed SDK
-    cp -R "$NWJS_SDK_DIR/nwjs.app/Contents/Frameworks" "$CONTENTS_DIR/" 2>/dev/null || true
-    cp -R "$NWJS_SDK_DIR/nwjs.app/Contents/Resources"/* "$RESOURCES_DIR/" 2>/dev/null || true
+    if [ ! -d "$NWJS_SDK_DIR/nwjs.app/Contents/Frameworks" ]; then
+        echo -e "${RED}Error: NW.js SDK Frameworks missing: $NWJS_SDK_DIR/nwjs.app/Contents/Frameworks${NC}"
+        echo "Re-run with: npm install"
+        exit 1
+    fi
+    cp -R "$NWJS_SDK_DIR/nwjs.app/Contents/Frameworks" "$CONTENTS_DIR/"
+    cp -R "$NWJS_SDK_DIR/nwjs.app/Contents/Resources/"* "$RESOURCES_DIR/"
 
     # Copy NW.js binary
     cp "$NWJS_SDK_DIR/nwjs.app/Contents/MacOS/nwjs" "$MACOS_DIR/nwjs"
