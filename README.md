@@ -66,9 +66,9 @@ You do **not** need to install NW.js separately or add it to your system `PATH`;
 
 **Docker:** The desktop image runs NW.js from a fixed path inside the container (`/app/nwjs/nw`); nothing is added to `PATH` on the host. See [README-DOCKER.md](README-DOCKER.md).
 
-The [nw](https://www.npmjs.com/package/nw) package is a **regular dependency**; its postinstall downloads the **NW.js SDK** for your OS/arch into `node_modules/` (ignored by git). The launcher prefers `node_modules/.bin/nw` when present, then falls back to `~/.nwjs`, PATH, or (when `AUTO_DOWNLOAD_NWJS` is set) a download. **Install checks and simulated clean environments:** [TESTING.md](TESTING.md). For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher.
+The [nw](https://www.npmjs.com/package/nw) package is a **regular dependency**; its postinstall downloads the **NW.js SDK** for your OS/arch into `node_modules/` (ignored by git). The launcher prefers `node_modules/.bin/nw` when present, then falls back to `~/.nwjs` and PATH. **Install checks and simulated clean environments:** [TESTING.md](TESTING.md). For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher.
 
-On **Linux ARM64**, `uname -m` sets the architecture so auto-download and `~/.nwjs` lookups use **linux-arm64**; `npm install` does the same via the `nw` package. If only an x64 binary is found, the launcher warns and you can run `npm install` or set `AUTO_DOWNLOAD_NWJS=1` to fetch the matching SDK.
+On **Linux ARM64**, `uname -m` detects the architecture so `~/.nwjs` lookups use **linux-arm64**; `npm install` does the same via the `nw` package. If only an x64 binary is found, the launcher warns and you can run `npm install` to fetch the matching SDK.
 
 **Open multiple files:**
 ```bash
@@ -117,9 +117,14 @@ cd visual-page-editor
 # or: npm start
 ```
 
-Verification scripts (`verify:nw`, Docker bootstrap test, clean macOS copy): [TESTING.md](TESTING.md). The launcher uses `NWJS_VERSION` (default **0.109.1**, aligned with `nw@0.109.1-sdk` in `package.json`). Set `AUTO_DOWNLOAD_NWJS=1` if the launcher should download NW.js to `~/.nwjs` when `node_modules` is absent.
+Verification scripts (`verify:nw`, Docker bootstrap test, clean macOS copy): [TESTING.md](TESTING.md). The launcher uses `NWJS_VERSION` (default **0.109.1**, aligned with `nw@0.109.1-sdk` in `package.json`).
 
-Code review: `npm run review` or `./scripts/code-review.sh`. See [CODE_REVIEW.md](CODE_REVIEW.md).
+**Testing:**
+- `npm run test:unit` — vitest unit tests (Point2f, PanZoom, etc.)
+- `npm run test:launcher` — bats launcher tests (20 tests across platforms)
+- `npm run review` / `./scripts/code-review.sh` — code review; see [CODE_REVIEW.md](CODE_REVIEW.md)
+
+**Build:** `npm run build` bundles `src/entry.js` → `js/bundle.js` via esbuild (runs automatically on `npm install` via the `prepare` script). Use `npm run build:watch` during development.
 
 ## License and links
 

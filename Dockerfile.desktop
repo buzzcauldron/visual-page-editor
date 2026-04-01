@@ -1,3 +1,14 @@
+# Stage 1: build js/bundle.js
+FROM node:20-slim AS builder
+WORKDIR /build
+COPY package.json package-lock.json* ./
+# --ignore-scripts skips the nw postinstall (avoids downloading 200MB NW.js SDK in the build stage)
+RUN npm install --ignore-scripts
+COPY js ./js
+COPY src ./src
+RUN npm run build
+
+# Stage 2: desktop runtime
 FROM ubuntu:22.04
 
 ARG NWJS_VERSION=0.109.1
@@ -61,6 +72,7 @@ COPY package.json /app/
 COPY html /app/html
 COPY css /app/css
 COPY js /app/js
+COPY --from=builder /build/js/bundle.js /app/js/bundle.js
 COPY examples /app/examples
 COPY plugins /app/plugins
 COPY xsd /app/xsd

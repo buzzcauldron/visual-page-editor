@@ -5,7 +5,7 @@
 ## Command line launcher for visual-page-editor.
 ## Compatible with Linux, macOS, and Windows (via Git Bash/WSL).
 ##
-## @version 1.2.0
+## @version 1.3.1
 ## @author buzzcauldron
 ## @copyright Copyright(c) 2025, buzzcauldron
 ## @license MIT License
@@ -246,11 +246,51 @@ fi
   exit 1;
 
 if [ ! -f "$nw" ]; then
-  echo "${0##*/}: error: NW.js not found." >&2
-  echo "  Run 'npm install' from the project directory to install the bundled NW.js SDK." >&2
-  echo "  If npm install was run but NW.js is still missing, clear the cache and retry:" >&2
-  echo "    rm -f $CACHE_FILE && npm install" >&2
-  exit 1
+  # Auto-install: try npm first, fall back to bootstrap-node.sh (downloads portable Node + runs npm install)
+  _npm_cmd=""
+  for _toolbin in "$nw_page_editor"/.tools/node-v*/bin; do
+    [ -x "$_toolbin/npm" ] && _npm_cmd="$_toolbin/npm" && export PATH="$_toolbin:$PATH" && break
+  done
+  [ -z "$_npm_cmd" ] && command -v npm >/dev/null 2>&1 && _npm_cmd="npm"
+
+  if [ -n "$_npm_cmd" ]; then
+    echo "${0##*/}: NW.js not found — running 'npm install' to fetch it..." >&2
+    (cd "$nw_page_editor" && "$_npm_cmd" install) || {
+      echo "${0##*/}: error: npm install failed. See output above." >&2; exit 1
+    }
+  elif [ -f "$nw_page_editor/scripts/bootstrap-node.sh" ] && [ "$PLATFORM" != "windows" ]; then
+    echo "${0##*/}: npm not found — running bootstrap to download Node.js and install dependencies..." >&2
+    bash "$nw_page_editor/scripts/bootstrap-node.sh" || {
+      echo "${0##*/}: error: bootstrap failed. See output above." >&2; exit 1
+    }
+    # Pick up the portable Node npm just installed
+    for _toolbin in "$nw_page_editor"/.tools/node-v*/bin; do
+      [ -x "$_toolbin/npm" ] && export PATH="$_toolbin:$PATH" && break
+    done
+  else
+    echo "${0##*/}: error: NW.js not found and npm is unavailable." >&2
+    echo "  Install Node.js from https://nodejs.org/ then run 'npm install' in the project directory." >&2
+    exit 1
+  fi
+
+  # Re-resolve nw binary after install
+  if [ -f "$nw_page_editor/node_modules/.bin/nw" ]; then
+    nw="$nw_page_editor/node_modules/.bin/nw"
+    chmod +x "$nw" 2>/dev/null || true
+  elif [ "$PLATFORM" = "linux" ]; then
+    _nw_pkg="$nw_page_editor/node_modules/nw"
+    if [ "$MACHINE_ARCH" = "arm64" ] && [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw" ]; then
+      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw"
+    elif [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw" ]; then
+      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw"
+    fi
+  fi
+
+  if [ ! -f "$nw" ]; then
+    echo "${0##*/}: error: NW.js still not found after install. Try:" >&2
+    echo "  rm -f $CACHE_FILE && npm install" >&2
+    exit 1
+  fi
 fi
 
 # Help message
@@ -261,8 +301,9 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   echo "Environment variables:"
   echo "  NWJS_VERSION - NW.js version to use (default: ${NWJS_VERSION})"
   echo ""
-  echo "Run 'npm install' once to install NW.js SDK via the 'nw' npm package (preferred)."
-  echo "NW.js is then available at node_modules/.bin/nw."
+  echo "NW.js is installed automatically on first run via 'npm install'."
+  echo "If npm is not found, portable Node.js is downloaded from nodejs.org first."
+  echo "(Linux/macOS only for auto-bootstrap; Windows users: run scripts/install-desktop.ps1)"
   exit 0
 fi
 
