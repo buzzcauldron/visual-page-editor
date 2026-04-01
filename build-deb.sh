@@ -12,6 +12,7 @@ VERSION="$([ -f "$PROJECT_ROOT/VERSION" ] && cat "$PROJECT_ROOT/VERSION" | tr -d
 [ -z "$VERSION" ] && VERSION="$(node -p "require('$PROJECT_ROOT/package.json').version" 2>/dev/null)" || true
 VERSION="${VERSION:-1.0.0}"
 NWJS_VERSION="${NWJS_VERSION:-0.109.1}"
+NWJS_SDK_DIR="$PROJECT_ROOT/node_modules/nw/nwjs-sdk-v${NWJS_VERSION}-linux-x64"
 
 # Colors for output
 RED='\033[0;31m'
@@ -22,73 +23,65 @@ NC='\033[0m' # No Color
 # Check for required tools
 check_requirements() {
     echo -e "${YELLOW}Checking requirements...${NC}"
-    
+
     local missing_tools=()
-    
-    for tool in dpkg-buildpackage curl tar gzip; do
+
+    for tool in dpkg-buildpackage node npm; do
         if ! command -v $tool &> /dev/null; then
             missing_tools+=($tool)
         fi
     done
-    
+
     if [ ${#missing_tools[@]} -ne 0 ]; then
         echo -e "${RED}Error: Missing required tools: ${missing_tools[*]}${NC}"
         echo "Please install them using your package manager:"
-        echo "  Debian/Ubuntu: sudo apt-get install build-essential devscripts curl tar gzip"
+        echo "  Debian/Ubuntu: sudo apt-get install build-essential devscripts nodejs npm"
         exit 1
     fi
-    
+
     echo -e "${GREEN}All requirements met!${NC}"
 }
 
-# Download NW.js if needed
-download_nwjs() {
-    echo -e "${YELLOW}Checking for NW.js v${NWJS_VERSION}...${NC}"
-    
-    local nwjs_dir="$PROJECT_ROOT/nwjs"
-    local nwjs_archive="$PROJECT_ROOT/nwjs-sdk-linux-x64.tar.gz"
-    local nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz"
-    
-    if [ -d "$nwjs_dir" ] && [ -f "$nwjs_dir/nw" ]; then
-        echo -e "${GREEN}NW.js already present at $nwjs_dir${NC}"
-        return 0
+# Ensure npm dependencies including NW.js are installed, then symlink nwjs/ for debian/rules
+ensure_npm_deps() {
+    echo -e "${YELLOW}Checking npm dependencies and NW.js v${NWJS_VERSION}...${NC}"
+
+    if [ ! -d "$NWJS_SDK_DIR" ] || [ ! -f "$NWJS_SDK_DIR/nw" ]; then
+        echo "Running npm install to fetch NW.js v${NWJS_VERSION}..."
+        cd "$PROJECT_ROOT"
+        npm install
     fi
-    
-    echo "Downloading NW.js v${NWJS_VERSION} from $nwjs_url..."
-    if curl -fLSs -o "$nwjs_archive" "$nwjs_url"; then
-        echo "Extracting NW.js..."
-        tar -xzf "$nwjs_archive" -C "$PROJECT_ROOT"
-        local extracted_dir=$(find "$PROJECT_ROOT" -maxdepth 1 -type d -name "nwjs-sdk-v${NWJS_VERSION}-linux-x64" | head -1)
-        if [ -n "$extracted_dir" ]; then
-            mv "$extracted_dir" "$nwjs_dir"
-        fi
-        rm -f "$nwjs_archive"
-        echo -e "${GREEN}NW.js downloaded and extracted successfully!${NC}"
-    else
-        echo -e "${RED}Warning: Could not download NW.js automatically.${NC}"
-        echo "You can download it manually from: $nwjs_url"
-        echo "Extract it to: $nwjs_dir"
-        return 1
+
+    if [ ! -d "$NWJS_SDK_DIR" ] || [ ! -f "$NWJS_SDK_DIR/nw" ]; then
+        echo -e "${RED}Error: NW.js SDK not found at $NWJS_SDK_DIR after npm install${NC}"
+        echo "Expected: $NWJS_SDK_DIR/nw"
+        exit 1
     fi
+
+    # Symlink nwjs/ -> npm-installed SDK so debian/rules can cp -r nwjs
+    local nwjs_link="$PROJECT_ROOT/nwjs"
+    [ -L "$nwjs_link" ] && rm "$nwjs_link"
+    ln -s "$NWJS_SDK_DIR" "$nwjs_link"
+    echo -e "${GREEN}NW.js v${NWJS_VERSION} ready (symlinked at $nwjs_link)${NC}"
 }
 
 # Build DEB package
 build_deb() {
     echo -e "${YELLOW}Building DEB package...${NC}"
-    
+
     cd "$PROJECT_ROOT"
-    
+
     # Export NW.js version for debian/rules
     export NWJS_VERSION="$NWJS_VERSION"
-    
+
     # Build the package
     dpkg-buildpackage -b -us -uc
-    
+
     echo -e "${GREEN}DEB package built successfully!${NC}"
-    
+
     # Show results
     local deb_file=$(find "$PROJECT_ROOT/.." -maxdepth 1 -name "${NAME}_${VERSION}*.deb" | head -1)
-    
+
     if [ -n "$deb_file" ]; then
         echo -e "${GREEN}DEB: $deb_file${NC}"
         ls -lh "$deb_file"
@@ -106,11 +99,11 @@ main() {
     echo "NW.js Version: $NWJS_VERSION"
     echo "========================================="
     echo ""
-    
+
     check_requirements
-    download_nwjs
+    ensure_npm_deps
     build_deb
-    
+
     echo ""
     echo "========================================="
     echo -e "${GREEN}Build completed successfully!${NC}"
@@ -122,4 +115,3 @@ main() {
 
 # Run main function
 main
-
