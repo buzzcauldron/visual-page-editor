@@ -19,61 +19,22 @@ Visual Page Editor is an application for viewing and editing ground truth or pre
 
 ## Quick start (desktop)
 
-You do **not** need NW.js installed globally or on your `PATH`. The **`nw` npm package** downloads the NW.js SDK into `node_modules/` during install. Launchers prefer the npm-installed SDK (`node_modules/.bin/nw` on Unix, `node_modules/nw/nwjs-sdk-*/nw.exe` on Windows) and prepend portable Node from `.tools/` to `PATH` when `install-desktop` has bootstrapped it.
-
-**Automatic install (Node optional):** one block installs dependencies, verifies NW.js, and optionally starts the app.
-
-- **Linux / macOS / Git Bash:**
-  ```bash
-  git clone https://github.com/buzzcauldron/visual-page-editor.git && cd visual-page-editor && ./scripts/install-desktop.sh --start
-  ```
-  Install only (no launch): `./scripts/install-desktop.sh`  
-  Same from repo root: `./install.sh` or `npm run install-desktop`
-
-- **Windows (PowerShell):**
-  ```powershell
-  git clone https://github.com/buzzcauldron/visual-page-editor.git; cd visual-page-editor; .\scripts\install-desktop.ps1 -Start
-  ```
-
-`install-desktop` runs `./scripts/bootstrap-node.sh` when Node 18+ is missing (portable Node into `.tools/`), then **`npm install`** (pulls **NW.js**), then checks that **`node_modules/.bin/nw`** exists.
-
-**Manual path (if you already have Node + npm):**
 ```bash
-git clone https://github.com/buzzcauldron/visual-page-editor.git && cd visual-page-editor && npm install && npm start
-```
-
-**Linux / macOS (install then open a sample file):**
-```bash
+git clone https://github.com/buzzcauldron/visual-page-editor.git
 cd visual-page-editor
 ./scripts/install-desktop.sh
 ./bin/visual-page-editor examples/lorem.xml
 ```
 
-**macOS only:** use a **native Apple Silicon** terminal on M-series Macs when possible; portable Node and NW.js target **arm64**. Troubleshooting and Rosetta notes: **[INSTALL-MAC.md](INSTALL-MAC.md)**.
+That installs dependencies (and bootstraps Node into `.tools/` if you do not have Node 18+), pulls the NW.js SDK via npm, then opens the sample Page XML. You do not need a global `nw` on `PATH`.
 
-**Windows (PowerShell), install then sample:**
-```powershell
-cd visual-page-editor
-.\scripts\install-desktop.ps1
-.\bin\visual-page-editor.ps1 examples\lorem.xml
-```
+**Windows (PowerShell):** `.\scripts\install-desktop.ps1` then `.\bin\visual-page-editor.ps1 examples\lorem.xml`
 
-**GitHub ZIP (no Git):** Extract the archive, open a terminal in that folder, then run **`./scripts/install-desktop.sh --start`** (Unix) or **`.\scripts\install-desktop.ps1 -Start`** (Windows) — same automatic sequence as above.
+Optional: `./scripts/install-desktop.sh --start` runs install and then launches the app in one step. On Windows: `.\scripts\install-desktop.ps1 -Start`.
 
-**Details:** `install-desktop` uses **`./scripts/bootstrap-node.sh`** when Node 18+ is missing (portable Node under `.tools/`; requires `curl`/`wget` + `tar` on Unix). You can still run bootstrap alone if you prefer.
+More detail — Docker desktop image, tests, packaging, Apple Silicon notes: [README-DOCKER.md](README-DOCKER.md), [TESTING.md](TESTING.md), [BUILD.md](BUILD.md), [INSTALL-MAC.md](INSTALL-MAC.md).
 
-You do **not** need to install NW.js separately or add it to your system `PATH`; the `nw` package installs under `node_modules/`.
-
-**Docker:** The desktop image runs NW.js from a fixed path inside the container (`/app/nwjs/nw`); nothing is added to `PATH` on the host. See [README-DOCKER.md](README-DOCKER.md).
-
-The [nw](https://www.npmjs.com/package/nw) package is a **regular dependency**; its postinstall downloads the **NW.js SDK** for your OS/arch into `node_modules/` (ignored by git). The launcher prefers `node_modules/.bin/nw` when present, then falls back to `~/.nwjs` and PATH. **Install checks and simulated clean environments:** [TESTING.md](TESTING.md). For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher.
-
-On **Linux ARM64**, `uname -m` detects the architecture so `~/.nwjs` lookups use **linux-arm64**; `npm install` does the same via the `nw` package. If only an x64 binary is found, the launcher warns and you can run `npm install` to fetch the matching SDK.
-
-**Open multiple files:**
-```bash
-./bin/visual-page-editor examples/lorem.xml examples/lorem2.xml
-```
+**Open multiple files:** `./bin/visual-page-editor examples/lorem.xml examples/lorem2.xml`
 
 ---
 
