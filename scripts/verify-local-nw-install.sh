@@ -10,8 +10,9 @@ trap cleanup EXIT
 
 cp "$ROOT/package.json" "$ROOT/package-lock.json" "$WORKDIR/"
 cp -a "$ROOT/bin" "$WORKDIR/"
-mkdir -p "$WORKDIR/js" && : >"$WORKDIR/js/nw-app.js"
-mkdir -p "$WORKDIR/html" && echo '<!DOCTYPE html><html><head><title>t</title></head><body></body></html>' >"$WORKDIR/html/index.html"
+# prepare runs npm run build (esbuild src/entry.js → js/bundle.js); copy real sources like a clone
+cp -a "$ROOT/src" "$WORKDIR/"
+cp -a "$ROOT/js" "$WORKDIR/"
 
 # Minimal PATH: no global `nw`, but npm/node must exist (system or repo bootstrap under .tools/)
 VERIFY_PATH="/usr/bin:/bin"

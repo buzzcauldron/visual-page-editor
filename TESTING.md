@@ -27,7 +27,7 @@ From the repo root:
 
 | Goal | Command | Notes |
 |------|---------|--------|
-| **No global `nw` on PATH** | `npm run verify:nw` | Temp dir + `npm ci`; launcher `--help` with minimal `PATH`. |
+| **No global `nw` on PATH** | `npm run verify:nw` | Temp dir copies `package.json`, lockfile, `bin/`, `src/`, `js/` (so `prepare` → `npm run build` succeeds), then `npm ci`; launcher `--help` with minimal `PATH`. |
 | **Linux VM–style (Docker)** | `./scripts/test-install-docker.sh` or `npm run test:install-docker` | Fresh Ubuntu container, copies repo (no `node_modules`), runs `bootstrap-node.sh`. Requires Docker. |
 
 The [`nw`](https://www.npmjs.com/package/nw) package installs the NW.js SDK under `node_modules/` (gitignored). The launcher prefers `node_modules/.bin/nw`, then `~/.nwjs`, then PATH, or (with `AUTO_DOWNLOAD_NWJS`) a download. Default **`NWJS_VERSION`** matches **`dependencies.nw`** in `package.json` (e.g. `0.109.1-sdk` → defaults use `0.109.1`).

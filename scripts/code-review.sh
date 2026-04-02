@@ -55,20 +55,17 @@ report_success() {
 
 print_section "Code Review - Visual Page Editor"
 
-# Check JavaScript files
+# JavaScript: single source of truth with package.json "lint" (excludes bundle.js, xmllint.js, minified)
 print_section "JavaScript Files"
-if check_command jshint; then
-    JS_FILES=$(find js -name "*.js" -not -name "*.min.js" 2>/dev/null | head -20)
-    for file in $JS_FILES; do
-        if [ -f "$file" ]; then
-            echo "Checking $file..."
-            if jshint "$file" 2>&1; then
-                report_success "$file"
-            else
-                count_error "$file has linting errors"
-            fi
-        fi
-    done
+if check_command npm; then
+    echo "Running npm run lint..."
+    if npm run lint 2>&1; then
+        report_success "npm run lint (jshint; same exclusions as package.json)"
+    else
+        count_error "npm run lint failed — fix JS or run: npm run lint"
+    fi
+else
+    count_warning "npm not found; skipping npm run lint"
 fi
 
 # Check HTML files
@@ -140,9 +137,16 @@ if check_command php; then
     done
 fi
 
-# Check Shell scripts
+# Check Shell scripts (exclude local bootstrap trees and install test copies)
 print_section "Shell Scripts"
-SHELL_SCRIPTS=$(find . -type f \( -name "*.sh" -o -name "*.bash" \) -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./nwjs*/*" -not -path "./build-*/*" 2>/dev/null)
+SHELL_SCRIPTS=$(find . -type f \( -name "*.sh" -o -name "*.bash" \) \
+    -not -path "./.git/*" \
+    -not -path "./node_modules/*" \
+    -not -path "./nwjs*/*" \
+    -not -path "./build-*/*" \
+    -not -path "./.tools/*" \
+    -not -path "./.vpe-fresh-install-runs/*" \
+    2>/dev/null)
 for file in $SHELL_SCRIPTS; do
     if [ -f "$file" ]; then
         echo "Checking $file..."
@@ -157,7 +161,14 @@ done
 
 # Check Batch files (basic)
 print_section "Batch Files"
-BATCH_FILES=$(find . -name "*.bat" -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./nwjs*/*" -not -path "./build-*/*" 2>/dev/null)
+BATCH_FILES=$(find . -name "*.bat" \
+    -not -path "./.git/*" \
+    -not -path "./node_modules/*" \
+    -not -path "./nwjs*/*" \
+    -not -path "./build-*/*" \
+    -not -path "./.tools/*" \
+    -not -path "./.vpe-fresh-install-runs/*" \
+    2>/dev/null)
 for file in $BATCH_FILES; do
     if [ -f "$file" ]; then
         # Basic check: file exists and has content
@@ -172,7 +183,14 @@ done
 # Check PowerShell files
 print_section "PowerShell Files"
 if check_command pwsh || check_command powershell; then
-    PS_FILES=$(find . -name "*.ps1" -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./nwjs*/*" -not -path "./build-*/*" 2>/dev/null)
+    PS_FILES=$(find . -name "*.ps1" \
+        -not -path "./.git/*" \
+        -not -path "./node_modules/*" \
+        -not -path "./nwjs*/*" \
+        -not -path "./build-*/*" \
+        -not -path "./.tools/*" \
+        -not -path "./.vpe-fresh-install-runs/*" \
+        2>/dev/null)
     for file in $PS_FILES; do
         if [ -f "$file" ]; then
             echo "Checking $file..."

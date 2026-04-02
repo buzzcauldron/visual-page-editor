@@ -70,6 +70,8 @@ ensure_npm_deps() {
     [ -L "$nwjs_link" ] && rm "$nwjs_link"
     ln -s "$NWJS_SDK_DIR" "$nwjs_link"
     echo -e "${GREEN}NW.js v${NWJS_VERSION} ready (symlinked at $nwjs_link)${NC}"
+
+    "$PROJECT_ROOT/scripts/ensure-bundle-for-packaging.sh"
 }
 
 # Build RPM package

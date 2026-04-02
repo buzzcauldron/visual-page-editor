@@ -95,6 +95,26 @@ function Check-Requirements {
     Write-ColorOutput Green "All requirements met!"
 }
 
+function Ensure-AppBuild {
+    Write-ColorOutput Yellow "Building js/bundle.js (Node.js + npm required)..."
+    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+        Write-ColorOutput Red "Error: npm not found. Install Node.js 18+ from https://nodejs.org/ to build js/bundle.js before packaging."
+        exit 1
+    }
+    Push-Location $PROJECT_ROOT
+    try {
+        # Skip nw postinstall (large SDK); Windows package uses Download-NWJS zip instead
+        & npm install --ignore-scripts
+        if ($LASTEXITCODE -ne 0) { throw "npm install --ignore-scripts failed" }
+        & npm run build
+        if ($LASTEXITCODE -ne 0) { throw "npm run build failed" }
+    }
+    finally {
+        Pop-Location
+    }
+    Write-ColorOutput Green "js/bundle.js ready for portable package."
+}
+
 function Download-NWJS {
     Write-ColorOutput Yellow "Checking for NW.js v$NWJS_VERSION ($NWJS_SUFFIX)..."
     
@@ -278,6 +298,7 @@ function Main {
     Write-Output ""
     
     Check-Requirements
+    Ensure-AppBuild
     Download-NWJS
     Create-Package
     

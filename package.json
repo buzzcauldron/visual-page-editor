@@ -1,6 +1,6 @@
 {
   "name": "visual-page-editor",
-  "version": "1.3.1",
+  "version": "2.0.0",
   "description": "Modern visual editor for Page XML files - based on nw-page-editor",
   "engines": {
     "node": ">=18.0.0"

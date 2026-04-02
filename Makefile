@@ -1,4 +1,4 @@
-.PHONY: install build test test-unit test-launcher start clean verify \
+.PHONY: install build test test-unit test-launcher check ci start clean verify \
         build-macos build-deb build-rpm build-windows build-docker
 
 # Resolve npm so it works whether Node is on PATH or in .tools/
@@ -11,6 +11,24 @@ build: install
 	$(NPM) run build
 
 test: test-unit test-launcher
+
+# Same gate as .github/workflows/code-review.yml (uses npm install + local deps, not npm ci)
+check: install
+	$(NPM) run build
+	$(NPM) run lint
+	$(NPM) run typecheck
+	$(NPM) run test:unit
+	$(NPM) run test:launcher
+	./scripts/code-review.sh
+
+ci:
+	npm ci
+	npm run build
+	npm run lint
+	npm run typecheck
+	npm run test:unit
+	npm run test:launcher
+	./scripts/code-review.sh
 
 test-unit: install
 	$(NPM) run test:unit
