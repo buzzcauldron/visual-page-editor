@@ -15,6 +15,8 @@ The goals of a rebuild are:
 3. A module system so bugs stay isolated
 4. A test harness that catches regressions before they reach users
 
+**What is implemented vs still open** (living checklist): [REBUILD-STATUS.md](REBUILD-STATUS.md).
+
 ---
 
 ## Current state summary (post-fix)
@@ -31,6 +33,29 @@ Immediate fixes already landed (current HEAD):
 - `vendor-loader.js`: PDF.js / tiff.js / turf.js load lazily after first paint
 - `nw-app.js`: `runAfterFirstPaint()` defers argv parsing until chrome is visible
 - `bin/visual-page-editor`: npm nw SDK preferred, no `open(1)`, no `--nwapp`, arm64e normalized
+
+---
+
+## Design principles — DRY and orthogonality (build and review)
+
+These principles guide how we evolve the rebuild so tooling stays maintainable and review stays trustworthy.
+
+### DRY (single sources, no accidental forks)
+
+- **Version and NW pin:** Treat [`VERSION`](VERSION) and `package.json` (`version`, `dependencies.nw`) as canonical. Propagate with [`scripts/sync-version.sh`](scripts/sync-version.sh) / [`scripts/bump-version.sh`](scripts/bump-version.sh) so RPM spec, launchers, Docker defaults, and docs do not drift.
+- **One bundle command:** `npm run build` (esbuild `src/entry.js` → `js/bundle.js`) is the only supported app bundle. CI, Docker builder stages, and local dev should all invoke this same script—not a copy-pasted esbuild line that can diverge.
+- **Docker builder stages:** [`Dockerfile`](Dockerfile) and [`Dockerfile.desktop`](Dockerfile.desktop) repeat the same Node builder pattern (`npm install --ignore-scripts`, copy `js` + `src`, `npm run build`). When changing that flow, update both or extract a shared snippet (e.g. `docker build` with `--target` from one file, or a small `scripts/docker-bundle-stage.sh` invoked by both) so the bundle step stays one logical path.
+- **Install verification:** [`scripts/verify-local-nw-install.sh`](scripts/verify-local-nw-install.sh) must either copy everything required for `prepare` / `npm run build` (including `src/`) or explicitly skip lifecycle scripts—same rules as a real clone, not a second broken mini-tree.
+- **Lint vs review:** [`package.json`](package.json) `lint` excludes generated/vendor files (`js/bundle.js`, `js/xmllint.js`). [`scripts/code-review.sh`](scripts/code-review.sh) should apply the same exclusions (or delegate to `npm run lint`) so “review” and “lint” are not two competing definitions of clean JS.
+
+### Orthogonality (separation of concerns)
+
+- **Builder vs runtime:** Build-time Node/esbuild lives only in the builder stage or dev machine; container runtimes install what they need to run (Apache + PHP for web image; NW.js binary for desktop image)—no mixing “download NW in the Dockerfile builder” with “bundle JS” unless strictly necessary.
+- **Launcher vs application:** The launcher resolves NW and invokes the app; application code does not re-implement NW discovery, caching rules, or bootstrap policy.
+- **Test layers:** Bats tests assert launcher behavior only; Vitest targets pure modules (`src/utils`, extracted canvas/page helpers); future integration smoke (`scripts/test-startup.sh`) asserts end-to-end once. Avoid duplicating the same expectation in both unit and shell tests without a clear boundary.
+- **Review pipeline:** Prefer a **fast, deterministic** path—`npm run build`, `npm run typecheck`, `npm run test:unit`, `npm run test:launcher`, `npm run lint`—as the gate; use full `./scripts/code-review.sh` (and optional XML/shell checks) as a broader sweep. Orthogonal steps make failures easy to attribute (build vs test vs lint vs assets).
+
+Applying these consistently reduces duplicate work in packaging scripts, keeps CI aligned with local commands, and makes code review reflect the same rules developers run before push.
 
 ---
 
@@ -65,7 +90,7 @@ Steps:
    - `src/nw/app.mjs` — NW.js integration from `nw-app.js`
    - `src/nw/winstate.mjs` — window state from `nw-winstate.js`
    - `src/ui/editor.mjs` — UI + shortcuts from `page-editor.js`
-4. Add `npm run build` → `esbuild src/main.mjs --bundle --outfile=js/bundle.js`
+4. Add `npm run build` → `esbuild src/entry.js --bundle --outfile=js/bundle.js` (entry file may stay `entry.js` unless renamed deliberately)
 5. Update `html/index.html` to load `bundle.js` instead of individual files
 6. Keep vendor-loader.js pattern for PDF.js / tiff.js / turf (large, rarely needed)
 
