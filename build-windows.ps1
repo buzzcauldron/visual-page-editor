@@ -3,7 +3,10 @@
 
 param(
     [string]$NWJS_VERSION = "",
-    [string]$VERSION = ""
+    [string]$VERSION = "",
+    # Force NW.js Windows flavor: x64 (win-x64) or arm64 (win-arm64). Overrides env WIN_PACKAGE_ARCH.
+    [ValidateSet("", "x64", "arm64")]
+    [string]$TargetArch = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -42,19 +45,39 @@ if ([string]::IsNullOrEmpty($VERSION)) {
 $BUILD_DIR = Join-Path $PROJECT_ROOT "build-windows"
 $PACKAGE_DIR = Join-Path $BUILD_DIR $NAME
 
-# Detect architecture
-$WindowsArch = $env:PROCESSOR_ARCHITECTURE
-if ($WindowsArch -eq "ARM64") {
+function Test-IsWindowsHost {
+    if ($PSVersionTable.PSVersion.Major -ge 6) {
+        return [bool]$IsWindows
+    }
+    return $env:OS -eq "Windows_NT"
+}
+
+# Resolve Windows package arch: win-x64 vs win-arm64 (NW.js zip suffix)
+$ARCH = "x64"
+$NWJS_SUFFIX = "win-x64"
+$explicit = if (-not [string]::IsNullOrEmpty($TargetArch)) { $TargetArch } else { $env:WIN_PACKAGE_ARCH }
+if ($explicit -eq "arm64") {
     $ARCH = "arm64"
     $NWJS_SUFFIX = "win-arm64"
-} elseif ($WindowsArch -eq "AMD64") {
+} elseif ($explicit -eq "x64") {
     $ARCH = "x64"
     $NWJS_SUFFIX = "win-x64"
+} elseif (Test-IsWindowsHost) {
+    $WindowsArch = $env:PROCESSOR_ARCHITECTURE
+    if ($WindowsArch -eq "ARM64") {
+        $ARCH = "arm64"
+        $NWJS_SUFFIX = "win-arm64"
+    } elseif ($WindowsArch -eq "AMD64") {
+        $ARCH = "x64"
+        $NWJS_SUFFIX = "win-x64"
+    } elseif ([string]::IsNullOrEmpty($WindowsArch)) {
+        Write-Warning "PROCESSOR_ARCHITECTURE is empty; defaulting to win-x64"
+    } else {
+        Write-Warning "Unknown PROCESSOR_ARCHITECTURE '$WindowsArch'; defaulting to win-x64"
+    }
 } else {
-    # Default to x64 for unknown architectures
-    $ARCH = "x64"
-    $NWJS_SUFFIX = "win-x64"
-    Write-Warning "Unknown architecture '$WindowsArch', defaulting to x64"
+    # PowerShell on macOS/Linux: no Windows CPU env — default win-x64 (override: -TargetArch arm64 or WIN_PACKAGE_ARCH=arm64)
+    Write-Host "Note: Non-Windows host: building win-x64 portable. For win-arm64 use: -TargetArch arm64 or `$env:WIN_PACKAGE_ARCH='arm64'" -ForegroundColor Cyan
 }
 
 $NWJS_ARCHIVE = "nwjs-sdk-v$NWJS_VERSION-$NWJS_SUFFIX.zip"
@@ -227,8 +250,9 @@ function Create-Package {
     
     # Copy launcher scripts
     Write-ColorOutput Yellow "Copying launcher scripts..."
-    Copy-Item -Path (Join-Path $PROJECT_ROOT "bin\visual-page-editor.bat") -Destination (Join-Path $PACKAGE_DIR "visual-page-editor.bat") -Force
-    Copy-Item -Path (Join-Path $PROJECT_ROOT "bin\visual-page-editor.ps1") -Destination (Join-Path $PACKAGE_DIR "visual-page-editor.ps1") -Force
+    $binDir = Join-Path $PROJECT_ROOT "bin"
+    Copy-Item -Path (Join-Path $binDir "visual-page-editor.bat") -Destination (Join-Path $PACKAGE_DIR "visual-page-editor.bat") -Force
+    Copy-Item -Path (Join-Path $binDir "visual-page-editor.ps1") -Destination (Join-Path $PACKAGE_DIR "visual-page-editor.ps1") -Force
     
     # Create a simple launcher that uses bundled NW.js
     $launcherContent = @"
@@ -306,8 +330,10 @@ function Main {
     Write-ColorOutput Green "Build complete!"
     Write-Output "The package is located at: $PACKAGE_DIR"
     Write-Output ""
+    $zipName = "visual-page-editor-${VERSION}-windows-${ARCH}.zip"
+    $zipPath = Join-Path $BUILD_DIR $zipName
     Write-Output "To create a ZIP archive (optional):"
-    Write-Output "  Compress-Archive -Path `"$PACKAGE_DIR`" -DestinationPath `"$BUILD_DIR\visual-page-editor-${VERSION}-windows-${ARCH}.zip`" -Force"
+    Write-Output "  Compress-Archive -Path `"$PACKAGE_DIR`" -DestinationPath `"$zipPath`" -Force"
 }
 
 # Run main function
