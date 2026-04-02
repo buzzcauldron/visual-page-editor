@@ -416,7 +416,10 @@ $(window).on('load', function () {
   }
 
   /// Open file if provided as argument, else try last open file ///
-  if ( nw.App.argv.length > 0 && window.location.hash === '#1' ) {
+  /// First window: hash may be empty (NW loads main URL without #1) or "#1"; only window 1 should consume argv.
+  var argvPageNum = parseInt(window.location.hash.substr(1), 10);
+  if (Number.isNaN(argvPageNum)) { argvPageNum = 1; }
+  if ( nw.App.argv.length > 0 && argvPageNum === 1 ) {
     global.pageWindows = [ true ];
     runAfterFirstPaint( function () {
       if ( parseArgs(nw.App.argv) )
