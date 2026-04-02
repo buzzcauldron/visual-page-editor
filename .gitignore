@@ -10,6 +10,7 @@ rpmbuild/
 dist/
 build/
 build-macos/
+build-windows/
 js/bundle.js
 
 # Debian package build output (do not commit)
