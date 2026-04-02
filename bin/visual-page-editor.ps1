@@ -1,6 +1,6 @@
 # Command line launcher for visual-page-editor (Windows PowerShell).
 #
-# @version 1.3.1
+# @version 2.0.0
 # @author buzzcauldron
 # @copyright Copyright(c) 2025, buzzcauldron
 # @license MIT License

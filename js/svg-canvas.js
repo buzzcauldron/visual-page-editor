@@ -1,7 +1,7 @@
 /**
  * Javascript library for viewing and interactive editing of SVGs.
  *
- * @version 1.3.1
+ * @version 2.0.0
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -27,7 +27,7 @@ import { PanZoom } from '../src/canvas/pan-zoom.mjs';
   var
   sns = 'http://www.w3.org/2000/svg',
   xns = 'http://www.w3.org/1999/xlink',
-  version = ( typeof window !== 'undefined' && window.PAGE_EDITOR_VERSION ) || '1.2.0';
+  version = ( typeof window !== 'undefined' && window.PAGE_EDITOR_VERSION ) || '2.0.0';
 
   /// Set SvgCanvas global object ///
   if ( ! global.SvgCanvas )

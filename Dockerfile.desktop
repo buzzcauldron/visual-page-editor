@@ -3,7 +3,7 @@ FROM node:20-slim@sha256:7129e1780341f8dff603243d2b0cb9179c1716291ff6a86706946b6
 WORKDIR /build
 COPY package.json package-lock.json* ./
 # --ignore-scripts skips the nw postinstall (avoids downloading 200MB NW.js SDK in the build stage)
-RUN npm install --ignore-scripts
+RUN npm ci --ignore-scripts
 COPY js ./js
 COPY src ./src
 RUN npm run build

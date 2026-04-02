@@ -1,6 +1,6 @@
 /**
  * Single source for editor config shared by NW and web app.
- * @version 1.3.1
+ * @version 2.0.0
  */
 window.EDITOR_XSLT_CONFIG = {
   importSvgXsltHref: [

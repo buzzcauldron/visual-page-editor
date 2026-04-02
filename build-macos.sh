@@ -99,6 +99,8 @@ ensure_npm_deps() {
         exit 1
     fi
     echo -e "${GREEN}NW.js SDK ready at $NWJS_SDK_DIR${NC}"
+
+    "$PROJECT_ROOT/scripts/ensure-bundle-for-packaging.sh"
 }
 
 # Check for required tools

@@ -2,66 +2,47 @@ name: Code Review
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, rebuild ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, rebuild ]
 
 jobs:
   code-review:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-    
-    - name: Install dependencies
-      run: |
-        npm install -g jshint
-        sudo apt-get update
-        sudo apt-get install -y xmlstarlet libxml2-utils
-    
-    - name: Run code review
-      run: |
-        chmod +x scripts/code-review.sh
-        ./scripts/code-review.sh
-    
-    - name: Check JavaScript syntax
-      run: |
-        for file in js/*.js; do
-          if [[ ! "$file" =~ \.min\.js$ ]]; then
-            echo "Checking $file..."
-            node -c "$file" || exit 1
-          fi
-        done
-    
-    - name: Validate HTML
-      run: |
-        if command -v xmllint &> /dev/null; then
-          xmllint --noout --html html/index.html || true
-        fi
-    
-    - name: Validate XSLT
-      run: |
-        if command -v xmlstarlet &> /dev/null; then
-          for file in xslt/*.xslt; do
-            xmlstarlet val -e "$file" || exit 1
-          done
-        fi
-    
-    - name: Validate XSD
-      run: |
-        if command -v xmlstarlet &> /dev/null; then
-          for file in xsd/*.xsd; do
-            xmlstarlet val -e "$file" || exit 1
-          done
-        fi
-    
-    - name: Check shell scripts
-      run: |
-        find . -name "*.sh" -not -path "./.git/*" -not -path "./node_modules/*" -not -path "./nwjs*/*" | while read file; do
-          bash -n "$file" || exit 1
-        done
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xmlstarlet libxml2-utils bats
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests (Vitest)
+        run: npm run test:unit
+
+      - name: Launcher tests (bats)
+        run: npm run test:launcher
+
+      - name: Lint (JSHint)
+        run: npm run lint
+
+      - name: Run code review script
+        run: |
+          chmod +x scripts/code-review.sh
+          ./scripts/code-review.sh

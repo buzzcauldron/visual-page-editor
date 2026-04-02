@@ -37,7 +37,7 @@ This file tracks **what is not implemented yet** relative to [REBUILD-PLAN.md](R
 ### Not done or incomplete vs plan
 
 - **Integration smoke:** Plan specifies `scripts/test-startup.sh` (fixture XML, window, exit 0). That script **does not exist**; only related assets such as [`test-startup-performance.sh`](test-startup-performance.sh) and docs references.
-- **CI breadth:** [`.github/workflows/code-review.yml`](.github/workflows/code-review.yml) runs on `main` and `develop` only (not `rebuild`), and does **not** run `npm run build`, `npm run test:unit`, or `npm run test:launcher`. Bats in CI was called out as a risk in the plan; the workflow still does not install/run bats.
+- **CI breadth:** [`.github/workflows/code-review.yml`](.github/workflows/code-review.yml) runs on `main`, `develop`, and `rebuild`, with `npm ci`, `build`, `typecheck`, `test:unit`, `test:launcher` (bats), `lint`, and [`scripts/code-review.sh`](scripts/code-review.sh).
 - **Vitest scope:** Plan lists baseline/polyrect math, Page XML serialization/deserialization, vendor-loader tests; currently only **Point2f** has a dedicated `*.test.mjs`.
 
 ---
@@ -66,7 +66,7 @@ See [REBUILD-PLAN.md](REBUILD-PLAN.md) Phase 4 (lines ~127–131).
 
 ### Gaps
 
-- **`npm run verify` → [`scripts/verify-local-nw-install.sh`](scripts/verify-local-nw-install.sh):** The script copies a **minimal** tree (`package.json`, `package-lock.json`, `bin/`, stub `js`/`html`) without `src/`. `npm ci` runs `prepare` → `npm run build`, which requires `src/entry.js`, so verification can fail unless the script is extended or lifecycle scripts are skipped for that scenario. Align with [REBUILD-PLAN.md](REBUILD-PLAN.md) “Install verification” under Design principles.
+- (None blocking install verification.) [`scripts/verify-local-nw-install.sh`](scripts/verify-local-nw-install.sh) copies `src/` and `js/` so `prepare` → `npm run build` succeeds under `npm ci`. See [TESTING.md](TESTING.md).
 
 ---
 
@@ -79,9 +79,8 @@ Typical remaining items from the bottom of [REBUILD-PLAN.md](REBUILD-PLAN.md):
 - `refactor(page): extract baseline module` (and render)
 - `refactor(nw): move XSD load to Worker`
 - `feat(test):` integration startup script as described, plus broader Vitest coverage
-- `ci:` run `npm run build`, `npm run test:unit`, `npm run test:launcher` (and optionally extend branches)
 
-**Already reflected on rebuild branch:** esbuild scaffold, pan-zoom + image-loaders extraction, bats + Vitest baseline, launcher simplification, packaging/Makefile direction.
+**Already reflected:** esbuild scaffold, pan-zoom + image-loaders extraction, bats + Vitest baseline, launcher simplification, packaging/Makefile direction, CI gate (`build`, `typecheck`, unit + launcher tests, `lint`, `code-review.sh`), review/lint alignment and `verify:nw` fix.
 
 ---
 
@@ -91,6 +90,6 @@ Typical remaining items from the bottom of [REBUILD-PLAN.md](REBUILD-PLAN.md):
 |-------------|----------------|
 | 1 Launcher  | Done per plan |
 | 2 Modules   | **Large remainder** — only pan-zoom, image-loaders, Point2f + entry |
-| 3 Tests     | **Partial** — missing `test-startup.sh`, limited Vitest scope, CI not matching full npm test matrix |
+| 3 Tests     | **Partial** — missing `test-startup.sh`, limited Vitest scope; CI runs build/typecheck/unit/bats/lint/review |
 | 4 Perf      | **Open** — Worker XSD, edit-mode deferral, profiling |
-| 5 Packaging | **Mostly done** — verify script may need repair for bundle/`prepare` workflow |
+| 5 Packaging | **Mostly done** — `verify:nw` covers full `prepare`/`build` lifecycle |
