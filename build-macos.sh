@@ -103,6 +103,24 @@ ensure_npm_deps() {
     "$PROJECT_ROOT/scripts/ensure-bundle-for-packaging.sh"
 }
 
+# Auto-install Node.js via Homebrew (installs Homebrew first if needed)
+install_node() {
+    if ! command -v brew &> /dev/null; then
+        echo -e "${YELLOW}Homebrew not found. Installing Homebrew...${NC}"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        # Add Homebrew to PATH for Apple Silicon
+        if [ -f /opt/homebrew/bin/brew ]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        elif [ -f /usr/local/bin/brew ]; then
+            eval "$(/usr/local/bin/brew shellenv)"
+        fi
+    fi
+    echo -e "${YELLOW}Installing Node.js via Homebrew...${NC}"
+    brew install node
+    # Refresh PATH so node/npm are found immediately
+    hash -r 2>/dev/null || true
+}
+
 # Check for required tools
 check_requirements() {
     echo -e "${YELLOW}Checking requirements...${NC}"
@@ -115,9 +133,20 @@ check_requirements() {
     done
 
     if [ ${#missing_tools[@]} -ne 0 ]; then
-        echo -e "${RED}Error: Missing required tools: ${missing_tools[*]}${NC}"
-        echo "Install Node.js from https://nodejs.org/ or via Homebrew: brew install node"
-        exit 1
+        echo -e "${YELLOW}Missing required tools: ${missing_tools[*]}. Auto-installing...${NC}"
+        install_node
+        # Re-check after install
+        local still_missing=()
+        for tool in node npm; do
+            if ! command -v $tool &> /dev/null; then
+                still_missing+=($tool)
+            fi
+        done
+        if [ ${#still_missing[@]} -ne 0 ]; then
+            echo -e "${RED}Error: Could not install: ${still_missing[*]}${NC}"
+            echo "Please install Node.js manually: https://nodejs.org/ or via Homebrew: brew install node"
+            exit 1
+        fi
     fi
 
     echo -e "${GREEN}All requirements met!${NC}"
