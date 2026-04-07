@@ -17,6 +17,12 @@ if [ -z "${NWJS_VERSION:-}" ]; then
     NWJS_VERSION="$(node -p "const p=require('$SCRIPT_DIR/package.json');const n=p.dependencies&&p.dependencies.nw;const m=String(n||'').match(/^(\d+\.\d+\.\d+)/);m?m[1]:''" 2>/dev/null || true)"
 fi
 if [ -z "$NWJS_VERSION" ]; then
+    # Fallback: read from already-installed nw package if present
+    if [ -f "$SCRIPT_DIR/node_modules/nw/package.json" ]; then
+        NWJS_VERSION="$(node -p "require('$SCRIPT_DIR/node_modules/nw/package.json').version" 2>/dev/null | sed 's/[^0-9.].*$//' || true)"
+    fi
+fi
+if [ -z "$NWJS_VERSION" ]; then
     echo "Warning: could not read dependencies.nw from package.json; using legacy NW.js defaults." >&2
     if sysctl -n hw.optional.arm64 2>/dev/null | grep -q "1" || [ "$(uname -m)" = "arm64" ]; then
         NWJS_VERSION="0.77.0"
@@ -91,6 +97,27 @@ ensure_npm_deps() {
         echo -e "${YELLOW}NW.js SDK not found at $NWJS_SDK_DIR${NC}"
         echo "Running npm install to fetch it..."
         npm --prefix "$PROJECT_ROOT" install
+        # Re-detect version from newly installed nw package (handles fallback version mismatch)
+        local _installed_ver
+        _installed_ver="$(node -p "require('$PROJECT_ROOT/node_modules/nw/package.json').version" 2>/dev/null | sed 's/[^0-9.].*$//' || true)"
+        if [ -n "$_installed_ver" ] && [ "$_installed_ver" != "$NWJS_VERSION" ]; then
+            echo -e "${YELLOW}Correcting NWJS_VERSION: $NWJS_VERSION → $_installed_ver${NC}"
+            NWJS_VERSION="$_installed_ver"
+            NWJS_SDK_DIR="$PROJECT_ROOT/node_modules/nw/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}"
+        fi
+    fi
+    # If the SDK dir exists but nwjs.app is missing, it may be a stale symlink to the stripped
+    # npm package dir. Re-run the nw postinstall to download the full SDK.
+    if [ ! -d "$NWJS_SDK_DIR/nwjs.app" ]; then
+        echo -e "${YELLOW}NW.js SDK incomplete (nwjs.app missing). Re-downloading SDK...${NC}"
+        node "$PROJECT_ROOT/node_modules/nw/src/postinstall.js" 2>&1 || true
+        # After postinstall, SDK dir may have been replaced; re-detect
+        local _installed_ver
+        _installed_ver="$(node -p "require('$PROJECT_ROOT/node_modules/nw/package.json').version" 2>/dev/null | sed 's/[^0-9.].*$//' || true)"
+        if [ -n "$_installed_ver" ]; then
+            NWJS_VERSION="$_installed_ver"
+            NWJS_SDK_DIR="$PROJECT_ROOT/node_modules/nw/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}"
+        fi
     fi
     if [ ! -d "$NWJS_SDK_DIR/nwjs.app" ]; then
         echo -e "${RED}Error: NW.js SDK still missing after npm install: $NWJS_SDK_DIR${NC}"
