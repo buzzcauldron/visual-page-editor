@@ -200,15 +200,18 @@ create_app_bundle() {
     cp "$NWJS_SDK_DIR/nwjs.app/Contents/MacOS/nwjs" "$MACOS_DIR/nwjs"
     chmod +x "$MACOS_DIR/nwjs"
     
-    # Copy application files
+    # Copy application files into app.nw/ — NW.js always resolves the app from
+    # Contents/Resources/app.nw when running as a macOS bundle.
     echo -e "${YELLOW}Copying application files...${NC}"
-    cp -R "$PROJECT_ROOT/html" "$RESOURCES_DIR/"
-    cp -R "$PROJECT_ROOT/js" "$RESOURCES_DIR/"
-    cp -R "$PROJECT_ROOT/css" "$RESOURCES_DIR/"
-    cp -R "$PROJECT_ROOT/xslt" "$RESOURCES_DIR/"
-    cp -R "$PROJECT_ROOT/xsd" "$RESOURCES_DIR/"
-    cp -R "$PROJECT_ROOT/plugins" "$RESOURCES_DIR/" 2>/dev/null || true
-    cp "$PROJECT_ROOT/package.json" "$RESOURCES_DIR/"
+    APP_NW_DIR="$RESOURCES_DIR/app.nw"
+    mkdir -p "$APP_NW_DIR"
+    cp -R "$PROJECT_ROOT/html" "$APP_NW_DIR/"
+    cp -R "$PROJECT_ROOT/js" "$APP_NW_DIR/"
+    cp -R "$PROJECT_ROOT/css" "$APP_NW_DIR/"
+    cp -R "$PROJECT_ROOT/xslt" "$APP_NW_DIR/"
+    cp -R "$PROJECT_ROOT/xsd" "$APP_NW_DIR/"
+    cp -R "$PROJECT_ROOT/plugins" "$APP_NW_DIR/" 2>/dev/null || true
+    cp "$PROJECT_ROOT/package.json" "$APP_NW_DIR/"
     
     # Create Info.plist
     create_info_plist
@@ -270,39 +273,21 @@ create_launcher_script() {
 # Launcher script for Visual Page Editor macOS app
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RESOURCES_DIR="$APP_DIR/Resources"
 NWJS_BIN="$APP_DIR/MacOS/nwjs"
-
-# Detect macOS architecture
-MAC_ARCH=$(uname -m)
+APP_NW_DIR="$APP_DIR/Resources/app.nw"
 
 # On Apple Silicon, check if we're using x64 NW.js (which causes crashes)
-if [ "$MAC_ARCH" = "arm64" ]; then
+if [ "$(uname -m)" = "arm64" ]; then
   FILE_ARCH=$(file "$NWJS_BIN" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
   if [ -z "$FILE_ARCH" ]; then
-    # Show macOS alert dialog
-    osascript -e 'display dialog "ERROR: x64 NW.js detected in .app bundle on Apple Silicon!\n\nThis will cause immediate crashes. The .app bundle needs to be rebuilt with ARM64 NW.js.\n\nTo fix:\n1. Delete the current .app bundle\n2. Download ARM64 NW.js: nwjs-sdk-v*-osx-arm64.zip from https://nwjs.io/downloads/\n3. Extract and move nwjs.app to /Applications/\n4. Rebuild the .app bundle: ./build-macos.sh" buttons {"OK"} default button "OK" with icon stop' 2>/dev/null || true
-    
-    echo "" >&2
-    echo "ERROR: x64 NW.js detected in .app bundle on Apple Silicon!" >&2
-    echo "This will cause immediate crashes. The .app bundle needs to be rebuilt with ARM64 NW.js." >&2
-    echo "" >&2
-    echo "To fix:" >&2
-    echo "1. Delete the current .app bundle" >&2
-    echo "2. Download ARM64 NW.js: nwjs-sdk-v*-osx-arm64.zip from https://nwjs.io/downloads/" >&2
-    echo "3. Extract and move nwjs.app to /Applications/" >&2
-    echo "4. Rebuild the .app bundle: ./build-macos.sh" >&2
-    echo "" >&2
-    echo "Aborting launch to prevent crash..." >&2
+    osascript -e 'display dialog "ERROR: x64 NW.js detected in .app bundle on Apple Silicon!\n\nRebuild with: ./build-macos.sh" buttons {"OK"} default button "OK" with icon stop' 2>/dev/null || true
+    echo "ERROR: x64 NW.js on Apple Silicon — rebuild with ./build-macos.sh" >&2
     exit 1
   fi
 fi
 
-# Change to resources directory
-cd "$RESOURCES_DIR"
-
-# Launch NW.js with the application (--nwapp matches bin/visual-page-editor; avoids app.nw resolution issues on macOS)
-exec "$NWJS_BIN" --nwapp "$RESOURCES_DIR" "$@"
+# NW.js resolves the app from Contents/Resources/app.nw when run as a bundle.
+exec "$NWJS_BIN" "$APP_NW_DIR" "$@"
 EOF
     chmod +x "$MACOS_DIR/launcher"
 }
