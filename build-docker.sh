@@ -16,19 +16,54 @@ NC='\033[0m' # No Color
 PACKAGE_TYPE="${1:-both}"  # rpm, deb, or both
 NWJS_VERSION="${NWJS_VERSION:-0.109.1}"
 
+install_docker() {
+    if [ "$(uname -s)" = "Darwin" ]; then
+        if ! command -v brew &> /dev/null; then
+            echo -e "${YELLOW}Homebrew not found. Installing Homebrew...${NC}"
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            if [ -f /opt/homebrew/bin/brew ]; then
+                eval "$(/opt/homebrew/bin/brew shellenv)"
+            elif [ -f /usr/local/bin/brew ]; then
+                eval "$(/usr/local/bin/brew shellenv)"
+            fi
+        fi
+        echo -e "${YELLOW}Installing Docker Desktop via Homebrew...${NC}"
+        brew install --cask docker
+        echo -e "${YELLOW}Opening Docker Desktop — waiting for daemon to start...${NC}"
+        open -a Docker 2>/dev/null || true
+    else
+        echo -e "${RED}Error: Docker is not installed. Please install Docker for your platform.${NC}"
+        exit 1
+    fi
+}
+
 check_docker() {
     if ! command -v docker &> /dev/null; then
-        echo -e "${RED}Error: Docker is not installed or not in PATH${NC}"
-        echo "Please install Docker Desktop for macOS from https://www.docker.com/products/docker-desktop"
-        exit 1
+        echo -e "${YELLOW}Docker not found. Auto-installing...${NC}"
+        install_docker
     fi
-    
-    if ! docker info &> /dev/null; then
-        echo -e "${RED}Error: Docker daemon is not running${NC}"
-        echo "Please start Docker Desktop"
-        exit 1
+
+    if ! docker info &> /dev/null 2>&1; then
+        echo -e "${YELLOW}Docker daemon is not running. Attempting to start Docker Desktop...${NC}"
+        open -a Docker 2>/dev/null || true
+        echo -n "Waiting for Docker daemon"
+        local retries=30
+        while [ $retries -gt 0 ]; do
+            if docker info &> /dev/null 2>&1; then
+                echo ""
+                break
+            fi
+            echo -n "."
+            sleep 2
+            retries=$((retries - 1))
+        done
+        if ! docker info &> /dev/null 2>&1; then
+            echo -e "\n${RED}Error: Docker daemon is still not running.${NC}"
+            echo "Please start Docker Desktop manually and re-run this script."
+            exit 1
+        fi
     fi
-    
+
     echo -e "${GREEN}Docker is available and running${NC}"
 }
 
