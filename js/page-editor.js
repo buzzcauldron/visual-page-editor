@@ -14,6 +14,29 @@
 
 $(window).on('load', function () {
 
+  /// Show a dismissible toast with an optional Undo action.
+  /// onUndo() is called if the user clicks Undo within the timeout.
+  function showUndoToast( msg, onUndo, durationMs ) {
+    durationMs = durationMs || 4500;
+    var toast = $('<div class="file-expected-toast undo-toast"></div>');
+    var msgSpan = $('<span></span>').text(msg);
+    toast.append(msgSpan);
+    if ( typeof onUndo === 'function' ) {
+      var undoBtn = $('<button class="undo-toast-btn">Undo</button>');
+      undoBtn.on('click', function () {
+        clearTimeout(timer);
+        toast.remove();
+        onUndo();
+      });
+      toast.append(' ').append(undoBtn);
+    }
+    $('body').append(toast);
+    var timer = window.setTimeout( function () {
+      toast.addClass('file-expected-toast-hide');
+      window.setTimeout( function () { toast.remove(); }, 300 );
+    }, durationMs );
+  }
+
   /// Restore UI state (edit mode, drawer options) after window load (DOM + resources) – used so selection persists across images
   function restoreEditorUIOnLoad() {
     var changeReg = pageCanvas.cfg.registerChangeEnabled;
@@ -57,8 +80,12 @@ $(window).on('load', function () {
           g = $(elem).closest('g'),
           editable = pageCanvas.util.getSortedEditables();
           // Minimal sync updates so selection and sidebar feel instant
-          $('#selectedType').text( g.hasClass('TableCell') ? 'TableCell' : g.attr('class').replace(/ .*/,'') );
-          $('#selectedId').text( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') );
+          var typeText = g.hasClass('TableCell') ? 'TableCell' : g.attr('class').replace(/ .*/,'');
+          var idText = String( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') || '' );
+          $('#selectedType').text(typeText);
+          $('#selectedId').text(idText);
+          $('#modeTypeSep').toggle(!!typeText);
+          $('#modeIdSep').toggle(!!idText);
           $('#modeElement').text((editable.index(g)+1)+'/'+editable.length);
 
           // Defer all heavier work so click feels instant; skip if selection changed during rapid clicks
@@ -115,7 +142,7 @@ $(window).on('load', function () {
             return false;
           }
           else if ( window.getComputedStyle($('#drawer')[0]).display !== 'none' ) {
-            $('#drawerButton').click();
+            setDrawerOpen(false);
             return false;
           }
           return true;
@@ -126,8 +153,10 @@ $(window).on('load', function () {
             } );
         },
       onUnselect: function ( elem ) {
-          $('#selectedType').text('-');
-          $('#selectedId').text('-');
+          $('#selectedType').text('');
+          $('#selectedId').text('');
+          $('#modeTypeSep').hide();
+          $('#modeIdSep').hide();
           $('#modeElement').text('-/'+$('.editable').length);
           // Do not clear the text box if this node is still in text/point edit (e.g. selection moved to a child baseline).
           // Clearing here drops in-progress line text that only lives in #textedit until removeEditing runs.
@@ -183,11 +212,17 @@ $(window).on('load', function () {
             else
               type = elem.length+' elements with IDs: '+elem.map(function(){return this.id;}).get().join(', ');
           }
-          return confirm('WARNING: You are about to remove '+type+'. Continue?');
+          window.setTimeout( function () {
+            showUndoToast( 'Deleted '+type, function () { Mousetrap.trigger('mod+z'); } );
+          }, 0 );
+          return true;
         },
       delRowColConfirm: function ( id, row, col ) {
           var type = row ? 'row '+row : 'column '+col;
-          return confirm('WARNING: You are about to remove '+type+' from TableRegion '+id+'. Continue?');
+          window.setTimeout( function () {
+            showUndoToast( 'Deleted '+type+' from '+id, function () { Mousetrap.trigger('mod+z'); } );
+          }, 0 );
+          return true;
         },
       onValidText: function () { $('#textedit').removeClass('field-invalid'); },
       onInvalidText: function () { $('#textedit').addClass('field-invalid'); },
@@ -560,10 +595,9 @@ $(window).on('load', function () {
             elem_desc = 'document';
           else
             elem_desc = elem.attr('class').replace(/ .*/,'')+' with id='+elem.attr('id');
-          if ( confirm('Delete property with key="'+prop.attr('key')+'" from '+elem_desc+'?') ) {
-            div.remove();
-            pageCanvas.util.delProperty( prop.attr('key'), elem );
-          }
+          div.remove();
+          pageCanvas.util.delProperty( prop.attr('key'), elem );
+          showUndoToast( 'Deleted property "'+prop.attr('key')+'" from '+elem_desc, function () { Mousetrap.trigger('mod+z'); } );
         } );
       div
         .append('Key:').append(key)
@@ -776,20 +810,26 @@ $(window).on('load', function () {
           $(e.target).focus();
         }
       } );
-  Mousetrap.bind( 'mod+f', function () {
-      if ( ! textfilter.is(':visible') ) {
-        textfilter.toggle();
-        $('.xpath-select').removeClass('xpath-select');
-        filterHistory = localStorage.filterHistory ? JSON.parse(localStorage.filterHistory) : [];
-      }
-      $(textfilter_input).focus();
-      return filterMode();
-    } );
+  function showFilter() {
+    if ( ! textfilter.is(':visible') ) {
+      textfilter.show();
+      $('.xpath-select').removeClass('xpath-select');
+      filterHistory = localStorage.filterHistory ? JSON.parse(localStorage.filterHistory) : [];
+    }
+    $('#filterToggle').addClass('filter-active');
+    $(textfilter_input).focus();
+    return filterMode();
+  }
   function clearFilter() {
-    textfilter.toggle(false);
+    textfilter.hide();
+    $('#filterToggle').removeClass('filter-active');
     $('.xpath-select').removeClass('xpath-select');
     return filterMode();
   }
+  $('#filterToggle').click( function () {
+    if ( textfilter.is(':visible') ) clearFilter(); else showFilter();
+  } );
+  Mousetrap.bind( 'mod+f', function () { return showFilter(); } );
   $('#clearFilter').click(clearFilter);
   Mousetrap.bind( 'mod+shift+f', clearFilter );
   function addToFilterHistory() {
@@ -813,18 +853,20 @@ $(window).on('load', function () {
   };
 
   /// Drawer button ///
-  Mousetrap.bind( 'mod+enter', function () { $('#drawerButton').click(); return false; } );
-  $('#drawerButton').click( function() {
-      $('#drawer').toggle();
-      $(this).toggleClass('is-active');
-    } );
-  $('#drawerClose').click( function() {
-      if ( $('#drawer').is(':visible') ) {
-        $('#drawer').hide();
-        $('#drawerButton').removeClass('is-active');
-      }
-      return false;
-    } );
+  function setDrawerOpen( open ) {
+    if ( open ) {
+      $('#drawer').show();
+      $('#drawerButton').addClass('is-active');
+      document.body.classList.add('drawer-open');
+    } else {
+      $('#drawer').hide();
+      $('#drawerButton').removeClass('is-active');
+      document.body.classList.remove('drawer-open');
+    }
+  }
+  Mousetrap.bind( 'mod+enter', function () { setDrawerOpen( !$('#drawer').is(':visible') ); return false; } );
+  $('#drawerButton').click( function() { setDrawerOpen( !$('#drawer').is(':visible') ); } );
+  $('#drawerClose').click( function() { setDrawerOpen(false); return false; } );
 
   /// Allow clicking label text to select radio/checkbox (works even if native label association is blocked) ///
   $('#drawer').on('click', 'label', function ( e ) {
@@ -1588,5 +1630,27 @@ $(window).on('load', function () {
     .click(handleRoundPoints);
   function handleRoundPoints() {
     pageCanvas.cfg.roundPoints = $(this).children('input').prop('checked');
+  }
+
+  /// First-run shortcut hint toast (auto-dismiss, shown once per browser profile) ///
+  if ( ! localStorage.getItem('vpe-shortcuts-hint-seen') ) {
+    window.setTimeout( function () {
+      var msg = 'Tip: Mod+Enter toggles the menu \u2022 Mod+F filters elements \u2022 Mod+Z undos \u2022 Del removes';
+      var toast = $('<div class="file-expected-toast hint-toast"></div>');
+      var msgSpan = $('<span></span>').text(msg);
+      var dimBtn = $('<button class="undo-toast-btn">Got it</button>');
+      dimBtn.on('click', function () {
+        localStorage.setItem('vpe-shortcuts-hint-seen','1');
+        clearTimeout(timer);
+        toast.addClass('file-expected-toast-hide');
+        window.setTimeout( function () { toast.remove(); }, 300 );
+      });
+      toast.append(msgSpan).append(' ').append(dimBtn);
+      $('body').append(toast);
+      var timer = window.setTimeout( function () {
+        toast.addClass('file-expected-toast-hide');
+        window.setTimeout( function () { toast.remove(); }, 300 );
+      }, 9000 );
+    }, 1500 );
   }
 } );

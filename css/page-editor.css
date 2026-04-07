@@ -119,8 +119,30 @@ body {
   z-index: 1;
 }
 
-#selectedType {
-  display: none;
+#filterToggle {
+  font-size: 12px;
+  cursor: pointer;
+  background: none;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 4px;
+  line-height: 1;
+}
+#filterToggle.filter-active {
+  background: #c8e6c9;
+  border-color: #388e3c;
+}
+
+.muted {
+  color: #888;
+}
+
+#stateInfo {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 340px);
 }
 
 /*** Drawer contents ***/
@@ -605,6 +627,22 @@ body {
 }
 .file-expected-toast-hide {
   opacity: 0;
+}
+
+.undo-toast-btn {
+  margin-left: 10px;
+  padding: 2px 8px;
+  background: #555;
+  color: #fff;
+  border: 1px solid #999;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  vertical-align: middle;
+}
+.undo-toast-btn:hover {
+  background: #777;
 }
 
 @media print {

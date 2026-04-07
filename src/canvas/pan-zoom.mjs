@@ -168,13 +168,15 @@ export class PanZoom {
 
   /**
    * Centers the viewbox on the currently selected element.
-   * Uses a horizontal bias so the selection stays visible when the side drawer is open.
+   * Shifts left slightly when the drawer is open so the selected element
+   * remains visible behind the 350px right-side panel.
    */
   panToSelected() {
     var point = this._selectedCenter();
     if ( ! point )
       return;
-    var centerBiasX = 0.35, centerBiasY = 0.5;
+    var drawerOpen = document.body && document.body.classList.contains('drawer-open');
+    var centerBiasX = drawerOpen ? 0.4 : 0.5, centerBiasY = 0.5;
     this._boxX0 = point.x - centerBiasX * this._boxW;
     this._boxY0 = point.y - centerBiasY * this._boxH;
     this._viewBoxLimits();

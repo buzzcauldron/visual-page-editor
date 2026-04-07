@@ -30,13 +30,14 @@
         <input type="text" id="pageNum" class="mousetrap" value="0" disabled=""/>/<span id="totPages">0</span>
       </div>
       <button id="nextPage" disabled="" class="tooltip-down" data-tooltip="next document">⇒</button>
+      <button id="filterToggle" class="tooltip-down" data-tooltip="Filter elements by text or CSS/XPath selector (Mod+F)" aria-label="Toggle filter">&#x1F50D;</button>
       <div id="textFilter" style="display:none;">
         <b class="tooltip-down" data-tooltip="Keep only elements containing some text and/or matching css selector&#xa;(e.g. lorem ipsum [id^=reg1]) or if starting with '!' an xpath (e.g.&#xa;!//_:g[*[@value=&quot;printed&quot;]])">Filter:</b>
         <input name="filter" type="text" placeholder="text or css/xpath selector" class="mousetrap"/>
-        <button id="clearFilter" tabindex="-1">X</button>
+        <button id="clearFilter" tabindex="-1">&#x2715;</button>
       </div>
-      <div id="stateInfo">
-        <b><span id="modeActive"></span> (<span id="modeElement">-</span>):</b> <span id="selectedType">-</span> <span id="selectedId">-</span>
+      <div id="stateInfo" class="tooltip-down" data-tooltip="Cycle element type: Mod+,  /  Mod+.    Cycle tool: Mod+Shift+,  /  Mod+Shift+.">
+        <span id="modeActive"></span><span id="modeTypeSep" style="display:none;"> &rsaquo; </span><span id="selectedType"></span><span id="modeElemSep"> </span><span id="modeElement" class="muted">-</span><span id="modeIdSep" style="display:none;"> #</span><span id="selectedId"></span>
       </div>
       <button id="drawerButton" class="menu-toggle c-hamburger c-hamburger--htx">
         <span>toggle menu</span>
