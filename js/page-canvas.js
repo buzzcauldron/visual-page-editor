@@ -2180,11 +2180,11 @@ import { createPdfLoader, createTiffLoader } from '../src/page/image-loaders.mjs
       var
       textreg = self.util.elementsFromPoint(event,'.TextRegion > .Coords').first().parent();
       if ( self.util.isReadOnly(textreg) ) {
-        console.log('error: target region cannot be modified');
+        self.warning('Target region cannot be modified');
         return false;
       }
       if ( textreg.length === 0 ) {
-        console.log('error: baselines have to be inside a TextRegion');
+        self.warning('Baselines have to be inside a TextRegion');
         return false;
       }
 
