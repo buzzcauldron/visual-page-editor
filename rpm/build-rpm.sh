@@ -23,12 +23,36 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Auto-install missing tools via dnf/yum/zypper
+install_deps_rpm() {
+    local packages=()
+    for tool in "$@"; do
+        case "$tool" in
+            rpmbuild) packages+=(rpm-build) ;;
+            node)     packages+=(nodejs) ;;
+            npm)      packages+=(npm) ;;
+            *)        packages+=("$tool") ;;
+        esac
+    done
+    echo -e "${YELLOW}Installing: ${packages[*]}${NC}"
+    if command -v dnf &> /dev/null; then
+        dnf install -y "${packages[@]}"
+    elif command -v yum &> /dev/null; then
+        yum install -y "${packages[@]}"
+    elif command -v zypper &> /dev/null; then
+        zypper install -y "${packages[@]}"
+    else
+        echo -e "${RED}Error: No supported package manager found (dnf/yum/zypper).${NC}"
+        exit 1
+    fi
+    hash -r 2>/dev/null || true
+}
+
 # Check for required tools
 check_requirements() {
     echo -e "${YELLOW}Checking requirements...${NC}"
 
     local missing_tools=()
-
     for tool in rpmbuild node npm; do
         if ! command -v $tool &> /dev/null; then
             missing_tools+=($tool)
@@ -36,11 +60,19 @@ check_requirements() {
     done
 
     if [ ${#missing_tools[@]} -ne 0 ]; then
-        echo -e "${RED}Error: Missing required tools: ${missing_tools[*]}${NC}"
-        echo "Please install them using your package manager:"
-        echo "  Fedora/RHEL/CentOS: sudo dnf install rpm-build nodejs npm"
-        echo "  openSUSE: sudo zypper install rpm-build nodejs npm"
-        exit 1
+        echo -e "${YELLOW}Missing required tools: ${missing_tools[*]}. Auto-installing...${NC}"
+        install_deps_rpm "${missing_tools[@]}"
+        local still_missing=()
+        for tool in rpmbuild node npm; do
+            if ! command -v $tool &> /dev/null; then
+                still_missing+=($tool)
+            fi
+        done
+        if [ ${#still_missing[@]} -ne 0 ]; then
+            echo -e "${RED}Error: Could not install: ${still_missing[*]}${NC}"
+            echo "Please install manually: sudo dnf install rpm-build nodejs npm"
+            exit 1
+        fi
     fi
 
     # Ensure rpmbuild directories exist
