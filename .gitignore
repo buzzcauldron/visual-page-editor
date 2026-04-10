@@ -1,6 +1,9 @@
 # NW.js runtime (downloaded during build)
+nwjs
 nwjs/
 nwjs-sdk-*/
+*.zip
+shasum/
 
 # Build artifacts
 *.rpm
