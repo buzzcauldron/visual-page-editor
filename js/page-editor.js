@@ -903,6 +903,15 @@ $(window).on('load', function () {
     if ( el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable ) return false;
     return true;
   }
+  /// Mod+M / Mod+D for baseline type: same as m/d but work while #textedit is focused (single-letter m/d are disabled there so you can type). ///
+  function focusAllowsModBaselineTypeShortcut() {
+    var el = document.activeElement;
+    if ( ! el ) return true;
+    if ( $(el).closest('#drawer').length ) return false;
+    if ( el.id === 'textedit' ) return true;
+    if ( el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable ) return false;
+    return true;
+  }
   function runAndFlushDrawerState( action ) {
     if ( typeof action === 'function' ) action();
     else if ( typeof action === 'string' ) $(action).click();
@@ -927,10 +936,19 @@ $(window).on('load', function () {
       return false;
     } );
   }
+  function bindModBaselineTypeShortcut( key, handler ) {
+    Mousetrap.bind( key, function () {
+      if ( ! focusAllowsModBaselineTypeShortcut() ) return true;
+      handler();
+      return false;
+    } );
+  }
   bindPageShortcut( 'c', function () { setMode2AndFlush( '#createMode input' ); } );
   bindPageShortcut( 'b', function () { setMode2AndFlush( '#baseMode input' ); } );
   bindPageShortcut( 'm', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('margin'); } ); } );
   bindPageShortcut( 'd', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('default'); } ); } );
+  bindModBaselineTypeShortcut( 'mod+m', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('margin'); } ); } );
+  bindModBaselineTypeShortcut( 'mod+d', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('default'); } ); } );
 
   /// Save state of drawer in local storage (debounced to reduce writes) ///
   function serializeDrawerInput( $label ) {
@@ -1225,9 +1243,15 @@ $(window).on('load', function () {
     var baselineType = $(this).children('input').attr('value');
     applyBaselineTypeToSelected(baselineType);
   }
-  $('label[id^=baseline-type-]')
-    .each(handleBaselineType)
-    .click(handleBaselineType);
+  // Only .click here — do not .each(handleBaselineType): that would run once per label in DOM
+  // order and the second label (margin) would overwrite loadDrawerState() and force margin on
+  // all selected lines. Sync cfg from the radio UI once (after loadDrawerState).
+  $('label[id^=baseline-type-]').click(handleBaselineType);
+  (function syncBaselineTypeCfgFromDrawerRadios() {
+    var v = $('input[name="baseline-type"]:checked').val();
+    if ( v )
+      pageCanvas.cfg.baselineType = v;
+  })();
 
   /// Setup table size ///
   $('label[id^="table-"] input')

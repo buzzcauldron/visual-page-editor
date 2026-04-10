@@ -601,6 +601,11 @@ import { PanZoom } from '../src/canvas/pan-zoom.mjs';
     }
     self.snapImageToLeft = snapImageToLeft;
 
+    function ensureSelectedInView() {
+      if ( panZoom ) panZoom.ensureSelectedInView();
+    }
+    self.ensureSelectedInView = ensureSelectedInView;
+
     function panZoomTo( fact, limits, sel ) {
       if ( panZoom ) panZoom.panZoomTo( fact, limits, sel );
     }

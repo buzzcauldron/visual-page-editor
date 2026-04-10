@@ -2354,10 +2354,12 @@ import { createPdfLoader, createTiffLoader } from '../src/page/image-loaders.mjs
             if ( typeof $(baseline).parent()[0].setEditing !== 'undefined' )
               $(baseline).parent()[0].setEditing();
             self.util.selectElem(baseline, true, true);
+            self.ensureSelectedInView();
           }, 50 );
       } else {
         requestAnimationFrame( function () {
             self.util.selectElem(baseline, true, true);
+            self.ensureSelectedInView();
           } );
       }
 
@@ -2617,6 +2619,7 @@ import { createPdfLoader, createTiffLoader } from '../src/page/image-loaders.mjs
       window.setTimeout( function () {
         $(coords).parent()[0].setEditing();
         self.util.selectElem(coords, true, true);
+        self.ensureSelectedInView();
       }, 50 );
 
       for ( var n=0; n<self.cfg.onFinishCoords.length; n++ )
@@ -3140,6 +3143,7 @@ import { createPdfLoader, createTiffLoader } from '../src/page/image-loaders.mjs
           var elem = $(self.util.svgRoot).find('.TextRegion[id^='+id+']')[0];
           elem.setEditing();
           self.util.selectElem(elem, true, true);
+          self.ensureSelectedInView();
         }, 50 );
 
       for ( var n=0; n<self.cfg.onFinishTable.length; n++ )
