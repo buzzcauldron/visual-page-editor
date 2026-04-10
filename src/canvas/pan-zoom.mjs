@@ -168,19 +168,65 @@ export class PanZoom {
 
   /**
    * Centers the viewbox on the currently selected element.
-   * Uses a horizontal bias so the selection stays visible when the side drawer is open.
+   * Shifts left slightly when the drawer is open so the selected element
+   * remains visible behind the 350px right-side panel.
    */
   panToSelected() {
     var point = this._selectedCenter();
     if ( ! point )
       return;
-    var centerBiasX = 0.35, centerBiasY = 0.5;
+    var drawerOpen = document.body && document.body.classList.contains('drawer-open');
+    var centerBiasX = drawerOpen ? 0.4 : 0.5, centerBiasY = 0.5;
     this._boxX0 = point.x - centerBiasX * this._boxW;
     this._boxY0 = point.y - centerBiasY * this._boxH;
     this._viewBoxLimits();
     if ( isNaN(this._boxX0) || isNaN(this._boxY0) || isNaN(this._boxW) || isNaN(this._boxH) )
       return;
     this._applyViewBox();
+  }
+
+  /**
+   * Pans the view by the minimum amount so the current selection's bounding box is inside
+   * the viewport (with a small margin). Unlike snapImageToLeft(), does not force the
+   * document left edge into view — use after selectElem(..., nocenter) so new elements
+   * stay visible without the old "jump to xmin" behavior.
+   */
+  ensureSelectedInView() {
+    if ( ! this._svgRoot || ! this._active )
+      return;
+    var sel = $(this._svgRoot).find('.selected').closest('g');
+    if ( sel.length === 0 || sel.hasClass('dragging') )
+      return;
+    var rect = sel[0].getBBox();
+    if ( ( ! rect.width && ! rect.height ) || isNaN(rect.x) )
+      return;
+    var rx0 = rect.x, ry0 = rect.y, rx1 = rect.x + rect.width, ry1 = rect.y + rect.height;
+    var vx0 = this._boxX0, vy0 = this._boxY0, vw = this._boxW, vh = this._boxH;
+    var m = Math.min( vw, vh ) * 0.02;
+    if ( m < 2 ) m = 2;
+    if ( m * 2 >= vw ) m = 0;
+    if ( m * 2 >= vh ) m = 0;
+    if ( rx0 >= vx0 + m && ry0 >= vy0 + m && rx1 <= vx0 + vw - m && ry1 <= vy0 + vh - m )
+      return;
+    var nx = vx0, ny = vy0;
+    if ( rx1 - rx0 <= vw - 2 * m ) {
+      var xLo = rx1 - vw + m, xHi = rx0 - m;
+      nx = xLo <= xHi ? Math.min( Math.max( vx0, xLo ), xHi ) : rx0 - m;
+    } else {
+      nx = rx0 - m;
+    }
+    if ( ry1 - ry0 <= vh - 2 * m ) {
+      var yLo = ry1 - vh + m, yHi = ry0 - m;
+      ny = yLo <= yHi ? Math.min( Math.max( vy0, yLo ), yHi ) : ry0 - m;
+    } else {
+      ny = ry0 - m;
+    }
+    this._boxX0 = nx;
+    this._boxY0 = ny;
+    this._viewBoxLimits();
+    this._applyViewBox();
+    this.dragpointScale();
+    this._firePanZoomChange();
   }
 
   /**

@@ -59,6 +59,8 @@
 | `b` | Baseline mode |
 | `m` | Baseline type: Margin (set preference + convert selected line(s)) |
 | `d` | Baseline type: Default (set preference + convert selected line(s)) |
+| `Mod + M` | Same as `m` — use this while the line **text box** is focused (single-letter `m`/`d` are disabled there so you can type) |
+| `Mod + D` | Same as `d` — use while the line text box is focused |
 
 ## Selection & editing
 
@@ -118,7 +120,7 @@ Same as above where applicable; additionally:
 
 - **Mod** = `Ctrl` (Windows/Linux) or `Cmd` (macOS).
 - When focus is in the text edit box (`#textedit`), **Backspace** and **Delete** edit text; **Mod + Backspace** still deletes the selected line.
-- Inputs and dropdowns (e.g. page number, filter, baseline type) receive key events when focused; shortcuts (including single keys `c`/`b`/`m`/`d`) are ignored there so you can type normally.
+- Inputs and dropdowns (e.g. page number, filter) receive key events when focused; shortcuts (including single keys `c`/`b`/`m`/`d`) are ignored there so you can type normally. **Exception:** while the line text box is focused, use **`Mod + M`** / **`Mod + D`** to set baseline type (Margin / Default); plain `m`/`d` still insert letters.
 - **Edit modes** tooltip in the drawer: use `Mod + ,` / `Mod + .` (and Shift for reverse) to cycle element type and tool.
 
 ---
