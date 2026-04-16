@@ -1,11 +1,13 @@
 /**
  * App functionality for the web edition of visual-page-editor.
  *
- * @version 1.2.0
+ * @version 2.0.0
  * @author Mauricio Villegas <mauricio_ville@yahoo.com>
  * @copyright Copyright(c) 2015-present, Mauricio Villegas <mauricio_ville@yahoo.com>
  * @license MIT License
  */
+
+/*global pageCanvas, page_editor_version, list_xmls, uname, brhash */
 
 $(window).on('load', function () {
 

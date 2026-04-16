@@ -7,6 +7,8 @@
 | **Code review** | `./scripts/code-review.sh` | JS (jshint if installed), HTML, shell, batch, PHP, XSLT/XSD (xmlstarlet), required files |
 | **Lint JS** | `npm run lint` or `npx jshint js/*.js --exclude js/*.min.js` | Needs Node/npm |
 | **Platform tests** | `./scripts/test-platforms.sh` | macOS launcher, Docker, arm64 features, version, installers |
+| **Install / clean-env tests** | See [TESTING.md](TESTING.md) | `verify:nw`, Docker bootstrap, macOS numbered-folder copy |
+| **NW.js default alignment** | `npm run check:nw-align` | Read-only; `dependencies.nw` vs launcher/Docker/packaging defaults |
 | **Version sync** | `./scripts/sync-version.sh` | Syncs `VERSION` into package.json and all @version strings |
 
 ## Debug all branches thoroughly & relaunch
@@ -67,7 +69,7 @@ Run every check, then relaunch the desktop app:
 If the desktop app crashes on launch or soon after:
 
 1. **Check the log**  
-   `tail -50 /tmp/visual-page-editor.log` — look for `ERROR`, `Rosetta`, `x64`, `GPU process exited`, `app.nw`.
+   `tail -50 /tmp/visual-page-editor.log` — look for `ERROR`, `Rosetta`, `x64`, `GPU process exited`, `app.nw`, `Mach rendezvous`, `shared_memory_switch`, `crashpad`.
 
 2. **Apple Silicon (M1/M2/M3): use ARM64 NW.js**  
    See **CRASH_FIX_MAC.md**. Do **not** use x64 NW.js on Apple Silicon; use `nwjs-sdk-v*-osx-arm64.zip`, extract to `~/.nwjs/` or `/Applications/nwjs-sdk-v*-osx-arm64/`, or let the launcher download to `~/.nwjs`. Avoid a generic `/Applications/nwjs.app` alone — it can break `--nwapp` (see **Common issues** below).
@@ -78,7 +80,21 @@ If the desktop app crashes on launch or soon after:
    Then run `./bin/visual-page-editor` again so it re-detects (and can pick ARM64 if present).
 
 4. **NW.js version**  
-   The launcher expects NW.js **0.94.0** by default. If you have an older SDK (e.g. 0.77.0) in `~/.nwjs`, either install 0.94.0 (see README / launcher download prompt) or set `NWJS_VERSION=0.77.0` when running the launcher.
+   The launcher expects NW.js **0.109.1** by default (see `package.json` / `NWJS_VERSION`). If you have a different SDK in `~/.nwjs`, either install the matching version (see README / launcher download prompt) or set `NWJS_VERSION` when running the launcher.
+
+5. **Mach rendezvous / `shared_memory_switch` (macOS)**  
+   If the log contains messages like **`Mach rendezvous failed`** or **`shared_memory_switch`**, Chromium’s **multiprocess IPC** (shared memory handoff between NW.js / browser / GPU-style subprocesses) failed—often after a **helper or GPU process** exited unexpectedly, memory pressure, or an OS/runtime interaction. This is **not** caused by your Page XML.
+
+   **Checklist:**
+
+   - On **Apple Silicon**, confirm the NW binary is **arm64** (after `npm ci`), e.g.  
+     `file node_modules/nw/nwjs-sdk-v*-osx-arm64/nwjs.app/Contents/MacOS/nwjs`  
+     — expect `Mach-O 64-bit executable arm64`.  
+   - Clear the launcher cache: `rm -f ~/.cache/visual-page-editor/nw-path`  
+   - From the repo root, reinstall the pinned SDK: `npm ci` (or `npm install`) so `node_modules/nw` matches **`dependencies.nw`** in `package.json`.  
+   - Relaunch: `./bin/visual-page-editor`
+
+   **Optional last-resort trial (may hurt performance):** NW.js supports **`chromium-args`** in `package.json` ([manifest docs](https://docs.nwjs.io/en/latest/References/Manifest%20Format/#chromium-args)). Some users reduce GPU-process crashes by adding a flag such as `--disable-gpu` or `--disable-gpu-compositing` under `"chromium-args": "..."`. Treat this as **diagnosis**: remove it once you confirm whether it changes behavior on your machine.
 
 ## Common issues
 
@@ -88,4 +104,4 @@ If the desktop app crashes on launch or soon after:
 - **`env: node: No such file or directory` (exit 127):** The **`nw`** CLI from npm uses **`#!/usr/bin/env node`**. The launcher now prepends **`./.tools/node-v*/bin`** to **`PATH`** when present so portable Node from **`install-desktop`** / **`bootstrap-node`** is found. If you still see this, run **`./bin/visual-page-editor`** from the repo after install, or **`rm -rf node_modules .tools`** and **`./scripts/install-desktop.sh`** again. On **Apple Silicon**, use a **native (arm64) terminal** or rely on bootstrap (it detects **Rosetta** via **`sysctl.proc_translated`** and downloads **arm64** Node + NW).
 - **XSD not found:** Run `./scripts/fetch-xsd.sh` or `git submodule update --init`
 - **Launcher not executable:** `chmod +x bin/visual-page-editor scripts/*.sh`
-- **Document snaps to the right (FIXED in 1.1.1+):** Previously, in certain edit/zoom conditions, the canvas view would snap so the right side of the document was visible instead of the left (e.g. with TextLine + Baseline mode, horizontal baseline, ltr, baselines visible). **Fixed** in `snapImageToLeft()` in `js/svg-canvas.js`. An additional fix ensures that when a line, coords, or table is created (zoom in + create), the view no longer snaps right: we call `snapImageToLeft()` and pass `nocenter` to `selectElem` so pan-to-selection does not override. If the view still jumps, ensure "Center on selection" is unchecked and use Mod+0 (Fit page) to reset.
+- **Document snaps to the right (FIXED in 1.1.1+):** Previously, in certain edit/zoom conditions, the canvas view would snap so the right side of the document was visible instead of the left (e.g. with TextLine + Baseline mode, horizontal baseline, ltr, baselines visible). **Fixed** in `snapImageToLeft()` in `js/svg-canvas.js` (delegates to `PanZoom` in `src/canvas/pan-zoom.mjs`). **After creating** a baseline, coords region, or table, we pass **`nocenter`** to `selectElem` so optional “center on selection” does not override the viewport in a way that reintroduces the wrong edge. We then call **`ensureSelectedInView()`** (same module): it pans only enough to keep the new selection’s bounding box on screen, without forcing a full left-edge snap (which was jarring when drawing on the right side of the page). If the view still jumps, ensure “Center on selection” is unchecked and use Mod+0 (Fit page) to reset.

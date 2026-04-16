@@ -11,17 +11,24 @@ NAME="visual-page-editor"
 VERSION="$([ -f "$SCRIPT_DIR/VERSION" ] && cat "$SCRIPT_DIR/VERSION" | tr -d '\n')"
 [ -z "$VERSION" ] && VERSION="$(node -p "require('$SCRIPT_DIR/package.json').version" 2>/dev/null)" || true
 VERSION="${VERSION:-1.0.0}"
-# Default to 0.77.0 for ARM64 support (first NW.js with osx-arm64 builds; 0.50.0 does not exist)
-# Can be overridden via NWJS_VERSION environment variable
+# NW.js version: align with package.json dependencies.nw (same family as ./bin/visual-page-editor).
+# Override with NWJS_VERSION=… if you need a different SDK for packaging experiments.
 if [ -z "${NWJS_VERSION:-}" ]; then
-    # Detect if we need ARM64 - if so, use a version that supports it
-    if sysctl -n hw.optional.arm64 2>/dev/null | grep -q "1" || [ "$(uname -m)" = "arm64" ]; then
-        NWJS_VERSION="0.77.0"  # First version with osx-arm64 on dl.nwjs.io
-    else
-        NWJS_VERSION="0.44.4"  # Older version is fine for Intel Macs
+    NWJS_VERSION="$(node -p "const p=require('$SCRIPT_DIR/package.json');const n=p.dependencies&&p.dependencies.nw;const m=String(n||'').match(/^(\d+\.\d+\.\d+)/);m?m[1]:''" 2>/dev/null || true)"
+fi
+if [ -z "$NWJS_VERSION" ]; then
+    # Fallback: read from already-installed nw package if present
+    if [ -f "$SCRIPT_DIR/node_modules/nw/package.json" ]; then
+        NWJS_VERSION="$(node -p "require('$SCRIPT_DIR/node_modules/nw/package.json').version" 2>/dev/null | sed 's/[^0-9.].*$//' || true)"
     fi
-else
-    NWJS_VERSION="${NWJS_VERSION}"
+fi
+if [ -z "$NWJS_VERSION" ]; then
+    echo "Warning: could not read dependencies.nw from package.json; using legacy NW.js defaults." >&2
+    if sysctl -n hw.optional.arm64 2>/dev/null | grep -q "1" || [ "$(uname -m)" = "arm64" ]; then
+        NWJS_VERSION="0.77.0"
+    else
+        NWJS_VERSION="0.44.4"
+    fi
 fi
 APP_NAME="Visual Page Editor.app"
 BUILD_DIR="$PROJECT_ROOT/build-macos"
@@ -75,152 +82,136 @@ else
     ARCH_DESCRIPTION="Unknown (defaulting to x64)"
 fi
 
+# NW.js SDK path provided by 'npm install' — no separate download needed
+NWJS_SDK_DIR="$PROJECT_ROOT/node_modules/nw/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Ensure npm dependencies (including nw SDK) are installed
+ensure_npm_deps() {
+    if [ ! -d "$NWJS_SDK_DIR" ]; then
+        echo -e "${YELLOW}NW.js SDK not found at $NWJS_SDK_DIR${NC}"
+        echo "Running npm install to fetch it..."
+        npm --prefix "$PROJECT_ROOT" install
+        # Re-detect version from newly installed nw package (handles fallback version mismatch)
+        local _installed_ver
+        _installed_ver="$(node -p "require('$PROJECT_ROOT/node_modules/nw/package.json').version" 2>/dev/null | sed 's/[^0-9.].*$//' || true)"
+        if [ -n "$_installed_ver" ] && [ "$_installed_ver" != "$NWJS_VERSION" ]; then
+            echo -e "${YELLOW}Correcting NWJS_VERSION: $NWJS_VERSION → $_installed_ver${NC}"
+            NWJS_VERSION="$_installed_ver"
+            NWJS_SDK_DIR="$PROJECT_ROOT/node_modules/nw/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}"
+        fi
+    fi
+    # If the SDK dir exists but nwjs.app is missing, it may be a stale symlink to the stripped
+    # npm package dir. Re-run the nw postinstall to download the full SDK.
+    if [ ! -d "$NWJS_SDK_DIR/nwjs.app" ]; then
+        echo -e "${YELLOW}NW.js SDK incomplete (nwjs.app missing). Re-downloading SDK...${NC}"
+        node "$PROJECT_ROOT/node_modules/nw/src/postinstall.js" 2>&1 || true
+        # After postinstall, SDK dir may have been replaced; re-detect
+        local _installed_ver
+        _installed_ver="$(node -p "require('$PROJECT_ROOT/node_modules/nw/package.json').version" 2>/dev/null | sed 's/[^0-9.].*$//' || true)"
+        if [ -n "$_installed_ver" ]; then
+            NWJS_VERSION="$_installed_ver"
+            NWJS_SDK_DIR="$PROJECT_ROOT/node_modules/nw/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}"
+        fi
+    fi
+    if [ ! -d "$NWJS_SDK_DIR/nwjs.app" ]; then
+        echo -e "${RED}Error: NW.js SDK still missing after npm install: $NWJS_SDK_DIR${NC}"
+        echo "Expected path: $NWJS_SDK_DIR/nwjs.app"
+        echo "Check that package.json dependencies.nw matches NWJS_VERSION ($NWJS_VERSION)."
+        exit 1
+    fi
+    echo -e "${GREEN}NW.js SDK ready at $NWJS_SDK_DIR${NC}"
+
+    "$PROJECT_ROOT/scripts/ensure-bundle-for-packaging.sh"
+}
+
+# Auto-install Node.js via Homebrew (installs Homebrew first if needed)
+install_node() {
+    if ! command -v brew &> /dev/null; then
+        echo -e "${YELLOW}Homebrew not found. Installing Homebrew...${NC}"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        # Add Homebrew to PATH for Apple Silicon
+        if [ -f /opt/homebrew/bin/brew ]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        elif [ -f /usr/local/bin/brew ]; then
+            eval "$(/usr/local/bin/brew shellenv)"
+        fi
+    fi
+    echo -e "${YELLOW}Installing Node.js via Homebrew...${NC}"
+    brew install node
+    # Refresh PATH so node/npm are found immediately
+    hash -r 2>/dev/null || true
+}
+
 # Check for required tools
 check_requirements() {
     echo -e "${YELLOW}Checking requirements...${NC}"
-    
+
     local missing_tools=()
-    
-    for tool in curl unzip; do
+    for tool in node npm; do
         if ! command -v $tool &> /dev/null; then
             missing_tools+=($tool)
         fi
     done
-    
-    if [ ${#missing_tools[@]} -ne 0 ]; then
-        echo -e "${RED}Error: Missing required tools: ${missing_tools[*]}${NC}"
-        echo "Please install them using Homebrew:"
-        echo "  brew install curl"
-        exit 1
-    fi
-    
-    echo -e "${GREEN}All requirements met!${NC}"
-}
 
-# Download NW.js if needed
-download_nwjs() {
-    echo -e "${YELLOW}Checking for NW.js v${NWJS_VERSION} (${NWJS_ARCH})...${NC}"
-    
-    local nwjs_archive="$PROJECT_ROOT/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}.zip"
-    local nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}.zip"
-    local nwjs_extracted="$PROJECT_ROOT/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}"
-    local nwjs_binary="$nwjs_extracted/nwjs.app/Contents/MacOS/nwjs"
-    
-    # Check if already downloaded and verify architecture
-    if [ -d "$nwjs_extracted" ] && [ -d "$nwjs_extracted/nwjs.app" ] && [ -f "$nwjs_binary" ]; then
-        local file_arch=$(file "$nwjs_binary" 2>/dev/null | grep -i "arm64\|arm64e\|x86_64" || echo "")
-        local expected_arch=""
-        if [ "$ARCH" = "arm64" ]; then
-            expected_arch="arm64"
-        else
-            expected_arch="x86_64"
-        fi
-        
-        if echo "$file_arch" | grep -qi "$expected_arch"; then
-            echo -e "${GREEN}NW.js already present at $nwjs_extracted${NC}"
-            echo -e "${GREEN}✓ Architecture verified: $expected_arch${NC}"
-            return 0
-        else
-            echo -e "${YELLOW}Warning: Existing NW.js has wrong architecture, re-downloading...${NC}"
-            rm -rf "$nwjs_extracted" "$nwjs_archive"
-        fi
-    fi
-    
-    echo "Downloading NW.js v${NWJS_VERSION} (${NWJS_ARCH}) from $nwjs_url..."
-    
-    # Check if URL exists before attempting download
-    local http_code=$(curl -sL -o /dev/null -w "%{http_code}" "$nwjs_url" 2>/dev/null || echo "000")
-    
-    if [ "$http_code" != "200" ] && [ "$http_code" != "302" ]; then
-        echo -e "${RED}ERROR: NW.js v${NWJS_VERSION} for ${NWJS_ARCH} is not available (HTTP $http_code)${NC}"
-        if [ "$ARCH" = "arm64" ]; then
-            echo -e "${YELLOW}Note: ARM64 support requires NW.js v0.77.0 or later.${NC}"
-            echo -e "${YELLOW}Try setting: NWJS_VERSION=0.77.0 ./build-macos.sh${NC}"
-            echo -e "${YELLOW}Or use: NWJS_VERSION=0.94.0 ./build-macos.sh${NC}"
-        fi
-        echo "You can download it manually from: $nwjs_url"
-        echo "Or check available versions at: https://nwjs.io/downloads/"
-        return 1
-    fi
-    
-    if curl -fLSs -o "$nwjs_archive" "$nwjs_url"; then
-        echo "Extracting NW.js..."
-        unzip -q "$nwjs_archive" -d "$PROJECT_ROOT"
-        rm -f "$nwjs_archive"
-        
-        # Verify downloaded binary architecture
-        if [ -f "$nwjs_binary" ]; then
-            local file_arch=$(file "$nwjs_binary" 2>/dev/null | grep -i "arm64\|arm64e\|x86_64" || echo "")
-            local expected_arch=""
-            if [ "$ARCH" = "arm64" ]; then
-                expected_arch="arm64"
-            else
-                expected_arch="x86_64"
+    if [ ${#missing_tools[@]} -ne 0 ]; then
+        echo -e "${YELLOW}Missing required tools: ${missing_tools[*]}. Auto-installing...${NC}"
+        install_node
+        # Re-check after install
+        local still_missing=()
+        for tool in node npm; do
+            if ! command -v $tool &> /dev/null; then
+                still_missing+=($tool)
             fi
-            
-            if echo "$file_arch" | grep -qi "$expected_arch"; then
-                echo -e "${GREEN}NW.js downloaded and extracted successfully!${NC}"
-                echo -e "${GREEN}✓ Architecture verified: $expected_arch${NC}"
-            else
-                echo -e "${RED}ERROR: Downloaded NW.js has wrong architecture!${NC}"
-                echo "Expected: $expected_arch, Got: $file_arch"
-                echo "Please check the download URL or download manually."
-                return 1
-            fi
-        else
-            echo -e "${RED}ERROR: NW.js binary not found after extraction!${NC}"
-            return 1
+        done
+        if [ ${#still_missing[@]} -ne 0 ]; then
+            echo -e "${RED}Error: Could not install: ${still_missing[*]}${NC}"
+            echo "Please install Node.js manually: https://nodejs.org/ or via Homebrew: brew install node"
+            exit 1
         fi
-    else
-        echo -e "${RED}Warning: Could not download NW.js automatically.${NC}"
-        if [ "$ARCH" = "arm64" ]; then
-            echo -e "${YELLOW}Note: ARM64 support requires NW.js v0.77.0 or later.${NC}"
-            echo -e "${YELLOW}Try setting: NWJS_VERSION=0.77.0 ./build-macos.sh${NC}"
-        fi
-        echo "You can download it manually from: $nwjs_url"
-        echo "Extract it to: $nwjs_extracted"
-        return 1
     fi
+
+    echo -e "${GREEN}All requirements met!${NC}"
 }
 
 # Create .app bundle structure
 create_app_bundle() {
     echo -e "${YELLOW}Creating .app bundle structure...${NC}"
-    
+
     # Clean previous build
     rm -rf "$BUILD_DIR"
     mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
-    
-    # Copy NW.js app
-    local nwjs_extracted="$PROJECT_ROOT/nwjs-sdk-v${NWJS_VERSION}-${NWJS_SUFFIX}"
-    if [ ! -d "$nwjs_extracted/nwjs.app" ]; then
-        echo -e "${RED}Error: NW.js app not found at $nwjs_extracted/nwjs.app${NC}"
+
+    # Copy NW.js framework and resources from npm-installed SDK
+    if [ ! -d "$NWJS_SDK_DIR/nwjs.app/Contents/Frameworks" ]; then
+        echo -e "${RED}Error: NW.js SDK Frameworks missing: $NWJS_SDK_DIR/nwjs.app/Contents/Frameworks${NC}"
+        echo "Re-run with: npm install"
         exit 1
     fi
-    
-    # Copy NW.js framework and resources
-    cp -R "$nwjs_extracted/nwjs.app/Contents/Frameworks" "$CONTENTS_DIR/" 2>/dev/null || true
-    cp -R "$nwjs_extracted/nwjs.app/Contents/Resources"/* "$RESOURCES_DIR/" 2>/dev/null || true
-    
+    cp -R "$NWJS_SDK_DIR/nwjs.app/Contents/Frameworks" "$CONTENTS_DIR/"
+    cp -R "$NWJS_SDK_DIR/nwjs.app/Contents/Resources/"* "$RESOURCES_DIR/"
+
     # Copy NW.js binary
-    cp "$nwjs_extracted/nwjs.app/Contents/MacOS/nwjs" "$MACOS_DIR/nwjs"
+    cp "$NWJS_SDK_DIR/nwjs.app/Contents/MacOS/nwjs" "$MACOS_DIR/nwjs"
     chmod +x "$MACOS_DIR/nwjs"
     
-    # Copy application files
+    # Copy application files into app.nw/ — NW.js always resolves the app from
+    # Contents/Resources/app.nw when running as a macOS bundle.
     echo -e "${YELLOW}Copying application files...${NC}"
-    cp -R "$PROJECT_ROOT/html" "$RESOURCES_DIR/"
-    cp -R "$PROJECT_ROOT/js" "$RESOURCES_DIR/"
-    cp -R "$PROJECT_ROOT/css" "$RESOURCES_DIR/"
-    cp -R "$PROJECT_ROOT/xslt" "$RESOURCES_DIR/"
-    cp -R "$PROJECT_ROOT/xsd" "$RESOURCES_DIR/"
-    cp -R "$PROJECT_ROOT/plugins" "$RESOURCES_DIR/" 2>/dev/null || true
-    cp "$PROJECT_ROOT/package.json" "$RESOURCES_DIR/"
+    APP_NW_DIR="$RESOURCES_DIR/app.nw"
+    mkdir -p "$APP_NW_DIR"
+    cp -R "$PROJECT_ROOT/html" "$APP_NW_DIR/"
+    cp -R "$PROJECT_ROOT/js" "$APP_NW_DIR/"
+    cp -R "$PROJECT_ROOT/css" "$APP_NW_DIR/"
+    cp -R "$PROJECT_ROOT/xslt" "$APP_NW_DIR/"
+    cp -R "$PROJECT_ROOT/xsd" "$APP_NW_DIR/"
+    cp -R "$PROJECT_ROOT/plugins" "$APP_NW_DIR/" 2>/dev/null || true
+    cp "$PROJECT_ROOT/package.json" "$APP_NW_DIR/"
     
     # Create Info.plist
     create_info_plist
@@ -282,39 +273,21 @@ create_launcher_script() {
 # Launcher script for Visual Page Editor macOS app
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RESOURCES_DIR="$APP_DIR/Resources"
 NWJS_BIN="$APP_DIR/MacOS/nwjs"
-
-# Detect macOS architecture
-MAC_ARCH=$(uname -m)
+APP_NW_DIR="$APP_DIR/Resources/app.nw"
 
 # On Apple Silicon, check if we're using x64 NW.js (which causes crashes)
-if [ "$MAC_ARCH" = "arm64" ]; then
+if [ "$(uname -m)" = "arm64" ]; then
   FILE_ARCH=$(file "$NWJS_BIN" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
   if [ -z "$FILE_ARCH" ]; then
-    # Show macOS alert dialog
-    osascript -e 'display dialog "ERROR: x64 NW.js detected in .app bundle on Apple Silicon!\n\nThis will cause immediate crashes. The .app bundle needs to be rebuilt with ARM64 NW.js.\n\nTo fix:\n1. Delete the current .app bundle\n2. Download ARM64 NW.js: nwjs-sdk-v*-osx-arm64.zip from https://nwjs.io/downloads/\n3. Extract and move nwjs.app to /Applications/\n4. Rebuild the .app bundle: ./build-macos.sh" buttons {"OK"} default button "OK" with icon stop' 2>/dev/null || true
-    
-    echo "" >&2
-    echo "ERROR: x64 NW.js detected in .app bundle on Apple Silicon!" >&2
-    echo "This will cause immediate crashes. The .app bundle needs to be rebuilt with ARM64 NW.js." >&2
-    echo "" >&2
-    echo "To fix:" >&2
-    echo "1. Delete the current .app bundle" >&2
-    echo "2. Download ARM64 NW.js: nwjs-sdk-v*-osx-arm64.zip from https://nwjs.io/downloads/" >&2
-    echo "3. Extract and move nwjs.app to /Applications/" >&2
-    echo "4. Rebuild the .app bundle: ./build-macos.sh" >&2
-    echo "" >&2
-    echo "Aborting launch to prevent crash..." >&2
+    osascript -e 'display dialog "ERROR: x64 NW.js detected in .app bundle on Apple Silicon!\n\nRebuild with: ./build-macos.sh" buttons {"OK"} default button "OK" with icon stop' 2>/dev/null || true
+    echo "ERROR: x64 NW.js on Apple Silicon — rebuild with ./build-macos.sh" >&2
     exit 1
   fi
 fi
 
-# Change to resources directory
-cd "$RESOURCES_DIR"
-
-# Launch NW.js with the application
-exec "$NWJS_BIN" "$RESOURCES_DIR" "$@"
+# NW.js resolves the app from Contents/Resources/app.nw when run as a bundle.
+exec "$NWJS_BIN" "$APP_NW_DIR" "$@"
 EOF
     chmod +x "$MACOS_DIR/launcher"
 }
@@ -339,7 +312,7 @@ main() {
     echo ""
     
     check_requirements
-    download_nwjs
+    ensure_npm_deps
     create_app_bundle
     
     echo ""

@@ -56,4 +56,9 @@ if [ -f "$ROOT/html/index.html" ]; then
   perl -i -pe "s/window\\.PAGE_EDITOR_VERSION='[0-9]+\\.[0-9]+\\.[0-9]+'/window.PAGE_EDITOR_VERSION='$VER'/g" "$ROOT/html/index.html"
 fi
 
+# RPM spec %define version (see TESTING.md / PACKAGING.md)
+if [ -f "$ROOT/rpm/visual-page-editor.spec" ]; then
+  perl -i -pe "s/^(%define\\s+version\\s+)[0-9]+\\.[0-9]+\\.[0-9]+/\${1}$VER/" "$ROOT/rpm/visual-page-editor.spec"
+fi
+
 echo "Done. All app-facing version strings set to $VER."

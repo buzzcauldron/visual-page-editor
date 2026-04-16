@@ -1,6 +1,9 @@
 # NW.js runtime (downloaded during build)
+nwjs
 nwjs/
 nwjs-sdk-*/
+*.zip
+shasum/
 
 # Build artifacts
 *.rpm
@@ -10,6 +13,8 @@ rpmbuild/
 dist/
 build/
 build-macos/
+build-windows/
+js/bundle.js
 
 # Debian package build output (do not commit)
 debian/.debhelper/
@@ -23,6 +28,9 @@ node_modules/
 
 # Portable Node.js from scripts/bootstrap-node.{sh,ps1}
 .tools/
+
+# Local fresh-install test copies (scripts/test-fresh-install-mac.sh)
+.vpe-fresh-install-runs/
 
 # Editor and OS files
 .DS_Store

@@ -1,3 +1,9 @@
+visual-page-editor (2.0.0-1) unstable; urgency=low
+
+  * Version 2.0.0: major release (semver alignment with rebuild / breaking-change line)
+
+ -- buzzcauldron <buzzcauldron@users.noreply.github.com>  Wed, 02 Apr 2026 12:00:00 +0000
+
 visual-page-editor (1.2.0-1) unstable; urgency=low
 
   * Version 1.2.0: README quickstart/container only; arrow-key pan when zoomed, page nav when fit-to-page; Debian build output untracked, merge fix script; KEYBOARD-SHORTCUTS doc; versioning aligned

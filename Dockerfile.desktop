@@ -1,10 +1,28 @@
-FROM ubuntu:22.04
+# Stage 1: build js/bundle.js
+FROM node:20-slim@sha256:7129e1780341f8dff603243d2b0cb9179c1716291ff6a86706946b629d3c544a AS builder
+WORKDIR /build
+COPY package.json package-lock.json* ./
+# --ignore-scripts skips the nw postinstall (avoids downloading 200MB NW.js SDK in the build stage)
+RUN npm ci --ignore-scripts
+COPY js ./js
+COPY src ./src
+RUN npm run build
+
+# Stage 2: desktop runtime
+FROM ubuntu:22.04@sha256:c9672795a48854502d9dc0f1b719ac36dd99259a2f8ce425904a5cb4ae0d60d2
+
+ARG NWJS_VERSION=0.109.1
+ARG APP_VERSION=0.0.0
+ARG TARGETARCH=amd64
 
 LABEL maintainer="buzzcauldron <buzzcauldron@users.noreply.github.com>"
 LABEL description="Visual Page Editor - Desktop application container"
+LABEL org.opencontainers.image.title="Visual Page Editor"
+LABEL org.opencontainers.image.version="${APP_VERSION}"
+LABEL org.opencontainers.image.source="https://github.com/buzzcauldron/visual-page-editor"
 
 # Install dependencies
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN apt-get update --fix-missing && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     curl \
     tar \
     gzip \
@@ -28,6 +46,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     libatspi2.0-0 \
     libxss1 \
     libxtst6 \
+    x11-utils \
     libgl1 \
     libgl1-mesa-dri \
     libgtk-3-0 \
@@ -37,11 +56,14 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 # Set working directory
 WORKDIR /app
 
-# Download and extract NW.js (default matches package.json "nw" and bin/visual-page-editor NWJS_VERSION)
-ARG NWJS_VERSION=0.94.0
-RUN curl -fLSs -o /tmp/nwjs.tar.gz "https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz" && \
+# Download and extract NW.js — selects linux-arm64 or linux-x64 based on TARGETARCH build arg
+RUN case "${TARGETARCH}" in \
+        arm64) _nwjs_suffix="linux-arm64" ;; \
+        *)     _nwjs_suffix="linux-x64"   ;; \
+    esac && \
+    curl --retry 3 -fLSs -o /tmp/nwjs.tar.gz "https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-${_nwjs_suffix}.tar.gz" && \
     tar -xzf /tmp/nwjs.tar.gz -C /tmp && \
-    mv /tmp/nwjs-sdk-v${NWJS_VERSION}-linux-x64 /app/nwjs && \
+    mv /tmp/nwjs-sdk-v${NWJS_VERSION}-${_nwjs_suffix} /app/nwjs && \
     rm -f /tmp/nwjs.tar.gz && \
     chmod +x /app/nwjs/nw
 
@@ -50,6 +72,7 @@ COPY package.json /app/
 COPY html /app/html
 COPY css /app/css
 COPY js /app/js
+COPY --from=builder /build/js/bundle.js /app/js/bundle.js
 COPY examples /app/examples
 COPY plugins /app/plugins
 COPY xsd /app/xsd
@@ -60,12 +83,12 @@ COPY bin /app/bin
 # Fetch the real schemas so the app can start without requiring a git submodule.
 RUN mkdir -p /app/xsd/pageformat/old && \
     if [ ! -s /app/xsd/pageformat/pagecontent_omnius.xsd ]; then \
-      curl -fLSs -o /app/xsd/pageformat/pagecontent_omnius.xsd \
-        "https://raw.githubusercontent.com/omni-us/pageformat/main/pagecontent_omnius.xsd"; \
+      curl --retry 3 -fLSs -o /app/xsd/pageformat/pagecontent_omnius.xsd \
+        "https://raw.githubusercontent.com/omni-us/pageformat/master/pagecontent_omnius.xsd"; \
     fi && \
     if [ ! -s /app/xsd/pageformat/old/pagecontent_searchink.xsd ]; then \
-      curl -fLSs -o /app/xsd/pageformat/old/pagecontent_searchink.xsd \
-        "https://raw.githubusercontent.com/omni-us/pageformat/main/old/pagecontent_searchink.xsd"; \
+      curl --retry 3 -fLSs -o /app/xsd/pageformat/old/pagecontent_searchink.xsd \
+        "https://raw.githubusercontent.com/omni-us/pageformat/master/old/pagecontent_searchink.xsd"; \
     fi
 
 # Create entrypoint script (avoid $(...) in heredoc to prevent shell syntax errors)
@@ -77,12 +100,24 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
   exit 0
 fi
 
-# Use Xvfb if DISPLAY not set
+# Use Xvfb if DISPLAY not set or unreachable
+_need_xvfb=0
 if [ -z "$DISPLAY" ]; then
+  _need_xvfb=1
+elif ! xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
+  _need_xvfb=1
+fi
+if [ "$_need_xvfb" = "1" ]; then
   export DISPLAY=:99
   Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
   XVFB_PID=$!
-  trap "kill $XVFB_PID" EXIT
+  trap "kill $XVFB_PID 2>/dev/null || true" EXIT
+  _xvfb_tries=0
+  until xdpyinfo -display :99 >/dev/null 2>&1; do
+    _xvfb_tries=$((_xvfb_tries + 1))
+    [ "$_xvfb_tries" -ge 20 ] && echo "Warning: Xvfb did not start in time" >&2 && break
+    sleep 0.1
+  done
 fi
 
 # Run the application

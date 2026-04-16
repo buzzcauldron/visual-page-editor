@@ -5,7 +5,7 @@
 ## Command line launcher for visual-page-editor.
 ## Compatible with Linux, macOS, and Windows (via Git Bash/WSL).
 ##
-## @version 1.2.0
+## @version 2.0.0
 ## @author buzzcauldron
 ## @copyright Copyright(c) 2025, buzzcauldron
 ## @license MIT License
@@ -29,7 +29,9 @@ WIN_ARCH="x64"
 MACHINE_ARCH="x64"
 if [ "$PLATFORM" = "macos" ]; then
   MAC_ARCH=$(uname -m)
-  case "$MAC_ARCH" in arm64|arm64e) MACHINE_ARCH="arm64";; *) MACHINE_ARCH="x64";; esac
+  # Normalize so lookup/download/cache branches that test [ "$MAC_ARCH" = "arm64" ] match arm64e hosts
+  case "$MAC_ARCH" in arm64|arm64e) MAC_ARCH="arm64" ;; esac
+  case "$MAC_ARCH" in arm64) MACHINE_ARCH="arm64";; *) MACHINE_ARCH="x64";; esac
 elif [ "$PLATFORM" = "windows" ]; then
   if [ -n "${PROCESSOR_ARCHITECTURE:-}" ] && [ "$PROCESSOR_ARCHITECTURE" = "ARM64" ]; then WIN_ARCH="arm64"; MACHINE_ARCH="arm64"
   elif [ -n "${PROCESSOR_ARCHITEW6432:-}" ] && [ "$PROCESSOR_ARCHITEW6432" = "ARM64" ]; then WIN_ARCH="arm64"; MACHINE_ARCH="arm64"
@@ -72,7 +74,7 @@ fi
   nw_page_editor="$nw_page_editor/share/nw-page-editor";
 
 # NW.js version configuration (can be overridden via environment variable)
-NWJS_VERSION="${NWJS_VERSION:-0.94.0}"
+NWJS_VERSION="${NWJS_VERSION:-0.109.1}"
 
 # Prefer npm-installed NW.js (dependency `nw` postinstall downloads SDK for this host)
 nw_from_npm=""
@@ -88,161 +90,34 @@ fi
 CACHE_DIR="${HOME}/.cache/visual-page-editor"
 CACHE_FILE="${CACHE_DIR}/nw-path"
 
-# Function to download NW.js automatically
-download_nwjs() {
-  local platform="$1"
-  local arch="$2"
-  local download_dir=""
-  local nwjs_url=""
-  local nwjs_archive=""
-  local nwjs_extracted=""
-  local nwjs_binary=""
-  
-  echo "${0##*/}: NW.js not found. Attempting to download automatically..." >&2
-  
-  # Determine download location (prefer user's home directory)
-  if [ "$platform" = "macos" ]; then
-    download_dir="$HOME/.nwjs"
-    if [ "$arch" = "arm64" ]; then
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-osx-arm64.zip"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-osx-arm64.zip"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-osx-arm64"
-      nwjs_binary="$nwjs_extracted/nwjs.app/Contents/MacOS/nwjs"
-    else
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-osx-x64.zip"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-osx-x64.zip"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-osx-x64"
-      nwjs_binary="$nwjs_extracted/nwjs.app/Contents/MacOS/nwjs"
-    fi
-  elif [ "$platform" = "linux" ]; then
-    download_dir="$HOME/.nwjs"
-    if [ "$arch" = "arm64" ]; then
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-arm64.tar.gz"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-arm64.tar.gz"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-arm64"
-    else
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-x64.tar.gz"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-linux-x64"
-    fi
-    nwjs_binary="$nwjs_extracted/nw"
-  elif [ "$platform" = "windows" ]; then
-    download_dir="$HOME/nwjs"
-    if [ "$arch" = "arm64" ]; then
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-win-arm64.zip"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-arm64.zip"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-arm64"
-      nwjs_binary="$nwjs_extracted/nw.exe"
-    else
-      nwjs_url="https://dl.nwjs.io/v${NWJS_VERSION}/nwjs-sdk-v${NWJS_VERSION}-win-x64.zip"
-      nwjs_archive="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-x64.zip"
-      nwjs_extracted="$download_dir/nwjs-sdk-v${NWJS_VERSION}-win-x64"
-      nwjs_binary="$nwjs_extracted/nw.exe"
-    fi
-  else
-    echo "${0##*/}: error: automatic download not supported for platform: $platform" >&2
-    return 1
-  fi
-  
-  # Check if curl or wget is available
-  if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
-    echo "${0##*/}: error: curl or wget required for automatic download" >&2
-    echo "  Please install curl or wget, or download NW.js manually from:" >&2
-    echo "  $nwjs_url" >&2
-    return 1
-  fi
-  
-  # Create download directory
-  mkdir -p "$download_dir" || {
-    echo "${0##*/}: error: cannot create download directory: $download_dir" >&2
-    return 1
-  }
-  
-  # Check if already downloaded
-  if [ -f "$nwjs_binary" ]; then
-    echo "${0##*/}: Found existing NW.js at: $nwjs_binary" >&2
-    echo "$nwjs_binary"
-    return 0
-  fi
-  
-  # Download NW.js
-  echo "${0##*/}: Downloading NW.js v${NWJS_VERSION} from $nwjs_url..." >&2
-  echo "${0##*/}: This may take a few minutes..." >&2
-  
-  if command -v curl >/dev/null 2>&1; then
-    if ! curl -fLSs -o "$nwjs_archive" "$nwjs_url"; then
-      echo "${0##*/}: error: failed to download NW.js" >&2
-      rm -f "$nwjs_archive"
-      return 1
-    fi
-  elif command -v wget >/dev/null 2>&1; then
-    if ! wget -q --show-progress -O "$nwjs_archive" "$nwjs_url"; then
-      echo "${0##*/}: error: failed to download NW.js" >&2
-      rm -f "$nwjs_archive"
-      return 1
-    fi
-  fi
-  
-  # Extract NW.js
-  echo "${0##*/}: Extracting NW.js..." >&2
-  if [ "$platform" = "macos" ] || [ "$platform" = "windows" ]; then
-    # Use unzip for macOS and Windows
-    if ! command -v unzip >/dev/null 2>&1; then
-      echo "${0##*/}: error: unzip required for extraction" >&2
-      rm -f "$nwjs_archive"
-      return 1
-    fi
-    if ! unzip -q -o "$nwjs_archive" -d "$download_dir"; then
-      echo "${0##*/}: error: failed to extract NW.js archive" >&2
-      rm -f "$nwjs_archive"
-      return 1
-    fi
-  else
-    # Use tar for Linux
-    if ! tar -xzf "$nwjs_archive" -C "$download_dir"; then
-      echo "${0##*/}: error: failed to extract NW.js archive" >&2
-      rm -f "$nwjs_archive"
-      return 1
-    fi
-  fi
-  
-  # Clean up archive
-  rm -f "$nwjs_archive"
-  
-  # Verify extraction
-  if [ ! -f "$nwjs_binary" ]; then
-    echo "${0##*/}: error: NW.js binary not found after extraction" >&2
-    echo "  Expected: $nwjs_binary" >&2
-    return 1
-  fi
-  
-  # Make binary executable (Linux)
-  if [ "$platform" = "linux" ]; then
-    chmod +x "$nwjs_binary" 2>/dev/null || true
-  fi
-  
-  echo "${0##*/}: NW.js downloaded and extracted successfully!" >&2
-  echo "${0##*/}: Location: $nwjs_binary" >&2
-  
-  # For macOS, also create a symlink in /Applications if possible
-  if [ "$platform" = "macos" ] && [ -d "$nwjs_extracted/nwjs.app" ]; then
-    if [ -w "/Applications" ]; then
-      local app_link="/Applications/nwjs-sdk-v${NWJS_VERSION}-${arch}.app"
-      if [ ! -e "$app_link" ]; then
-        ln -s "$nwjs_extracted/nwjs.app" "$app_link" 2>/dev/null && \
-          echo "${0##*/}: Created symlink: $app_link" >&2 || true
-      fi
-    fi
-  fi
-  
-  echo "$nwjs_binary"
-  return 0
-}
 
 # Find NW.js binary: prefer npm install, then cache (only use if path + version + architecture match this machine)
 nw=""
 if [ -n "$nw_from_npm" ] && [ -f "$nw_from_npm" ]; then
   nw="$nw_from_npm"
+fi
+# On Linux: prefer the extracted SDK `nw` binary from npm (matches NWJS_VERSION).
+# On macOS: prefer `node_modules/.bin/nw` (Node CLI); the launcher passes the app path as the first
+# argument (same as `nw .`), which the CLI forwards to the native binary correctly.
+# If .bin/nw is missing but the SDK dir is present (e.g. postinstall failed), use the binary directly.
+if [ -n "$nw_page_editor" ] && [ -d "$nw_page_editor/node_modules/nw" ]; then
+  _nw_pkg="$nw_page_editor/node_modules/nw"
+  if [ "$PLATFORM" = "linux" ]; then
+    if [ "$MACHINE_ARCH" = "arm64" ] && [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw" ]; then
+      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw"
+    elif [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw" ]; then
+      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw"
+    fi
+  elif [ "$PLATFORM" = "macos" ] && [ -z "$nw" ]; then
+    _mac_sdk_arch="${MAC_ARCH:-x64}"
+    _mac_nwjs_bin="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-${_mac_sdk_arch}/nwjs.app/Contents/MacOS/nwjs"
+    [ -f "$_mac_nwjs_bin" ] && nw="$_mac_nwjs_bin"
+    # Fallback: x64 SDK on arm64 host (Rosetta)
+    if [ ! -f "$nw" ] && [ "$MAC_ARCH" = "arm64" ]; then
+      _mac_nwjs_bin="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-osx-x64/nwjs.app/Contents/MacOS/nwjs"
+      [ -f "$_mac_nwjs_bin" ] && nw="$_mac_nwjs_bin"
+    fi
+  fi
 fi
 if [ -z "$nw" ] && [ -f "$CACHE_FILE" ]; then
   cached_path=$(head -n 1 "$CACHE_FILE" 2>/dev/null)
@@ -370,34 +245,50 @@ fi
   echo "  Tried: $nw_page_editor" >&2 &&
   exit 1;
 
-# If NW.js not found, attempt automatic download
 if [ ! -f "$nw" ]; then
-  # Auto-download when curl/wget available (no prompt)
-  if [ -t 0 ] && [ -t 1 ] || [ "${AUTO_DOWNLOAD_NWJS:-}" = "1" ] || [ "${AUTO_DOWNLOAD_NWJS:-}" = "yes" ] || [ "${AUTO_DOWNLOAD_NWJS:-}" = "true" ]; then
-    if [ "$PLATFORM" = "macos" ]; then
-      downloaded_nw=$(download_nwjs "$PLATFORM" "$MAC_ARCH")
-    elif [ "$PLATFORM" = "linux" ]; then
-      downloaded_nw=$(download_nwjs "$PLATFORM" "$MACHINE_ARCH")
-    elif [ "$PLATFORM" = "windows" ]; then
-      downloaded_nw=$(download_nwjs "$PLATFORM" "${WIN_ARCH:-x64}")
-    else
-      downloaded_nw=""
-    fi
+  # Auto-install: try npm first, fall back to bootstrap-node.sh (downloads portable Node + runs npm install)
+  _npm_cmd=""
+  for _toolbin in "$nw_page_editor"/.tools/node-v*/bin; do
+    [ -x "$_toolbin/npm" ] && _npm_cmd="$_toolbin/npm" && export PATH="$_toolbin:$PATH" && break
+  done
+  [ -z "$_npm_cmd" ] && command -v npm >/dev/null 2>&1 && _npm_cmd="npm"
 
-    if [ -n "$downloaded_nw" ] && [ -f "$downloaded_nw" ]; then
-      nw="$downloaded_nw"
-    else
-      echo "${0##*/}: error: unable to find or download the NW.js binary" >&2
-      echo "  Platform: $PLATFORM" >&2
-      echo "  Please install NW.js from https://nwjs.io/downloads/" >&2
-      echo "  Or add NW.js to your PATH" >&2
-      exit 1
-    fi
+  if [ -n "$_npm_cmd" ]; then
+    echo "${0##*/}: NW.js not found — running 'npm install' to fetch it..." >&2
+    (cd "$nw_page_editor" && "$_npm_cmd" install) || {
+      echo "${0##*/}: error: npm install failed. See output above." >&2; exit 1
+    }
+  elif [ -f "$nw_page_editor/scripts/bootstrap-node.sh" ] && [ "$PLATFORM" != "windows" ]; then
+    echo "${0##*/}: npm not found — running bootstrap to download Node.js and install dependencies..." >&2
+    bash "$nw_page_editor/scripts/bootstrap-node.sh" || {
+      echo "${0##*/}: error: bootstrap failed. See output above." >&2; exit 1
+    }
+    # Pick up the portable Node npm just installed
+    for _toolbin in "$nw_page_editor"/.tools/node-v*/bin; do
+      [ -x "$_toolbin/npm" ] && export PATH="$_toolbin:$PATH" && break
+    done
   else
-    echo "${0##*/}: error: unable to find the NW.js binary" >&2
-    echo "  Platform: $PLATFORM" >&2
-    echo "  Please install NW.js from https://nwjs.io/downloads/" >&2
-    echo "  Or set AUTO_DOWNLOAD_NWJS=1 to enable automatic download" >&2
+    echo "${0##*/}: error: NW.js not found and npm is unavailable." >&2
+    echo "  Install Node.js from https://nodejs.org/ then run 'npm install' in the project directory." >&2
+    exit 1
+  fi
+
+  # Re-resolve nw binary after install
+  if [ -f "$nw_page_editor/node_modules/.bin/nw" ]; then
+    nw="$nw_page_editor/node_modules/.bin/nw"
+    chmod +x "$nw" 2>/dev/null || true
+  elif [ "$PLATFORM" = "linux" ]; then
+    _nw_pkg="$nw_page_editor/node_modules/nw"
+    if [ "$MACHINE_ARCH" = "arm64" ] && [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw" ]; then
+      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-arm64/nw"
+    elif [ -f "$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw" ]; then
+      nw="$_nw_pkg/nwjs-sdk-v${NWJS_VERSION}-linux-x64/nw"
+    fi
+  fi
+
+  if [ ! -f "$nw" ]; then
+    echo "${0##*/}: error: NW.js still not found after install. Try:" >&2
+    echo "  rm -f $CACHE_FILE && npm install" >&2
     exit 1
   fi
 fi
@@ -408,12 +299,11 @@ if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
   echo "Usage: ${0##*/} [page.xml]+ [pages_dir]+ [--list pages_list]+ [--css file.css]+ [--js file.js]+"
   echo ""
   echo "Environment variables:"
-  echo "  NWJS_VERSION       - NW.js version to download (default: ${NWJS_VERSION})"
-  echo "  AUTO_DOWNLOAD_NWJS - Set to '1', 'yes', or 'true' to enable automatic download"
+  echo "  NWJS_VERSION - NW.js version to use (default: ${NWJS_VERSION})"
   echo ""
-  echo "After 'npm install', the NW.js SDK is available via node_modules/.bin/nw (preferred)."
-  echo "If NW.js is not found, the script can download it automatically when enabled."
-  echo "Downloaded NW.js is stored in: ~/.nwjs (Linux/macOS) or ~/nwjs (Windows)"
+  echo "NW.js is installed automatically on first run via 'npm install'."
+  echo "If npm is not found, portable Node.js is downloaded from nodejs.org first."
+  echo "(Linux/macOS only for auto-bootstrap; Windows users: run scripts/install-desktop.ps1)"
   exit 0
 fi
 
@@ -432,20 +322,27 @@ fi
 # Launch application with better error handling
 EXIT_CODE=0
 if [ "$PLATFORM" = "macos" ] && [ "$MAC_ARCH" = "arm64" ] && [ -f "$nw" ]; then
-  FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
-  if [ -z "$FILE_ARCH" ]; then
-    # Using x64 on Apple Silicon: try once to find ARM64 (faster than x64 via Rosetta)
-    ARM64_NW=$(find /Applications -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
-    [ ! -f "$ARM64_NW" ] && ARM64_NW=$(find "$HOME/.nwjs" -path "*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
-    if [ -n "$ARM64_NW" ] && [ -f "$ARM64_NW" ]; then
-      nw="$ARM64_NW"
-      echo "Using ARM64 NW.js: $nw" >&2
-    else
-      echo "" >&2
-      echo "WARNING: x64 NW.js on Apple Silicon (Rosetta 2). Install ARM64 for faster startup." >&2
-      echo "" >&2
-    fi
-  fi
+  case "$nw" in
+    */node_modules/.bin/nw)
+      # Node CLI wrapper — do not substitute a random ~/.nwjs binary; use npm SDK path resolution above or Rosetta.
+      ;;
+    *)
+      FILE_ARCH=$(file "$nw" 2>/dev/null | grep -i "arm64\|arm64e" || echo "")
+      if [ -z "$FILE_ARCH" ]; then
+        # Using x64 on Apple Silicon: try once to find ARM64 (faster than x64 via Rosetta)
+        ARM64_NW=$(find /Applications -path "*nwjs-sdk*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+        [ ! -f "$ARM64_NW" ] && ARM64_NW=$(find "$HOME/.nwjs" -path "*arm64*/nwjs.app/Contents/MacOS/nwjs" -type f 2>/dev/null | head -n 1)
+        if [ -n "$ARM64_NW" ] && [ -f "$ARM64_NW" ]; then
+          nw="$ARM64_NW"
+          echo "Using ARM64 NW.js: $nw" >&2
+        else
+          echo "" >&2
+          echo "WARNING: x64 NW.js on Apple Silicon (Rosetta 2). Install ARM64 for faster startup." >&2
+          echo "" >&2
+        fi
+      fi
+      ;;
+  esac
 fi
 
 # Save resolved path and architecture to cache (attune version to hardware for next run)
@@ -482,15 +379,12 @@ if [ -n "$APP_PATH" ]; then
   done
 fi
 
-# On macOS, NW.js must get --nwapp <dir> (not bare <dir>) or it looks for app.nw inside the SDK bundle.
-# This applies when $nw is node_modules/.bin/nw as well as .../nwjs.app/Contents/MacOS/nwjs — the former
-# path does not match *.app/Contents/MacOS/*, so we always pass --nwapp on macOS.
+# Pass the app directory as the first argument (same as `npm start` → `nw .`).
+# The npm `nw` CLI spawns the native binary with [appPath, ...extraArgs], not `--nwapp`.
+# Using --nwapp on macOS breaks the Node wrapper's argv handling.
 NW_LAUNCH_ARGS=("$APP_PATH" "${argv[@]}")
-if [ "$PLATFORM" = "macos" ]; then
-  NW_LAUNCH_ARGS=(--nwapp "$APP_PATH" "${argv[@]}")
-fi
 
-# Launch with error trapping
+# Launch with error trapping (direct exec: reliable exit codes, stderr to log; avoids open(1) flakiness)
 set +e  # Don't exit on error, we'll handle it
 "$nw" "${NW_LAUNCH_ARGS[@]}" 2>>"$LOG_FILE"
 EXIT_CODE=$?
@@ -506,6 +400,16 @@ if [ $EXIT_CODE -ne 0 ]; then
     tail -10 "$LOG_FILE" >&2
   fi
   if [ "$PLATFORM" = "macos" ]; then
+    if [ -f "$LOG_FILE" ] && { grep -q "Mach rendezvous" "$LOG_FILE" 2>/dev/null || grep -q "shared_memory_switch" "$LOG_FILE" 2>/dev/null; }; then
+      echo "" >&2
+      echo "Log suggests Chromium/NW.js multiprocess IPC failed (Mach rendezvous / shared memory)." >&2
+      if [ -n "$nw_page_editor" ] && [ -f "$nw_page_editor/package.json" ]; then
+        echo "Try: rm -f $CACHE_FILE && cd \"$nw_page_editor\" && npm ci && ./bin/${0##*/}" >&2
+      else
+        echo "Try: rm -f $CACHE_FILE && npm ci (from repo root) then run this launcher again." >&2
+      fi
+      echo "See DEBUG.md → Project crashed → item 5 (Mach rendezvous / shared_memory_switch)." >&2
+    fi
     if [ $EXIT_CODE -eq 33 ] || { [ -f "$LOG_FILE" ] && grep -q "app\.nw" "$LOG_FILE" 2>/dev/null; }; then
       echo "" >&2
       echo "If the log mentions app.nw or Resources/app.nw: do not use a generic /Applications/nwjs.app." >&2

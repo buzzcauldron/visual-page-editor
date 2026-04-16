@@ -19,86 +19,34 @@ Visual Page Editor is an application for viewing and editing ground truth or pre
 
 ## Quick start (desktop)
 
-You do **not** need NW.js installed globally or on your `PATH`. The **`nw` npm package** downloads the NW.js SDK into `node_modules/` during install. Launchers prefer the npm-installed SDK (`node_modules/.bin/nw` on Unix, `node_modules/nw/nwjs-sdk-*/nw.exe` on Windows) and prepend portable Node from `.tools/` to `PATH` when `install-desktop` has bootstrapped it.
-
-**Automatic install (Node optional):** one block installs dependencies, verifies NW.js, and optionally starts the app.
-
-- **Linux / macOS / Git Bash:**
-  ```bash
-  git clone https://github.com/buzzcauldron/visual-page-editor.git && cd visual-page-editor && ./scripts/install-desktop.sh --start
-  ```
-  Install only (no launch): `./scripts/install-desktop.sh`  
-  Same from repo root: `./install.sh` or `npm run install-desktop`
-
-- **Windows (PowerShell):**
-  ```powershell
-  git clone https://github.com/buzzcauldron/visual-page-editor.git; cd visual-page-editor; .\scripts\install-desktop.ps1 -Start
-  ```
-
-`install-desktop` runs `./scripts/bootstrap-node.sh` when Node 18+ is missing (portable Node into `.tools/`), then **`npm install`** (pulls **NW.js**), then checks that **`node_modules/.bin/nw`** exists.
-
-**Manual path (if you already have Node + npm):**
 ```bash
-git clone https://github.com/buzzcauldron/visual-page-editor.git && cd visual-page-editor && npm install && npm start
-```
-
-**Linux / macOS (install then open a sample file):**
-```bash
+git clone https://github.com/buzzcauldron/visual-page-editor.git
 cd visual-page-editor
 ./scripts/install-desktop.sh
 ./bin/visual-page-editor examples/lorem.xml
 ```
 
-**Windows (PowerShell), install then sample:**
-```powershell
-cd visual-page-editor
-.\scripts\install-desktop.ps1
-.\bin\visual-page-editor.ps1 examples\lorem.xml
-```
+That installs dependencies (and bootstraps Node into `.tools/` if you do not have Node 18+), pulls the NW.js SDK via npm, then opens the sample Page XML. You do not need a global `nw` on `PATH`.
 
-**GitHub ZIP (no Git):** Extract the archive, open a terminal in that folder, then run **`./scripts/install-desktop.sh --start`** (Unix) or **`.\scripts\install-desktop.ps1 -Start`** (Windows) — same automatic sequence as above.
+**Windows (PowerShell):** `.\scripts\install-desktop.ps1` then `.\bin\visual-page-editor.ps1 examples\lorem.xml`
 
-**Details:** `install-desktop` uses **`./scripts/bootstrap-node.sh`** when Node 18+ is missing (portable Node under `.tools/`; requires `curl`/`wget` + `tar` on Unix). You can still run bootstrap alone if you prefer.
+Optional: `./scripts/install-desktop.sh --start` runs install and then launches the app in one step. On Windows: `.\scripts\install-desktop.ps1 -Start`.
 
-You do **not** need to install NW.js separately or add it to your system `PATH`; the `nw` package installs under `node_modules/`.
+More detail — Docker desktop image, tests, packaging, Apple Silicon notes: [README-DOCKER.md](README-DOCKER.md), [TESTING.md](TESTING.md), [BUILD.md](BUILD.md), [INSTALL-MAC.md](INSTALL-MAC.md).
 
-**Docker:** The desktop image runs NW.js from a fixed path inside the container (`/app/nwjs/nw`); nothing is added to `PATH` on the host. See [README-DOCKER.md](README-DOCKER.md).
-
-The [nw](https://www.npmjs.com/package/nw) package is a **regular dependency**; its postinstall downloads the **NW.js SDK** for your OS/arch into `node_modules/` (ignored by git). The launcher prefers `node_modules/.bin/nw` when present, then falls back to `~/.nwjs`, PATH, or (when `AUTO_DOWNLOAD_NWJS` is set) a download. To confirm a clean machine needs no global `nw`, run `npm run verify:nw`. To simulate a **fresh Linux VM** (no system Node, minimal `PATH`) and verify bootstrap + NW.js end-to-end, install [Docker](https://docs.docker.com/get-docker/) and run `./scripts/test-install-docker.sh` (or `npm run test:install-docker`). For packaged builds (e.g. from [BUILD.md](BUILD.md)), use the installed launcher instead.
-
-On **Linux ARM64**, `uname -m` sets the architecture so auto-download and `~/.nwjs` lookups use **linux-arm64**; `npm install` does the same via the `nw` package. If only an x64 binary is found, the launcher warns and you can run `npm install` or set `AUTO_DOWNLOAD_NWJS=1` to fetch the matching SDK.
-
-**Open multiple files:**
-```bash
-./bin/visual-page-editor examples/lorem.xml examples/lorem2.xml
-```
+**Open multiple files:** `./bin/visual-page-editor examples/lorem.xml examples/lorem2.xml`
 
 ---
 
 ## Container (Docker)
 
-Run the editor in a container (no local NW.js needed on the host). The desktop image ([`Dockerfile.desktop`](Dockerfile.desktop)) bundles NW.js **0.94.0** by default—the same runtime family as `package.json` / `./bin/visual-page-editor`. Override at build time: `--build-arg NWJS_VERSION=…`.
+**Recommended:** from the repo root, use **`./docker-run.sh`** — it builds a version-tagged image (`visual-page-editor:<VERSION>` from [`VERSION`](VERSION)), configures **XQuartz** on macOS or **X11** on Linux, and mounts your project so saves stay on the host. First run builds the image; after upgrades use `./docker-run.sh --build …`.
 
-**Build:**
 ```bash
-docker build --platform linux/amd64 -f Dockerfile.desktop -t visual-page-editor .
+./docker-run.sh examples/lorem.xml
 ```
 
-**Run (headless, e.g. convert):**
-```bash
-docker run --rm --platform linux/amd64 -v $(pwd):/workspace visual-page-editor examples/lorem.xml
-```
-
-**Run with GUI (X11):**
-
-- Linux: use `./docker-run.sh` or pass `-e DISPLAY` and mount `/tmp/.X11-unix`.
-- macOS: install XQuartz, allow network clients, then:
-  ```bash
-  docker run --rm --platform linux/amd64 -e DISPLAY=host.docker.internal:0 -v $(pwd):/workspace visual-page-editor examples/lorem.xml
-  ```
-  The window appears in the XQuartz app.
-
-See [README-DOCKER.md](README-DOCKER.md) for more options.
+No Node or NW.js is required on the host—only Docker (and XQuartz on macOS for a visible window). Full prerequisites, Compose, and manual `docker` commands: **[README-DOCKER.md](README-DOCKER.md)**.
 
 ---
 
@@ -130,9 +78,14 @@ cd visual-page-editor
 # or: npm start
 ```
 
-Smoke-test a PATH-only install: `npm run verify:nw`. The launcher uses `NWJS_VERSION` (default **0.94.0**, aligned with `nw@0.94.0-sdk` in `package.json`). Set `AUTO_DOWNLOAD_NWJS=1` if you rely on the launcher downloading NW.js to `~/.nwjs` when `node_modules` is not present.
+Verification scripts (`verify:nw`, Docker bootstrap test, clean macOS copy): [TESTING.md](TESTING.md). The launcher uses `NWJS_VERSION` (default **0.109.1**, aligned with `nw@0.109.1-sdk` in `package.json`).
 
-Code review: `npm run review` or `./scripts/code-review.sh`. See [CODE_REVIEW.md](CODE_REVIEW.md).
+**Testing:**
+- `npm run test:unit` — vitest unit tests (Point2f, PanZoom, etc.)
+- `npm run test:launcher` — bats launcher tests (20 tests across platforms)
+- `npm run review` / `./scripts/code-review.sh` — code review; see [CODE_REVIEW.md](CODE_REVIEW.md)
+
+**Build:** `npm run build` bundles `src/entry.js` → `js/bundle.js` via esbuild (runs automatically on `npm install` via the `prepare` script). Use `npm run build:watch` during development.
 
 ## License and links
 

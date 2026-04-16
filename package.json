@@ -1,6 +1,6 @@
 {
   "name": "visual-page-editor",
-  "version": "1.2.0",
+  "version": "2.0.1",
   "description": "Modern visual editor for Page XML files - based on nw-page-editor",
   "engines": {
     "node": ">=18.0.0"
@@ -19,24 +19,34 @@
   "dependencies": {
     "github-markdown-css": "^5.6.0",
     "image-size": "^0.6.2",
-    "nw": "0.94.0-sdk"
+    "nw": "0.109.1-sdk"
   },
   "devDependencies": {
     "@types/jquery": "^3.3.47",
+    "esbuild": "^0.27.4",
     "jshint": "^2.13.6",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.2"
   },
   "scripts": {
+    "build": "esbuild src/entry.js --bundle --platform=node --packages=external --format=iife --outfile=js/bundle.js --log-level=info",
+    "build:watch": "esbuild src/entry.js --bundle --platform=node --packages=external --format=iife --outfile=js/bundle.js --watch",
+    "prepare": "npm run build",
     "review": "./scripts/code-review.sh",
-    "lint": "jshint js/*.js --exclude js/*.min.js",
+    "lint": "jshint js/*.js --exclude js/*.min.js,js/bundle.js,js/xmllint.js",
     "test": "npm run review",
+    "test:unit": "vitest run",
+    "test:launcher": "bats scripts/test-launcher.bats",
     "typecheck": "tsc --noEmit",
     "ts": "tsc",
     "start": "nw .",
     "nw": "nw .",
     "verify:nw": "./scripts/verify-local-nw-install.sh",
     "test:install-docker": "./scripts/test-install-docker.sh",
-    "install-desktop": "./scripts/install-desktop.sh"
+    "test:install-mac": "./scripts/test-fresh-install-mac.sh",
+    "install-desktop": "./scripts/install-desktop.sh",
+    "docker:run": "./docker-run.sh",
+    "check:nw-align": "./scripts/check-nwjs-version-alignment.sh"
   },
   "repository": {
     "type": "git",
@@ -49,4 +59,3 @@
     "visual-editor"
   ]
 }
-

@@ -1,7 +1,7 @@
 /**
  * Interactive editing of Page XMLs functionality.
  *
- * @version 1.2.0
+ * @version 2.0.0
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * Based on nw-page-editor by Mauricio Villegas
@@ -14,7 +14,30 @@
 
 $(window).on('load', function () {
 
-  /// Restore UI state (edit mode, drawer options) on document load – used so selection persists across images
+  /// Show a dismissible toast with an optional Undo action.
+  /// onUndo() is called if the user clicks Undo within the timeout.
+  function showUndoToast( msg, onUndo, durationMs ) {
+    durationMs = durationMs || 4500;
+    var toast = $('<div class="file-expected-toast undo-toast"></div>');
+    var msgSpan = $('<span></span>').text(msg);
+    toast.append(msgSpan);
+    if ( typeof onUndo === 'function' ) {
+      var undoBtn = $('<button class="undo-toast-btn">Undo</button>');
+      undoBtn.on('click', function () {
+        clearTimeout(timer);
+        toast.remove();
+        onUndo();
+      });
+      toast.append(' ').append(undoBtn);
+    }
+    $('body').append(toast);
+    var timer = window.setTimeout( function () {
+      toast.addClass('file-expected-toast-hide');
+      window.setTimeout( function () { toast.remove(); }, 300 );
+    }, durationMs );
+  }
+
+  /// Restore UI state (edit mode, drawer options) after window load (DOM + resources) – used so selection persists across images
   function restoreEditorUIOnLoad() {
     var changeReg = pageCanvas.cfg.registerChangeEnabled;
     pageCanvas.cfg.registerChangeEnabled = false;
@@ -57,8 +80,12 @@ $(window).on('load', function () {
           g = $(elem).closest('g'),
           editable = pageCanvas.util.getSortedEditables();
           // Minimal sync updates so selection and sidebar feel instant
-          $('#selectedType').text( g.hasClass('TableCell') ? 'TableCell' : g.attr('class').replace(/ .*/,'') );
-          $('#selectedId').text( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') );
+          var typeText = g.hasClass('TableCell') ? 'TableCell' : g.attr('class').replace(/ .*/,'');
+          var idText = String( g.is('.Page') && ! g.attr('id') ? $('.Page').index(g)+1 : g.attr('id') || '' );
+          $('#selectedType').text(typeText);
+          $('#selectedId').text(idText);
+          $('#modeTypeSep').toggle(!!typeText);
+          $('#modeIdSep').toggle(!!idText);
           $('#modeElement').text((editable.index(g)+1)+'/'+editable.length);
 
           // Defer all heavier work so click feels instant; skip if selection changed during rapid clicks
@@ -75,7 +102,10 @@ $(window).on('load', function () {
                 pageCanvas.cfg.baselineType = lineType;
               }
             }
-            if ( text.length !== 0 ) {
+            // Avoid overwriting #textedit while the user is typing (deferred onSelect vs input race).
+            if ( document.activeElement && document.activeElement.id === pageCanvas.cfg.textareaId && $('.editing').length )
+              ;
+            else if ( text.length !== 0 ) {
               text = pageCanvas.cfg.textFormatter(text.html());
               $('#textedit').val(text);
             }
@@ -112,7 +142,7 @@ $(window).on('load', function () {
             return false;
           }
           else if ( window.getComputedStyle($('#drawer')[0]).display !== 'none' ) {
-            $('#drawerButton').click();
+            setDrawerOpen(false);
             return false;
           }
           return true;
@@ -122,11 +152,18 @@ $(window).on('load', function () {
               return (className.match(/(^|\s)selected-parent-\S+/g) || []).join(' ');
             } );
         },
-      onUnselect: function () {
-          $('#selectedType').text('-');
-          $('#selectedId').text('-');
+      onUnselect: function ( elem ) {
+          $('#selectedType').text('');
+          $('#selectedId').text('');
+          $('#modeTypeSep').hide();
+          $('#modeIdSep').hide();
           $('#modeElement').text('-/'+$('.editable').length);
-          $('#textedit').val('');
+          // Do not clear the text box if this node is still in text/point edit (e.g. selection moved to a child baseline).
+          // Clearing here drops in-progress line text that only lives in #textedit until removeEditing runs.
+          var $u = elem ? $(elem) : $();
+          var keepTextPane = $u.length && ( $u.hasClass('editing') || $u.find('.editing').length > 0 );
+          if ( ! keepTextPane )
+            $('#textedit').val('');
           $('#textinfo').empty();
           // Keep the current baseline type selection for creating new baselines
           // Only update config from radio button if one is checked
@@ -175,11 +212,17 @@ $(window).on('load', function () {
             else
               type = elem.length+' elements with IDs: '+elem.map(function(){return this.id;}).get().join(', ');
           }
-          return confirm('WARNING: You are about to remove '+type+'. Continue?');
+          window.setTimeout( function () {
+            showUndoToast( 'Deleted '+type, function () { Mousetrap.trigger('mod+z'); } );
+          }, 0 );
+          return true;
         },
       delRowColConfirm: function ( id, row, col ) {
           var type = row ? 'row '+row : 'column '+col;
-          return confirm('WARNING: You are about to remove '+type+' from TableRegion '+id+'. Continue?');
+          window.setTimeout( function () {
+            showUndoToast( 'Deleted '+type+' from '+id, function () { Mousetrap.trigger('mod+z'); } );
+          }, 0 );
+          return true;
         },
       onValidText: function () { $('#textedit').removeClass('field-invalid'); },
       onInvalidText: function () { $('#textedit').addClass('field-invalid'); },
@@ -332,7 +375,7 @@ $(window).on('load', function () {
       var
       value = props[k].value?'&nbsp;&nbsp;⇒&nbsp;&nbsp;'+escapeEnts(props[k].value):'',
       conf = props[k].conf?'conf='+props[k].conf:'',
-      setBy = props[k].setBy?'setBy='+props[k].setBy:'';
+      setBy = props[k].setBy?'setBy='+props[k].setBy:'',
       extra = conf||setBy?'&nbsp;('+conf+(conf&&setBy?' ':'')+setBy+')':'';
       info += '<div>&nbsp;&nbsp;'+escapeEnts(k)+extra+value+'</div>';
     }
@@ -416,8 +459,8 @@ $(window).on('load', function () {
     flushPropertyModal();
     var
     isreadonly = pageCanvas.util.isReadOnly(elem),
-    add = $('<button tabIndex="-1">Add new property (alt+a)</button>');//,
-    target = $('#selectedType').text()+' '+$('#selectedId').text();
+    add = $('<button tabIndex="-1">Add new property (alt+a)</button>');
+    var target = $('#selectedType').text()+' '+$('#selectedId').text();
     prop_elem = elem;
 
     $('#props-target').html( target === '- -' ? 'Document' : target );
@@ -440,7 +483,7 @@ $(window).on('load', function () {
 
     function updateElemSetBy( elem, input ) {
       var
-      elem_name = elem.attr('class').replace(/ .*/, '');
+      elem_name = elem.attr('class').replace(/ .*/, ''),
       setBy_val = input[0].value.trim();
       if ( setBy_val ) {
         elem.attr('setBy', setBy_val);
@@ -506,7 +549,7 @@ $(window).on('load', function () {
           else
             keyDict[tkey] = {'count': 1, 'elems': [this]};
         });
-      for ( const [k, v] of Object.entries(keyDict) )
+      for ( const v of Object.values(keyDict) )
         if ( v.count > 1 )
           $(v.elems).addClass('field-invalid');
         else
@@ -552,10 +595,9 @@ $(window).on('load', function () {
             elem_desc = 'document';
           else
             elem_desc = elem.attr('class').replace(/ .*/,'')+' with id='+elem.attr('id');
-          if ( confirm('Delete property with key="'+prop.attr('key')+'" from '+elem_desc+'?') ) {
-            div.remove();
-            pageCanvas.util.delProperty( prop.attr('key'), elem );
-          }
+          div.remove();
+          pageCanvas.util.delProperty( prop.attr('key'), elem );
+          showUndoToast( 'Deleted property "'+prop.attr('key')+'" from '+elem_desc, function () { Mousetrap.trigger('mod+z'); } );
         } );
       div
         .append('Key:').append(key)
@@ -768,20 +810,26 @@ $(window).on('load', function () {
           $(e.target).focus();
         }
       } );
-  Mousetrap.bind( 'mod+f', function () {
-      if ( ! textfilter.is(':visible') ) {
-        textfilter.toggle();
-        $('.xpath-select').removeClass('xpath-select');
-        filterHistory = localStorage.filterHistory ? JSON.parse(localStorage.filterHistory) : [];
-      }
-      $(textfilter_input).focus();
-      return filterMode();
-    } );
+  function showFilter() {
+    if ( ! textfilter.is(':visible') ) {
+      textfilter.show();
+      $('.xpath-select').removeClass('xpath-select');
+      filterHistory = localStorage.filterHistory ? JSON.parse(localStorage.filterHistory) : [];
+    }
+    $('#filterToggle').addClass('filter-active');
+    $(textfilter_input).focus();
+    return filterMode();
+  }
   function clearFilter() {
-    textfilter.toggle(false);
+    textfilter.hide();
+    $('#filterToggle').removeClass('filter-active');
     $('.xpath-select').removeClass('xpath-select');
     return filterMode();
   }
+  $('#filterToggle').click( function () {
+    if ( textfilter.is(':visible') ) clearFilter(); else showFilter();
+  } );
+  Mousetrap.bind( 'mod+f', function () { return showFilter(); } );
   $('#clearFilter').click(clearFilter);
   Mousetrap.bind( 'mod+shift+f', clearFilter );
   function addToFilterHistory() {
@@ -805,18 +853,20 @@ $(window).on('load', function () {
   };
 
   /// Drawer button ///
-  Mousetrap.bind( 'mod+enter', function () { $('#drawerButton').click(); return false; } );
-  $('#drawerButton').click( function() {
-      $('#drawer').toggle();
-      $(this).toggleClass('is-active');
-    } );
-  $('#drawerClose').click( function() {
-      if ( $('#drawer').is(':visible') ) {
-        $('#drawer').hide();
-        $('#drawerButton').removeClass('is-active');
-      }
-      return false;
-    } );
+  function setDrawerOpen( open ) {
+    if ( open ) {
+      $('#drawer').show();
+      $('#drawerButton').addClass('is-active');
+      document.body.classList.add('drawer-open');
+    } else {
+      $('#drawer').hide();
+      $('#drawerButton').removeClass('is-active');
+      document.body.classList.remove('drawer-open');
+    }
+  }
+  Mousetrap.bind( 'mod+enter', function () { setDrawerOpen( !$('#drawer').is(':visible') ); return false; } );
+  $('#drawerButton').click( function() { setDrawerOpen( !$('#drawer').is(':visible') ); } );
+  $('#drawerClose').click( function() { setDrawerOpen(false); return false; } );
 
   /// Allow clicking label text to select radio/checkbox (works even if native label association is blocked) ///
   $('#drawer').on('click', 'label', function ( e ) {
@@ -853,6 +903,15 @@ $(window).on('load', function () {
     if ( el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable ) return false;
     return true;
   }
+  /// Mod+M / Mod+D for baseline type: same as m/d but work while #textedit is focused (single-letter m/d are disabled there so you can type). ///
+  function focusAllowsModBaselineTypeShortcut() {
+    var el = document.activeElement;
+    if ( ! el ) return true;
+    if ( $(el).closest('#drawer').length ) return false;
+    if ( el.id === 'textedit' ) return true;
+    if ( el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable ) return false;
+    return true;
+  }
   function runAndFlushDrawerState( action ) {
     if ( typeof action === 'function' ) action();
     else if ( typeof action === 'string' ) $(action).click();
@@ -877,10 +936,19 @@ $(window).on('load', function () {
       return false;
     } );
   }
+  function bindModBaselineTypeShortcut( key, handler ) {
+    Mousetrap.bind( key, function () {
+      if ( ! focusAllowsModBaselineTypeShortcut() ) return true;
+      handler();
+      return false;
+    } );
+  }
   bindPageShortcut( 'c', function () { setMode2AndFlush( '#createMode input' ); } );
   bindPageShortcut( 'b', function () { setMode2AndFlush( '#baseMode input' ); } );
   bindPageShortcut( 'm', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('margin'); } ); } );
   bindPageShortcut( 'd', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('default'); } ); } );
+  bindModBaselineTypeShortcut( 'mod+m', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('margin'); } ); } );
+  bindModBaselineTypeShortcut( 'mod+d', function () { runAndFlushDrawerState( function () { applyBaselineTypeToSelected('default'); } ); } );
 
   /// Save state of drawer in local storage (debounced to reduce writes) ///
   function serializeDrawerInput( $label ) {
@@ -1021,6 +1089,17 @@ $(window).on('load', function () {
     .each(handleXmlTextValidate)
     .click(handleXmlTextValidate);
 
+  /// Lazy-load marked.js (Markdown renderer) only when first needed ///
+  var markedLoaded = false;
+  function ensureMarked( cb ) {
+    if ( markedLoaded || typeof marked !== 'undefined' ) { markedLoaded = true; return cb(); }
+    var s = document.createElement('script');
+    s.src = '../js/marked-4.0.12.min.js';
+    s.onload = function () { markedLoaded = true; cb(); };
+    s.onerror = function () { cb( new Error('Failed to load marked') ); };
+    document.head.appendChild( s );
+  }
+
   /// Setup readme ///
   function populateReadme() {
     var content = $('#readme-content');
@@ -1049,21 +1128,22 @@ $(window).on('load', function () {
         tryLoadReadme(index + 1);
       } )
       .done( function ( data ) {
-          // Successfully loaded README
-          content.html(marked.parse(data));
-          
-          // Add version information
-          var ul = $('<ul/>'),
-              versions = pageCanvas.getVersion(),
-              keys = Object.keys(versions).sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
-          
-          for ( var k in keys ) {
-            k = keys[k];
-            $('<li>'+k+': '+versions[k]+'</li>').appendTo(ul);
-          }
-          
-          $('<h1>Component versions</h1>').appendTo(content);
-          ul.appendTo(content);
+          ensureMarked( function () {
+            content.html(marked.parse(data));
+
+            // Add version information
+            var ul = $('<ul/>'),
+                versions = pageCanvas.getVersion(),
+                keys = Object.keys(versions).sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+
+            for ( var k in keys ) {
+              k = keys[k];
+              $('<li>'+k+': '+versions[k]+'</li>').appendTo(ul);
+            }
+
+            $('<h1>Component versions</h1>').appendTo(content);
+            ul.appendTo(content);
+          } );
         } );
     }
     
@@ -1091,8 +1171,10 @@ $(window).on('load', function () {
       }
       $.ajax({ url: paths[index], dataType: 'text', cache: false })
         .done( function ( data ) {
-          content.html(marked.parse(data));
-          $('#readme-modal').addClass('modal-active');
+          ensureMarked( function () {
+            content.html(marked.parse(data));
+            $('#readme-modal').addClass('modal-active');
+          } );
         } )
         .fail( function () { tryLoad(index + 1); } );
     }
@@ -1161,9 +1243,15 @@ $(window).on('load', function () {
     var baselineType = $(this).children('input').attr('value');
     applyBaselineTypeToSelected(baselineType);
   }
-  $('label[id^=baseline-type-]')
-    .each(handleBaselineType)
-    .click(handleBaselineType);
+  // Only .click here — do not .each(handleBaselineType): that would run once per label in DOM
+  // order and the second label (margin) would overwrite loadDrawerState() and force margin on
+  // all selected lines. Sync cfg from the radio UI once (after loadDrawerState).
+  $('label[id^=baseline-type-]').click(handleBaselineType);
+  (function syncBaselineTypeCfgFromDrawerRadios() {
+    var v = $('input[name="baseline-type"]:checked').val();
+    if ( v )
+      pageCanvas.cfg.baselineType = v;
+  })();
 
   /// Setup table size ///
   $('label[id^="table-"] input')
@@ -1507,7 +1595,7 @@ $(window).on('load', function () {
     /// Other regions modes ///
     else if ( other.prop('checked') ) {
       var other_region_sel = '.'+other_region;
-      afterCreate = function () {};
+      var afterCreate = function () {};
       if ( other_region_type ) {
         other_region_sel = '.'+other_region+'[type="'+other_region_type+'"]';
         afterCreate = function ( elem ) { $(elem).parent().attr('type', other_region_type); };
@@ -1566,5 +1654,27 @@ $(window).on('load', function () {
     .click(handleRoundPoints);
   function handleRoundPoints() {
     pageCanvas.cfg.roundPoints = $(this).children('input').prop('checked');
+  }
+
+  /// First-run shortcut hint toast (auto-dismiss, shown once per browser profile) ///
+  if ( ! localStorage.getItem('vpe-shortcuts-hint-seen') ) {
+    window.setTimeout( function () {
+      var msg = 'Tip: Mod+Enter toggles the menu \u2022 Mod+F filters elements \u2022 Mod+Z undos \u2022 Del removes';
+      var toast = $('<div class="file-expected-toast hint-toast"></div>');
+      var msgSpan = $('<span></span>').text(msg);
+      var dimBtn = $('<button class="undo-toast-btn">Got it</button>');
+      dimBtn.on('click', function () {
+        localStorage.setItem('vpe-shortcuts-hint-seen','1');
+        clearTimeout(timer);
+        toast.addClass('file-expected-toast-hide');
+        window.setTimeout( function () { toast.remove(); }, 300 );
+      });
+      toast.append(msgSpan).append(' ').append(dimBtn);
+      $('body').append(toast);
+      var timer = window.setTimeout( function () {
+        toast.addClass('file-expected-toast-hide');
+        window.setTimeout( function () { toast.remove(); }, 300 );
+      }, 9000 );
+    }, 1500 );
   }
 } );

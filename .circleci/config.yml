@@ -2,26 +2,35 @@
 # https://circleci.com/docs/2.0/env-vars/#setting-an-environment-variable-in-a-project
 # https://circleci.com/docs/2.0/getting-started/
 
-version: 2
+version: 2.1
 jobs:
   publish-github-release:
     docker:
-      - image: cibuilds/github:0.12.0
+      - image: cimg/base:stable
     environment:
-      VERSION_NWJS: v0.99.0
+      VERSION_NWJS: v0.109.1
     steps:
       - checkout
       - run:
+          name: Install ghr
+          command: |
+            GHR_VERSION=v0.16.2
+            curl -fLSs -o /tmp/ghr.tar.gz \
+              "https://github.com/tcnksm/ghr/releases/download/${GHR_VERSION}/ghr_${GHR_VERSION}_linux_amd64.tar.gz"
+            tar -xzf /tmp/ghr.tar.gz -C /tmp
+            sudo mv /tmp/ghr_${GHR_VERSION}_linux_amd64/ghr /usr/local/bin/ghr
+            rm -rf /tmp/ghr*
+      - run:
           name: "Publish Release on GitHub"
           command: |
-            git submodule update --init
+            git submodule update --init --depth=1
             mkdir nwjs
             curl -fLSs -o nwjs/nwjs-win-x64.zip https://dl.nwjs.io/${VERSION_NWJS}/nwjs-sdk-${VERSION_NWJS}-win-x64.zip
             unzip -qq nwjs/nwjs-win-x64.zip -d nwjs
             mkdir nw-page-editor-win-x64
             mv nwjs/*-win-x64/* nw-page-editor-win-x64
             mv nw-page-editor-win-x64/nw.exe nw-page-editor-win-x64/nw-page-editor.exe
-            cp -r *.md css examples html js node_modules package.json xsd xslt nw-page-editor-win-x64
+            cp -r *.md css examples html js package.json xsd xslt nw-page-editor-win-x64
             mkdir artifacts
             zip -qr artifacts/nw-page-editor-win-x64.zip nw-page-editor-win-x64
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} ${CIRCLE_TAG} ./artifacts/

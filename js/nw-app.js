@@ -1,7 +1,7 @@
 /**
  * NW.js app functionality for visual-page-editor.
  *
- * @version 1.2.0
+ * @version 2.0.0
  * @author buzzcauldron
  * @copyright Copyright(c) 2025, buzzcauldron
  * @license MIT License
@@ -188,7 +188,7 @@ $(window).on('load', function () {
   }
 
   function fileExists( file ) {
-    filepath = getFilePath(file);
+    var filepath = getFilePath(file);
     if ( fs.existsSync(filepath) )
       return true;
     badfiles.push(file);
@@ -291,9 +291,9 @@ $(window).on('load', function () {
   }
 
   /// Base window title including version (so user can confirm which build is running) ///
-  var baseWindowTitle = (typeof nw !== 'undefined' && nw.App && nw.App.manifest && nw.App.manifest.window)
-    ? ((nw.App.manifest.window.title || 'Visual Page Editor') + ' ' + (nw.App.manifest.version || ''))
-    : ('Visual Page Editor ' + (window.PAGE_EDITOR_VERSION || ''));
+  var baseWindowTitle = (typeof nw !== 'undefined' && nw.App && nw.App.manifest && nw.App.manifest.window) ?
+    ((nw.App.manifest.window.title || 'Visual Page Editor') + ' ' + (nw.App.manifest.version || '')) :
+    ('Visual Page Editor ' + (window.PAGE_EDITOR_VERSION || ''));
   $('title').text(baseWindowTitle);
 
   /// Function for preparing new title for app ///
@@ -403,14 +403,31 @@ $(window).on('load', function () {
         } );
     } );
 
+  /// Defer heavy file loads until after first paint so the window/chrome can appear (hang mitigation) ///
+  function runAfterFirstPaint( fn ) {
+    window.requestAnimationFrame( function () {
+      window.requestAnimationFrame( function () {
+        if ( typeof window.requestIdleCallback === 'function' )
+          window.requestIdleCallback( fn, { timeout: 2000 } );
+        else
+          window.setTimeout( fn, 0 );
+      } );
+    } );
+  }
+
   /// Open file if provided as argument, else try last open file ///
-  if ( nw.App.argv.length > 0 && window.location.hash === '#1' ) {
+  /// First window: hash may be empty (NW loads main URL without #1) or "#1"; only window 1 should consume argv.
+  var argvPageNum = parseInt(window.location.hash.substr(1), 10);
+  if (Number.isNaN(argvPageNum)) { argvPageNum = 1; }
+  if ( nw.App.argv.length > 0 && argvPageNum === 1 ) {
     global.pageWindows = [ true ];
-    if ( parseArgs(nw.App.argv) )
-      window.setTimeout( function () {
-          if ( typeof pageCanvas.fitPage !== 'undefined' )
-            pageCanvas.fitPage();
-        }, 300 );
+    runAfterFirstPaint( function () {
+      if ( parseArgs(nw.App.argv) )
+        window.setTimeout( function () {
+            if ( typeof pageCanvas.fitPage !== 'undefined' )
+              pageCanvas.fitPage();
+          }, 300 );
+    } );
   }
   else {
     var lastOpen = null;
@@ -420,13 +437,13 @@ $(window).on('load', function () {
     } catch ( e ) { /* ignore */ }
     if ( lastOpen && lastOpen.fileList && lastOpen.fileList.length > 0 &&
          $( '#openLastFileOnStartup input' ).prop( 'checked' ) ) {
-      var idx = (typeof lastOpen.fileNum === 'number' && lastOpen.fileNum >= 1 && lastOpen.fileNum <= lastOpen.fileList.length)
-        ? lastOpen.fileNum - 1 : 0;
-      if ( parseArgs(lastOpen.fileList, false, lastOpen.fileNum) )
-        window.setTimeout( function () {
-            if ( typeof pageCanvas.fitPage !== 'undefined' )
-              pageCanvas.fitPage();
-          }, 300 );
+      runAfterFirstPaint( function () {
+        if ( parseArgs(lastOpen.fileList, false, lastOpen.fileNum) )
+          window.setTimeout( function () {
+              if ( typeof pageCanvas.fitPage !== 'undefined' )
+                pageCanvas.fitPage();
+            }, 300 );
+      } );
     }
     if ( iswin )
       global.pageWindows = [ true ];
@@ -435,9 +452,12 @@ $(window).on('load', function () {
   }
 
   if ( typeof global.argv !== 'undefined' ) {
-    if ( parseArgs(global.argv) )
-      window.setTimeout( function () { pageCanvas.fitPage(); }, 300 );
+    var argvDeferred = global.argv;
     delete global.argv;
+    runAfterFirstPaint( function () {
+      if ( parseArgs(argvDeferred) )
+        window.setTimeout( function () { pageCanvas.fitPage(); }, 300 );
+    } );
   }
 
   /// Open new window if app already running ///
@@ -535,34 +555,34 @@ $(window).on('load', function () {
   /// Setup Page XML schema validation ///
   var
   pagexml_xsd_file = '../xsd/pagecontent_omnius.xsd',
-  pagexml_xsd_fallback_url = 'https://raw.githubusercontent.com/omni-us/pageformat/main/pagecontent_omnius.xsd',
+  pagexml_xsd_fallback_url = 'https://raw.githubusercontent.com/omni-us/pageformat/master/pagecontent_omnius.xsd',
   pagexml_xsd = false;
   function loadPageXmlXsd( async ) {
     if ( ! pagexml_xsd ) {
       // Helper function to process XSD data
-      function processXsdData( data ) {
+      var processXsdData = function( data ) {
         pagexml_xsd = (new XMLSerializer()).serializeToString(data);
         pagexml_xsd = unescape(encodeURIComponent(pagexml_xsd));
         pageCanvas.cfg.pagexmlns = $(data).find('[targetNamespace]').attr('targetNamespace');
-      }
+      };
       var xsdTimeout = 12000; // ms; avoid ETIMEDOUT by failing fast
-      function onXsdFail( resolvedPath, textStatus, errorThrown ) {
+      var onXsdFail = function( resolvedPath, textStatus, errorThrown ) {
         var errStr = (textStatus || '') + ' ' + (errorThrown || '');
-        var hint = /timeout|ETIMEDOUT/i.test(errStr)
-          ? ' Network timed out. For offline use run: scripts/fetch-xsd.sh'
-          : '';
+        var hint = /timeout|ETIMEDOUT/i.test(errStr) ?
+          ' Network timed out. For offline use run: scripts/fetch-xsd.sh' :
+          '';
         var msg = 'Page XML schema not loaded: ' + resolvedPath + '. Run "git submodule update --init" or "scripts/fetch-xsd.sh" to enable validation.' + hint;
         console.warn( msg );
         showFileExpectedToast( msg );
-      }
+      };
       // Fallback: fetch from GitHub when submodule is not initialized
-      function fetchXsdFromGitHub( resolvedPath ) {
+      var fetchXsdFromGitHub = function( resolvedPath ) {
         $.ajax({ url: pagexml_xsd_fallback_url, async: async, dataType: 'xml', timeout: xsdTimeout })
           .done( function ( data ) { processXsdData( data ); } )
           .fail( function ( _jqXhr, textStatus, errorThrown ) {
             onXsdFail( resolvedPath, textStatus, errorThrown );
           } );
-      }
+      };
       // First try to load the file directly (in case it's the actual XSD)
       $.ajax({ url: pagexml_xsd_file, async: async, dataType: 'xml', timeout: xsdTimeout })
         .done( function ( data ) {
@@ -586,10 +606,18 @@ $(window).on('load', function () {
   }
   loadPageXmlXsd(true);
 
+  var xmllintLoaded = false;
+  function ensureXmllint( cb ) {
+    if ( xmllintLoaded || typeof validateXML !== 'undefined' ) { xmllintLoaded = true; return cb(); }
+    var s = document.createElement('script');
+    s.src = '../js/xmllint.js';
+    s.onload = function () { xmllintLoaded = true; cb(); };
+    s.onerror = function () { cb( new Error('Failed to load xmllint.js') ); };
+    document.head.appendChild( s );
+  }
+
   function validatePageXml() {
-    var
-    val = '',
-    pageXml = pageCanvas.getXmlPage();
+    var pageXml = pageCanvas.getXmlPage();
     if ( ! pageXml )
       return;
     loadPageXmlXsd(false);
@@ -597,33 +625,36 @@ $(window).on('load', function () {
       showFileExpectedToast( 'Page XML schema not loaded. Run "git submodule update --init" or "scripts/fetch-xsd.sh" to enable validation.' );
       return;
     }
-    pageXml = pageXml.replace(/ xmlns="[^"]+"/, ' xmlns="'+pageCanvas.cfg.pagexmlns+'"');
-    pageXml = unescape(encodeURIComponent(pageXml));
-    try {
-      var
-      intercept = null,
-      unhook_intercept = null;
-      // Try to load intercept-stdout, but make it optional
+    ensureXmllint( function ( loadErr ) {
+      if ( loadErr ) { alert( 'Could not load XML validator: '+loadErr.message ); return; }
+      var val = '';
+      pageXml = pageXml.replace(/ xmlns="[^"]+"/, ' xmlns="'+pageCanvas.cfg.pagexmlns+'"');
+      pageXml = unescape(encodeURIComponent(pageXml));
       try {
-        intercept = require("intercept-stdout");
-        unhook_intercept = intercept(function(txt) { val += txt; });
+        var
+        intercept = null,
+        unhook_intercept = null;
+        // Try to load intercept-stdout, but make it optional
+        try {
+          intercept = require("intercept-stdout");
+          unhook_intercept = intercept(function(txt) { val += txt; });
+        } catch ( e ) {
+          console.warn('intercept-stdout not available, validation output may not be captured:', e.message);
+        }
+        validateXML({ xml: pageXml,
+                      schema: pagexml_xsd,
+                      arguments: ['--noout', '--schema', 'PageXmlSchema', 'PageXmlFile'] });
+        if ( unhook_intercept )
+          unhook_intercept();
       } catch ( e ) {
-        // intercept-stdout not available, validation will proceed without capturing stdout
-        console.warn('intercept-stdout not available, validation output may not be captured:', e.message);
+        alert( 'Page XML validation failed to execute: '+e );
+        return;
       }
-      validateXML({ xml: pageXml,
-                    schema: pagexml_xsd,
-                    arguments: ['--noout', '--schema', 'PageXmlSchema', 'PageXmlFile'] });
-      if ( unhook_intercept )
-        unhook_intercept();
-    } catch ( e ) {
-      alert( 'Page XML validation failed to execute: '+e );
-      return;
-    }
-    if ( val === '' || ! / validates$/.test(val.trim()) )
-      alert( 'Page XML does not validate: '+val );
-    else
-      alert( 'Page XML validates' );
+      if ( val === '' || ! / validates$/.test(val.trim()) )
+        alert( 'Page XML does not validate: '+val );
+      else
+        alert( 'Page XML validates' );
+    } );
   }
   $('#pageXmlValidate').on('click',validatePageXml);
 
@@ -636,7 +667,7 @@ $(window).on('load', function () {
 
     if ( typeof localStorage.versionCheck !== 'undefined' ) {
       versionCheck = JSON.parse(localStorage.versionCheck);
-      lastDate = new Date(Date.parse(versionCheck.lastDate));
+      var lastDate = new Date(Date.parse(versionCheck.lastDate));
       if ( (nowDate-lastDate)/(1000*3600*24) < checkDays )
         return;
     }
