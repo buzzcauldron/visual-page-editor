@@ -658,35 +658,4 @@ $(window).on('load', function () {
   }
   $('#pageXmlValidate').on('click',validatePageXml);
 
-  /// Check for new version on app start at most every 8 days ///
-  function checkForUpdates() {
-    var
-    checkDays = 8,
-    nowDate = new Date(),
-    versionCheck = {};
-
-    if ( typeof localStorage.versionCheck !== 'undefined' ) {
-      versionCheck = JSON.parse(localStorage.versionCheck);
-      var lastDate = new Date(Date.parse(versionCheck.lastDate));
-      if ( (nowDate-lastDate)/(1000*3600*24) < checkDays )
-        return;
-    }
-
-    $.ajax({ url: 'https://raw.githubusercontent.com/buzzcauldron/visual-page-editor/main/package.json', dataType: 'json', timeout: 10000 })
-      .fail( function () {
-          console.log('Failed to check the latest version of visual-page-editor in github (e.g. network timeout or offline).');
-        } )
-      .done( function ( data ) {
-          versionCheck.lastDate = new Date();
-          if ( versionCheck.lastVersion < data.version && data.version > nw.App.manifest.version ) {
-            versionCheck.lastVersion = data.version;
-            alert( 'There is a new version of visual-page-editor available. The github main branch version is '+data.version+' and your running version is '+nw.App.manifest.version+'.' );
-          }
-          versionCheck.lastVersion = data.version;
-          localStorage.versionCheck = JSON.stringify(versionCheck);
-        } );
-  }
-  /// Defer version check so startup stays fast (run after 3s) ///
-  window.setTimeout( checkForUpdates, 3000 );
-
 } );
